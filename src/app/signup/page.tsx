@@ -22,8 +22,8 @@ export default function SignupPage() {
     }
 
     setIsLoading(true);
-    setMessage("Account creation attempted (placeholder).");
-    setTimeout(() => setIsLoading(false), 700);
+    setMessage(null);
+    setTimeout(() => setIsLoading(false), 900);
   };
 
   const roleCopy = {
@@ -196,7 +196,14 @@ export default function SignupPage() {
               disabled={isLoading}
               className="w-full rounded-lg bg-[var(--iris-primary)] hover:bg-[var(--iris-primary-strong)] text-white font-semibold py-3 transition-all duration-200 shadow-[0_10px_30px_rgba(30,79,163,0.35)] disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {isLoading ? "Creating account..." : "Create Account"}
+              {isLoading ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 rounded-full border-2 border-white/60 border-t-white animate-spin" aria-hidden />
+                  Creating account...
+                </span>
+              ) : (
+                "Create Account"
+              )}
             </button>
 
             <button

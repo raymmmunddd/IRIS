@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -10,12 +11,18 @@ export default function LoginPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(false);
   const [role, setRole] = useState<"resident" | "official" | "bpat">("resident");
+  const router = useRouter();
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
-    setMessage("Attempted login (placeholder).");
-    setTimeout(() => setIsLoading(false), 600);
+    setMessage(null);
+    setTimeout(() => {
+      setIsLoading(false);
+      if (role === "official") {
+        router.push("/dashboard");
+      }
+    }, 800);
   };
 
   const roleCopy = {
@@ -156,7 +163,14 @@ export default function LoginPage() {
               disabled={isLoading}
               className="w-full rounded-lg bg-[var(--iris-primary)] hover:bg-[var(--iris-primary-strong)] text-white font-semibold py-3 transition-all duration-200 shadow-[0_10px_30px_rgba(30,79,163,0.35)] disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {isLoading ? "Signing in..." : "Login Now"}
+              {isLoading ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 rounded-full border-2 border-white/60 border-t-white animate-spin" aria-hidden />
+                  Signing in...
+                </span>
+              ) : (
+                "Login Now"
+              )}
             </button>
 
             <button
