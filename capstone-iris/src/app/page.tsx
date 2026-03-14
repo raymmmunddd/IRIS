@@ -20,14 +20,14 @@ const features = [
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black to-slate-900 text-white flex flex-col items-center justify-center p-4 font-sans">
+    <div className="min-h-screen bg-[#F6F8FB] text-[#1F2937] flex flex-col items-center justify-center p-4 font-sans">
       <div className="max-w-2xl w-full text-center">
         <div className="mb-8">
-          <h1 className="text-5xl md:text-6xl font-bold mb-4">IRIS</h1>
-          <p className="text-xl text-slate-300">Integrated Response and Investigation System</p>
+          <h1 className="text-5xl md:text-6xl font-bold mb-4 text-[#1F2937]">IRIS</h1>
+          <p className="text-xl text-[#6B7280]">Integrated Response and Investigation System</p>
         </div>
 
-        <p className="text-lg text-slate-400 mb-12">
+        <p className="text-lg text-[#6B7280] mb-12">
           A comprehensive case management and incident tracking system for professional investigators and response teams.
         </p>
 
@@ -40,7 +40,7 @@ export default function Home() {
           </Link>
           <Link
             href="/signup"
-            className="w-full sm:w-auto rounded-lg border border-slate-500 text-slate-100 hover:bg-slate-800 px-8 py-3 text-lg font-semibold transition-colors"
+            className="w-full sm:w-auto rounded-lg border border-[#E3E8EF] text-[#1F2937] hover:bg-white px-8 py-3 text-lg font-semibold transition-colors"
           >
             Create Account
           </Link>
@@ -50,16 +50,16 @@ export default function Home() {
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="p-6 bg-slate-900 rounded-lg border border-slate-800 shadow-lg"
+              className="p-6 bg-white rounded-lg border border-[#E3E8EF] shadow-sm"
             >
-              <h3 className="text-xl font-semibold text-white mb-3">{feature.title}</h3>
-              <p className="text-slate-400 text-sm leading-6">{feature.description}</p>
+              <h3 className="text-xl font-semibold text-[#1F2937] mb-3">{feature.title}</h3>
+              <p className="text-[#6B7280] text-sm leading-6">{feature.description}</p>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="mt-16 text-center text-slate-500 text-sm">
+      <div className="mt-16 text-center text-[#6B7280] text-sm">
         <p>© 2026 IRIS System. All rights reserved.</p>
       </div>
     </div>
