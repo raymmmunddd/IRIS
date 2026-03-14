@@ -34,8 +34,8 @@ export default function LoginPage() {
   } as const;
 
   return (
-    <div className="min-h-screen bg-[#F6F8FB] text-[#0F172A] grid lg:grid-cols-[1.05fr_1fr]">
-      <section className="relative hidden lg:flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#1E4FA3] via-[#173E82] to-[#0C1F4A] p-12">
+    <div className="min-h-screen bg-[var(--iris-bg)] text-[var(--iris-text)] grid lg:grid-cols-[1.05fr_1fr]">
+      <section className="relative hidden lg:flex items-center justify-center overflow-hidden bg-gradient-to-br from-[var(--iris-primary)] via-[var(--iris-primary-strong)] to-[#0C1F4A] p-12">
         <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.18), transparent 35%), radial-gradient(circle at 80% 0%, rgba(255,255,255,0.12), transparent 28%), radial-gradient(circle at 80% 80%, rgba(255,255,255,0.14), transparent 32%)" }} />
         <div className="absolute inset-0" style={{ backgroundImage: "linear-gradient(120deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 35%, rgba(255,255,255,0) 50%), linear-gradient(210deg, rgba(255,255,255,0.05) 10%, rgba(255,255,255,0.02) 48%, rgba(255,255,255,0) 72%)" }} />
         <div className="relative z-10 max-w-xl space-y-6 text-white">
@@ -51,19 +51,27 @@ export default function LoginPage() {
       </section>
 
       <section className="flex items-center justify-center px-6 py-10 lg:px-12">
-        <div className="w-full max-w-lg space-y-8 bg-white/80 backdrop-blur rounded-2xl border border-[#E3E8EF] shadow-[0_10px_60px_rgba(15,23,42,0.08)] p-8">
+        <div className="w-full max-w-lg space-y-8 bg-[var(--iris-surface)]/80 backdrop-blur rounded-2xl border border-[var(--iris-border)] shadow-[0_10px_60px_rgba(15,23,42,0.08)] p-8">
+          <div className="flex justify-between items-center text-sm">
+            <Link href="/" className="inline-flex items-center gap-2 font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">
+              <span aria-hidden>←</span>
+              Back to homepage
+            </Link>
+            <span className="text-[var(--iris-text-subtle)]">Need help?</span>
+          </div>
+
           <div className="space-y-2">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#6B7280]">Welcome back</p>
-            <h2 className="text-3xl font-bold">Log in to IRIS</h2>
-            <p className="text-sm text-[#6B7280]">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--iris-text-subtle)]">Welcome back</p>
+            <h2 className="text-3xl font-bold text-[var(--iris-text)]">Log in to IRIS</h2>
+            <p className="text-sm text-[var(--iris-text-subtle)]">
               Use your work email to access dashboards, cases, and collaboration.
             </p>
           </div>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
-              <p className="text-sm font-medium text-[#0F172A]">Select your role</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <p className="text-sm font-medium text-[var(--iris-text)]">Select your role</p>
+              <div className="flex flex-wrap gap-2">
                 {[
                   { key: "resident", label: "Resident" },
                   { key: "official", label: "Barangay Official" },
@@ -71,10 +79,10 @@ export default function LoginPage() {
                 ].map((option) => (
                   <label
                     key={option.key}
-                    className={`flex items-center justify-center rounded-lg border px-3 py-2 text-sm font-semibold transition-colors cursor-pointer ${
+                    className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
                       role === option.key
-                        ? "border-[#1E4FA3] bg-[#E8F0FF] text-[#0F172A]"
-                        : "border-[#E3E8EF] bg-white text-[#1F2937] hover:border-[#D1D5DB]"
+                        ? "border-[var(--iris-primary)] bg-[var(--iris-primary-light)] text-[var(--iris-text)]"
+                        : "border-[var(--iris-border)] bg-[var(--iris-surface)] text-[var(--iris-text)] hover:border-[#D1D5DB]"
                     }`}
                   >
                     <input
@@ -92,7 +100,7 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-[#0F172A]">
+              <label htmlFor="email" className="text-sm font-medium text-[var(--iris-text)]">
                 Email address
               </label>
               <input
@@ -100,7 +108,7 @@ export default function LoginPage() {
                 type="email"
                 autoComplete="email"
                 required
-                className="w-full rounded-lg border border-[#E3E8EF] bg-white px-4 py-3 text-sm text-[#0F172A] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#1E4FA3] focus:border-[#1E4FA3] disabled:opacity-70"
+                className="w-full rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-4 py-3 text-sm text-[var(--iris-text)] placeholder-[var(--iris-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] focus:border-[var(--iris-primary)] disabled:opacity-70"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@agency.gov"
@@ -109,7 +117,7 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-[#0F172A]">
+              <label htmlFor="password" className="text-sm font-medium text-[var(--iris-text)]">
                 Password
               </label>
               <input
@@ -117,28 +125,28 @@ export default function LoginPage() {
                 type="password"
                 autoComplete="current-password"
                 required
-                className="w-full rounded-lg border border-[#E3E8EF] bg-white px-4 py-3 text-sm text-[#0F172A] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#1E4FA3] focus:border-[#1E4FA3] disabled:opacity-70"
+                className="w-full rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-4 py-3 text-sm text-[var(--iris-text)] placeholder-[var(--iris-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] focus:border-[var(--iris-primary)] disabled:opacity-70"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 disabled={isLoading}
               />
-              <div className="flex items-center justify-between pt-1 text-sm text-[#0F172A]">
+              <div className="flex items-center justify-between pt-1 text-sm text-[var(--iris-text)]">
                 <label className="inline-flex items-center gap-2 select-none">
                   <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-[#D1D5DB] text-[#1E4FA3] focus:ring-[#1E4FA3]"
+                    className="h-4 w-4 rounded border-[#D1D5DB] text-[var(--iris-primary)] focus:ring-[var(--iris-primary)]"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
                   />
-                  <span className="text-[#0F172A]">Remember me</span>
+                  <span className="text-[var(--iris-text)]">Remember me</span>
                 </label>
-                <Link href="#" className="font-semibold text-[#1E4FA3] hover:text-[#173E82]">Forgot your password?</Link>
+                <Link href="#" className="font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">Forgot your password?</Link>
               </div>
             </div>
 
             {message ? (
-              <div className="rounded-lg border border-[#E3E8EF] bg-[#E8F0FF] px-4 py-3 text-sm text-[#0F172A]">
+              <div className="rounded-lg border border-[var(--iris-border)] bg-[var(--iris-primary-light)] px-4 py-3 text-sm text-[var(--iris-text)]">
                 {message}
               </div>
             ) : null}
@@ -146,14 +154,14 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full rounded-lg bg-[#1E4FA3] hover:bg-[#173E82] text-white font-semibold py-3 transition-all duration-200 shadow-[0_10px_30px_rgba(30,79,163,0.35)] disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full rounded-lg bg-[var(--iris-primary)] hover:bg-[var(--iris-primary-strong)] text-white font-semibold py-3 transition-all duration-200 shadow-[0_10px_30px_rgba(30,79,163,0.35)] disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isLoading ? "Signing in..." : "Login Now"}
             </button>
 
             <button
               type="button"
-              className="w-full inline-flex items-center justify-center gap-3 rounded-lg border border-[#E3E8EF] bg-white py-3 text-sm font-semibold text-[#0F172A] shadow-sm hover:border-[#D1D5DB] transition-colors"
+              className="w-full inline-flex items-center justify-center gap-3 rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] py-3 text-sm font-semibold text-[var(--iris-text)] shadow-sm hover:border-[#D1D5DB] transition-colors"
             >
               <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M21.6 12.2273C21.6 11.5182 21.5364 10.8364 21.4182 10.1818H12V14.05H17.4182C17.1864 15.3 16.4909 16.3364 15.4455 17.0273V19.5909H18.5455C20.5091 17.7818 21.6 15.2727 21.6 12.2273Z" fill="#4285F4" />
