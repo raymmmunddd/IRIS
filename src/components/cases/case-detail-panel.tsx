@@ -49,55 +49,53 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate }: CaseDetailPanel
         : []
 
     return (
-        <div className="w-full min-h-full flex flex-col bg-background animate-in fade-in slide-in-from-bottom-4 duration-200">
-      {/* Header Navigation */}
-      <header className="flex-none border-b border-border bg-card px-6 py-4 flex items-center justify-between">
-        <button 
-          onClick={onClose}
-          className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Cases
-        </button>
-      </header>
-
-      {/* Main Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-muted/30">
+        <div className="absolute inset-0 z-50 w-full h-full flex flex-col bg-slate-50/50 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4 duration-200">
+            <div className="flex-1 overflow-y-auto p-6 md:p-8">
                 <div className="mx-auto max-w-7xl space-y-6 pb-12">
-          
-          {/* Case Header */}
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-3xl font-bold text-foreground tracking-tight">{caseData.caseNumber}</h1>
-                <span className={cn("px-2.5 py-0.5 rounded-md text-xs font-semibold border", getPriorityStyle(caseData.priority))}>
-                  {caseData.priority} Priority
-                </span>
-                <span className={cn("px-2.5 py-0.5 rounded-md text-xs font-semibold border", getStatusStyle(caseData.status))}>
-                  {caseData.status}
-                </span>
-              </div>
-              <p className="text-muted-foreground text-lg">{caseData.category}</p>
-            </div>
-            
-            {/* Quick Officer Display */}
-            <div className="flex items-center gap-3 bg-card border border-border px-4 py-2 rounded-lg shadow-sm">
-                <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold border border-slate-200">
-                    {caseData.assignedOfficer.charAt(0)}
-                </div>
-                <div>
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Assigned Officer</p>
-                    <p className="text-sm font-semibold text-foreground">{caseData.assignedOfficer}</p>
-                </div>
-            </div>
-          </div>
+                    {/* Back Navigation */}
+                    <div className="mb-6">
+                        <button
+                            onClick={onClose}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-foreground transition-colors hover:bg-slate-100"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            Back to Cases
+                        </button>
+                    </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Left Column (Main Info) */}
-            <div className="lg:col-span-2 space-y-6">
-              
-              {/* Case Details Card */}
+                    {/* Case Header */}
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                        <div>
+                            <div className="flex items-center gap-3 mb-1">
+                                <h1 className="text-3xl font-bold text-foreground tracking-tight">{caseData.caseNumber}</h1>
+                                <span className={cn("px-2.5 py-0.5 rounded-md text-xs font-semibold border", getPriorityStyle(caseData.priority))}>
+                                    {caseData.priority} Priority
+                                </span>
+                                <span className={cn("px-2.5 py-0.5 rounded-md text-xs font-semibold border", getStatusStyle(caseData.status))}>
+                                    {caseData.status}
+                                </span>
+                            </div>
+                            <p className="text-muted-foreground text-lg">{caseData.category}</p>
+                        </div>
+
+                        {/* Quick Officer Display */}
+                        <div className="flex items-center gap-3 bg-card border border-border px-4 py-2 rounded-lg shadow-sm">
+                            <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold border border-slate-200">
+                                {caseData.assignedOfficer.charAt(0)}
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Assigned Officer</p>
+                                <p className="text-sm font-semibold text-foreground">{caseData.assignedOfficer}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                        {/* Left Column (Main Info) */}
+                        <div className="lg:col-span-2 space-y-6">
+
+                            {/* Case Details Card */}
                             <div className="bg-card rounded-xl border border-border shadow-sm p-6">
                 <h2 className="text-base font-semibold text-foreground mb-4">Case Details</h2>
                 
@@ -129,23 +127,39 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate }: CaseDetailPanel
               </div>
 
               {/* Resident Information */}
-                            <div className="bg-card rounded-xl border border-border shadow-sm p-6">
+                <div className="bg-card rounded-xl border border-border shadow-sm p-6">
                 <h2 className="text-base font-semibold text-foreground mb-4">Resident Information</h2>
-                <div className="flex items-start gap-4">
-                    <div className="h-12 w-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 border border-blue-100">
-                        <User className="h-6 w-6" />
+                <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                        <User className="h-5 w-5 text-muted-foreground mt-0.5" />
+                        <div>
+                            <p className="text-xs font-medium text-muted-foreground">Name</p>
+                            <p className="text-sm font-medium text-foreground">{caseData.fullName}</p>
+                        </div>
                     </div>
-                    <div className="space-y-1">
-                        <h3 className="text-lg font-semibold text-foreground">{caseData.fullName}</h3>
-                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mt-2">
-                            <div className="flex items-center gap-1.5">
-                                <MapPin className="h-3.5 w-3.5" />
-                                {caseData.street}
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="flex items-start gap-3">
+                            <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+                            <div>
+                                <p className="text-xs font-medium text-muted-foreground">Purok</p>
+                                <p className="text-sm font-medium text-foreground">—</p>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                                <Phone className="h-3.5 w-3.5" />
-                                {caseData.contact}
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+                            <div>
+                                <p className="text-xs font-medium text-muted-foreground">Location</p>
+                                <p className="text-sm font-medium text-foreground">{caseData.street}</p>
                             </div>
+                        </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                        <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
+                        <div>
+                            <p className="text-xs font-medium text-muted-foreground">Contact</p>
+                            <p className="text-sm font-medium text-foreground">{caseData.contact}</p>
                         </div>
                     </div>
                 </div>
