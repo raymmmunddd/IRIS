@@ -7,6 +7,7 @@ interface TimelineDisplayProps {
   statusHistory?: StatusHistoryEntry[]
   assignedOfficerHistory?: OfficerHistoryEntry[]
   dateSubmitted: string
+  actorFallback?: string
 }
 
 interface TimelineEvent {
@@ -15,6 +16,7 @@ interface TimelineEvent {
   displayTime: string
   title: string
   description: string
+  actor?: string
 }
 
 function formatDateTime(isoString: string): string {
@@ -40,6 +42,7 @@ export function TimelineDisplay({
   statusHistory = [],
   assignedOfficerHistory = [],
   dateSubmitted,
+  actorFallback,
 }: TimelineDisplayProps) {
   // Combine all events
   const events: TimelineEvent[] = []
@@ -52,6 +55,7 @@ export function TimelineDisplay({
       displayTime: formatDateTime(entry.changedAt),
       title: `Status changed to '${entry.status}'`,
       description: `Status updated to ${entry.status}`,
+      actor: entry.changedBy || actorFallback || "System",
     })
   })
 
@@ -63,6 +67,7 @@ export function TimelineDisplay({
       displayTime: formatDateTime(entry.assignedAt),
       title: `Officer assigned: ${entry.officer}`,
       description: `${entry.officer === "Unassigned" ? "No officer assigned" : `Assigned to ${entry.officer}`}`,
+      actor: entry.assignedBy || actorFallback || "System",
     })
   })
 
@@ -73,6 +78,7 @@ export function TimelineDisplay({
     displayTime: formatDateTime(dateSubmitted),
     title: "Case submitted",
     description: "Initial case submission",
+    actor: actorFallback || "Admin",
   })
 
   // Sort by timestamp (newest first)
@@ -105,8 +111,14 @@ export function TimelineDisplay({
 
               {/* Content */}
               <div className="min-w-0 flex-1">
-                <p className="font-medium text-card-foreground">{event.title}</p>
-                <p className="text-xs text-muted-foreground">{event.displayTime}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-card-foreground">{event.title}</p>
+                    <p className="text-xs text-muted-foreground">{event.displayTime}</p>
+                  </div>
+                  <span className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">by {event.actor || "System"}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">{event.description}</p>
               </div>
             </div>
           ))}

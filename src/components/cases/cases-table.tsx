@@ -29,17 +29,17 @@ const allCategories: ("All" | CaseCategory)[] = [
 const allPriorities: ("All" | CasePriority)[] = ["All", "High", "Medium", "Low"]
 
 const priorityColors: Record<string, string> = {
-  High: "text-[#f87171]",
-  Medium: "text-[#fbbf24]",
-  Low: "text-[#34d399]",
+  High: "bg-red-100 text-red-600 border border-red-200",
+  Medium: "bg-yellow-100 text-yellow-700 border border-yellow-200",
+  Low: "bg-green-100 text-green-700 border border-green-200",
 }
 
 const statusStyles: Record<string, string> = {
-  Pending: "bg-[var(--color-chart-3)]/15 text-[var(--color-chart-3)]",
-  "Under Review": "bg-[var(--color-accent)]/15 text-[var(--color-accent)]",
-  Mediation: "bg-[var(--color-chart-4)]/15 text-[var(--color-chart-4)]",
-  Resolved: "bg-[var(--color-chart-6)]/15 text-[var(--color-chart-6)]",
-  Closed: "bg-[var(--color-muted)] text-[var(--color-muted-foreground)]",
+  Pending: "bg-yellow-100 text-yellow-700 border border-yellow-200",
+  "Under Review": "bg-blue-100 text-blue-700 border border-blue-200",
+  Mediation: "bg-purple-100 text-purple-700 border border-purple-200",
+  Resolved: "bg-green-100 text-green-700 border border-green-200",
+  Closed: "bg-slate-100 text-slate-600 border border-slate-200",
 }
 
 const avatarColors: Record<string, string> = {
@@ -103,16 +103,18 @@ export function CasesTable() {
   }
 
   const getAvatarColor = (priority: CasePriority) => {
-    switch (priority) {
-      case "High":
-        return avatarColors.high
-      case "Medium":
-        return avatarColors.medium
-      case "Low":
-        return avatarColors.low
-      default:
-        return avatarColors.medium
-    }
+    // Return a default background if needed, but styling is handled by priorityColors now
+    return "bg-muted text-muted-foreground"
+  }
+
+  if (selectedCase) {
+    return (
+      <CaseDetailPanel
+        caseData={selectedCase}
+        onClose={() => setSelectedCase(null)}
+        onUpdate={handleRefresh}
+      />
+    )
   }
 
   return (
@@ -243,7 +245,7 @@ export function CasesTable() {
                   </td>
                   <td className="px-4 py-3.5 text-muted-foreground">{caseItem.category}</td>
                   <td className="px-4 py-3.5">
-                    <span className={cn("text-sm font-medium", priorityColors[caseItem.priority])}>
+                    <span className={cn("inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium", priorityColors[caseItem.priority])}>
                       {caseItem.priority}
                     </span>
                   </td>

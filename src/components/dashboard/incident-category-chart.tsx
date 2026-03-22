@@ -21,7 +21,10 @@ const data = [
 export function IncidentCategoryChart() {
   return (
     <div className="flex h-full flex-col rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:shadow-md">
-      <h3 className="mb-4 text-base font-semibold text-card-foreground">Incident Category</h3>
+      <h3 className="mb-4 text-base font-semibold text-card-foreground">
+        Incident Category
+        <span className="ml-2 text-xs font-normal text-muted-foreground">(This Week)</span>
+      </h3>
       <div className="flex-1 flex flex-col">
         <div className="flex-1">
           <ResponsiveContainer width="100%" height={200}>

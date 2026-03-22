@@ -41,7 +41,7 @@ const statusLines = [
 ]
 
 export function ResolutionPerformanceChart() {
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>("monthly")
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>("weekly")
 
   const getPeriodLabel = () => {
     const labels: Record<TimePeriod, string> = {
@@ -105,7 +105,7 @@ export function ResolutionPerformanceChart() {
       <div className="mb-5 flex items-center justify-between gap-3">
         <h3 className="text-base font-semibold text-card-foreground">Case Resolution Status</h3>
         <div className="flex items-center gap-2">
-          {(["today", "weekly", "monthly", "yearly"] as TimePeriod[]).map((period) => {
+          {(["weekly", "monthly", "yearly"] as TimePeriod[]).map((period) => {
             const labels = {"today": "Today", "weekly": "This Week", "monthly": "This Month", "yearly": "This Year"} as Record<TimePeriod, string>
             return (
               <button
@@ -129,16 +129,16 @@ export function ResolutionPerformanceChart() {
           const isUp = stat.trending === "up"
           return (
             <div key={stat.label} className={cn("rounded-lg p-4 transition-all hover:shadow-md", stat.color)}>
-              <p className="text-sm font-semibold text-[var(--foreground)]/85 mb-2">{stat.label}</p>
-              <p className="text-3xl font-bold text-[var(--foreground)]">{stat.value}</p>
+              <p className="mb-2 text-sm font-semibold opacity-80">{stat.label}</p>
+              <p className="text-3xl font-bold">{stat.value}</p>
               <div className="flex items-center justify-between mt-2">
-                <p className="text-sm font-semibold text-[var(--foreground)]/90">{stat.percentage}</p>
+                <p className="text-sm font-semibold opacity-90">{stat.percentage}</p>
                 <div className={`flex items-center gap-0.5 text-sm font-semibold ${isUp ? "text-emerald-600" : "text-red-500"}`}>
                   {isUp ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                   {stat.change}%
                 </div>
               </div>
-              <p className="text-xs font-medium text-[var(--foreground)]/70 mt-1">{stat.periodLabel}</p>
+              <p className="mt-1 text-xs font-medium opacity-70">{stat.periodLabel}</p>
             </div>
           )
         })}

@@ -58,7 +58,7 @@ const categoryLines = [
 ]
 
 export function MonthlyTrendChart() {
-  const [filter, setFilter] = useState<FilterMode>("category")
+  const [filter, setFilter] = useState<FilterMode>("cases")
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   const data = filter === "cases" ? casesData : categoryData

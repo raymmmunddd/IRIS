@@ -3,12 +3,15 @@
 import { useState, useCallback, useEffect } from "react"
 import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, FileText, Image as ImageIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import type { EvidenceFile } from "@/lib/types"
 
 interface EvidenceViewerProps {
   onClose: () => void
+  files?: EvidenceFile[]
+  initialIndex?: number
 }
 
-const mockEvidenceFiles = [
+const mockEvidenceFiles: EvidenceFile[] = [
   {
     id: "1",
     name: "Scene-Photo-01.jpg",
@@ -56,11 +59,16 @@ const mockEvidenceFiles = [
   },
 ]
 
-export function EvidenceViewer({ onClose }: EvidenceViewerProps) {
-  const [currentIndex, setCurrentIndex] = useState(0)
+export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0 }: EvidenceViewerProps) {
+  const files = providedFiles && providedFiles.length > 0 ? providedFiles : mockEvidenceFiles
+  const [currentIndex, setCurrentIndex] = useState(Math.min(initialIndex, files.length - 1))
   const [zoom, setZoom] = useState(1)
-  const files = mockEvidenceFiles
   const current = files[currentIndex]
+
+  useEffect(() => {
+    setCurrentIndex(Math.min(initialIndex, files.length - 1))
+    setZoom(1)
+  }, [initialIndex, files.length])
 
   const goNext = useCallback(() => {
     setCurrentIndex((i) => (i + 1) % files.length)

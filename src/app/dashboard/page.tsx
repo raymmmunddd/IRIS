@@ -25,7 +25,10 @@ export default function DashboardPage() {
       <DashboardSidebar />
 
       <main className="flex-1 overflow-y-auto p-6 lg:p-8">
-        <DashboardHeader title="Dashboard" />
+        <DashboardHeader 
+          title="Dashboard" 
+          description="Overview of complaint management system" 
+        />
         <StatCards />
 
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">

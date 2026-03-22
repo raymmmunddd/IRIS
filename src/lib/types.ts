@@ -24,11 +24,13 @@ export interface EvidenceFile {
 export interface StatusHistoryEntry {
   status: CaseStatus;
   changedAt: string;
+  changedBy?: string;
 }
 
 export interface OfficerHistoryEntry {
   officer: string;
   assignedAt: string;
+  assignedBy?: string;
 }
 
 export interface CaseRecord {

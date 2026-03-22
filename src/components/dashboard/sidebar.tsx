@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard,
   Briefcase,
@@ -16,6 +16,7 @@ import {
   PanelRightOpen,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { logout } from "@/lib/auth"
 
 interface NavItem {
   label: string
@@ -38,11 +39,17 @@ const bottomNavItems: NavItem[] = [
 
 export function DashboardSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [isMinimized, setIsMinimized] = useState(false)
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/"
     return pathname.startsWith(href)
+  }
+
+  const handleLogout = () => {
+    logout()
+    router.push("/login")
   }
 
   return (
@@ -54,7 +61,7 @@ export function DashboardSidebar() {
       )}
     >
       {/* Logo with Menu Button */}
-      <div className="flex items-center justify-between px-6 pb-6 pt-4">
+      <div className="flex items-center justify-between px-6 pb-6 pt-6 lg:pt-8">
         <div className="flex items-center gap-2">
           {isMinimized ? (
             <button
@@ -69,9 +76,14 @@ export function DashboardSidebar() {
               <div className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-[var(--sidebar-icon)] bg-[var(--sidebar-bg)] font-sans text-lg font-bold text-[var(--sidebar-icon)]">
                 I
               </div>
-              <span className="text-lg font-bold tracking-wide text-[var(--sidebar-icon)]">
-                IRIS
-              </span>
+              <div className="flex flex-col">
+                <span className="text-lg font-bold tracking-wide text-[var(--sidebar-icon)]">
+                  IRIS
+                </span>
+                <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--sidebar-icon)]/80">
+                  Admin Portal
+                </span>
+              </div>
             </>
           )}
         </div>
@@ -94,15 +106,14 @@ export function DashboardSidebar() {
               <Link
                 href={item.href}
                 className={cn(
-                  "relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors border-l-4 border-transparent",
+                  "relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-nav-hover-border)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar-bg)]",
                   isActive(item.href)
-                    ? "border-[var(--sidebar-primary)] text-[var(--sidebar-accent-foreground)] bg-[var(--sidebar-accent)]"
-                    : "text-[var(--sidebar-foreground)] hover:bg-[color-mix(in srgb,var(--sidebar-accent) 60%, transparent)] hover:text-[var(--sidebar-accent-foreground)]"
+                    ? "bg-[var(--sidebar-nav-active-bg)] text-[var(--sidebar-nav-active-foreground)] shadow-sm"
+                    : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-nav-hover-bg)] hover:text-[var(--sidebar-nav-hover-foreground)]"
                 )}
               >
-                <span className={cn(
-                  isActive(item.href) ? "text-[var(--sidebar-accent-foreground)]" : "text-[var(--sidebar-foreground)]"
-                )}>
+                <span className="text-current">
                   {item.icon}
                 </span>
                 {!isMinimized && <span>{item.label}</span>}
@@ -120,10 +131,11 @@ export function DashboardSidebar() {
               <Link
                 href={item.href}
                 className={cn(
-                  "relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[var(--sidebar-foreground)] transition-colors border-l-4 border-transparent",
+                  "relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-nav-hover-border)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar-bg)]",
                   isActive(item.href)
-                    ? "border-[var(--sidebar-primary)] text-[var(--sidebar-accent-foreground)] bg-[var(--sidebar-accent)]"
-                    : "hover:bg-[color-mix(in srgb,var(--sidebar-accent) 60%, transparent)] hover:text-[var(--sidebar-accent-foreground)]"
+                    ? "bg-[var(--sidebar-nav-active-bg)] text-[var(--sidebar-nav-active-foreground)] shadow-sm"
+                    : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-nav-hover-bg)] hover:text-[var(--sidebar-nav-hover-foreground)]"
                 )}
               >
                 {item.icon}
@@ -132,7 +144,10 @@ export function DashboardSidebar() {
             </li>
           ))}
           <li>
-            <button className="ml-0 flex w-full items-center gap-3 rounded-lg border-l-4 border-transparent px-3 py-2.5 text-sm font-medium text-[#f87171] transition-colors hover:bg-[color-mix(in srgb,var(--sidebar-accent) 60%, transparent)]">
+            <button 
+              onClick={handleLogout}
+              className="ml-0 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[#f87171] transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar-bg)]"
+            >
               <LogOut className="h-5 w-5" />
               {!isMinimized && <span>Logout</span>}
             </button>

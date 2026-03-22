@@ -2,6 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { UserPlus, User, Mail, Lock, X, CheckCircle2, Eye, EyeOff, ShieldCheck, ClipboardCheck, Database, UserCheck, ArrowLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function SignupPage() {
   const [fullName, setFullName] = useState("");
@@ -11,6 +20,10 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [role, setRole] = useState<"resident" | "official" | "bpat">("resident");
+  const [legalDoc, setLegalDoc] = useState<"terms" | "privacy" | null>(null);
+  const [legalAccepted, setLegalAccepted] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -41,148 +54,228 @@ export default function SignupPage() {
     },
   } as const;
 
+  const checks = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    number: /\d/.test(password),
+  };
+  const isPasswordValid = checks.length && checks.uppercase && checks.number;
+
+  const openLegalDoc = (doc: "terms" | "privacy") => {
+    setLegalAccepted(false);
+    setLegalDoc(doc);
+  };
+
+  const legalContent = {
+    terms: {
+      title: "Terms of Service",
+      intro:
+        "These Terms govern your use of IRIS (Incident Reporting and Intelligence System) for community reporting and case tracking.",
+      body: [
+        "1. Authentic Information: You agree to submit accurate incident details and avoid false, abusive, or misleading reports.",
+        "2. Responsible Access: Your account is personal; do not share credentials or perform actions on behalf of other users.",
+        "3. Case Conduct: Submitted cases may be reviewed by authorized barangay officials and BPAT staff for validation and response.",
+        "4. Platform Updates: IRIS may update features, workflows, and security controls to improve service quality and reliability.",
+      ],
+    },
+    privacy: {
+      title: "Privacy Policy",
+      intro:
+        "IRIS protects your personal and case data by limiting collection to what is required for operations, safety, and legal compliance.",
+      body: [
+        "1. Data Collected: Name, email, account role, and incident data required to process reports and maintain case history.",
+        "2. Why We Use It: Data supports report verification, assignment tracking, notifications, and service improvement.",
+        "3. Data Protection: Access is permission-based and monitored through logs and role controls to reduce unauthorized use.",
+        "4. User Rights: You may request updates to account details and report inaccuracies through the barangay support team.",
+      ],
+    },
+  } as const;
+
   return (
-    <div className="min-h-screen bg-[var(--iris-bg)] text-[var(--iris-text)] grid lg:grid-cols-[1.05fr_1fr]">
-      <section className="relative hidden lg:flex items-center justify-center overflow-hidden bg-gradient-to-br from-[var(--iris-primary)] via-[var(--iris-primary-strong)] to-[#0C1F4A] p-12">
-        <div
-          className="absolute inset-0 opacity-30"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.18), transparent 35%), radial-gradient(circle at 80% 0%, rgba(255,255,255,0.12), transparent 28%), radial-gradient(circle at 80% 80%, rgba(255,255,255,0.14), transparent 32%)",
-          }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              "linear-gradient(120deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 35%, rgba(255,255,255,0) 50%), linear-gradient(210deg, rgba(255,255,255,0.05) 10%, rgba(255,255,255,0.02) 48%, rgba(255,255,255,0) 72%)",
-          }}
-        />
-        <div className="relative z-10 max-w-xl space-y-6 text-white">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/10 backdrop-blur">
+    <div className="min-h-screen lg:h-screen overflow-hidden bg-[var(--iris-bg)] text-[var(--iris-text)] grid lg:grid-cols-[1.05fr_0.95fr]">
+      <section className="relative hidden lg:flex items-center justify-center overflow-hidden bg-gradient-to-br from-[var(--iris-primary)] via-[var(--iris-primary-strong)] to-[#0C1F4A] p-10 xl:p-14">
+        <div className="auth-hero-radial absolute inset-0 opacity-30" />
+        <div className="auth-hero-linear absolute inset-0" />
+        <div className="relative z-10 max-w-xl space-y-5 text-white">
+          <div className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/10 backdrop-blur">
             <span className="text-3xl">✶</span>
           </div>
-          <div className="space-y-4">
-            <h1 className="text-4xl leading-tight font-semibold">{roleCopy[role].title}</h1>
-            <p className="text-lg text-white/80 leading-relaxed">{roleCopy[role].body}</p>
+          <div className="space-y-3">
+            <p className="inline-flex rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white/90">
+              Get started
+            </p>
+            <h1 className="text-3xl xl:text-4xl leading-tight font-semibold">{roleCopy[role].title}</h1>
+            <p className="text-base xl:text-lg text-white/80 leading-relaxed">{roleCopy[role].body}</p>
           </div>
           <p className="text-sm text-white/70">© 2026 IRIS – Barangay East Tapinac. All rights reserved.</p>
         </div>
       </section>
 
-      <section className="flex items-center justify-center px-6 py-10 lg:px-12">
-        <div className="w-full max-w-lg space-y-8 bg-[var(--iris-surface)]/80 backdrop-blur rounded-2xl border border-[var(--iris-border)] shadow-[0_10px_60px_rgba(15,23,42,0.08)] p-8">
-          <div className="flex justify-between items-center text-sm">
+      <section className="flex items-center justify-center px-4 py-3 sm:px-6 lg:px-10">
+        <div className="w-full max-w-xl lg:max-w-lg space-y-3">
+          <div className="text-sm">
             <Link href="/" className="inline-flex items-center gap-2 font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">
-              <span aria-hidden>←</span>
-              Back to homepage
+              <ArrowLeft className="h-4 w-4" />
+              Go back
             </Link>
-            <span className="text-[var(--iris-text-subtle)]">Need help?</span>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--iris-text-subtle)]">Get started</p>
-            <h2 className="text-3xl font-bold text-[var(--iris-text)]">Create your account</h2>
-            <p className="text-sm text-[var(--iris-text-subtle)]">Set up your IRIS admin account and invite your team later.</p>
-          </div>
+          <div className="space-y-4 rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)]/92 p-5 shadow-[0_10px_60px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6 lg:p-6">
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-[var(--iris-text)]">Select your role</p>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { key: "resident", label: "Resident" },
-                  { key: "official", label: "Barangay Official" },
-                  { key: "bpat", label: "BPAT Officer" },
-                ].map((option) => (
-                  <label
-                    key={option.key}
-                    className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
-                      role === option.key
-                        ? "border-[var(--iris-primary)] bg-[var(--iris-primary-light)] text-[var(--iris-text)]"
-                        : "border-[var(--iris-border)] bg-[var(--iris-surface)] text-[var(--iris-text)] hover:border-[#D1D5DB]"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="role"
-                      value={option.key}
-                      className="sr-only"
-                      checked={role === option.key}
-                      onChange={() => setRole(option.key as typeof role)}
-                    />
-                    {option.label}
-                  </label>
-                ))}
+            <div className="space-y-1.5 flex flex-col items-center text-center">
+              <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--iris-primary-light)] text-[var(--iris-primary)]">
+                <UserPlus className="h-5 w-5" />
               </div>
+              <h2 className="text-2xl lg:text-3xl font-bold text-[var(--iris-text)]">Create your account</h2>
+              <p className="text-sm text-[var(--iris-text-subtle)]">Set up your account now and join the community.</p>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="fullName" className="text-sm font-medium text-[var(--iris-text)]">
-                Full name
-              </label>
+            <form className="space-y-3" onSubmit={handleSubmit}>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-[var(--iris-text)]">Select your role</p>
+                <Select value={role} onValueChange={(val: any) => setRole(val)}>
+                  <SelectTrigger className="w-full bg-[var(--iris-surface)] border-[var(--iris-border)]">
+                    <SelectValue placeholder="Select your role" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[var(--iris-surface)] border-[var(--iris-border)]">
+                    <SelectItem value="resident">Resident</SelectItem>
+                    <SelectItem value="official">Barangay Official</SelectItem>
+                    <SelectItem value="bpat">BPAT Officer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="relative">
+              <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
               <input
                 id="fullName"
                 type="text"
                 autoComplete="name"
                 required
-                className="w-full rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-4 py-3 text-sm text-[var(--iris-text)] placeholder-[var(--iris-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] focus:border-[var(--iris-primary)] disabled:opacity-70"
+                className="peer w-full rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-3 text-sm text-[var(--iris-text)] placeholder-transparent focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="Jordan Carter"
+                placeholder="Full name"
                 disabled={isLoading}
               />
+              <label
+                htmlFor="fullName"
+                className={cn(
+                  "pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm text-[var(--iris-text-subtle)] transition-opacity duration-150",
+                  "peer-focus:opacity-0",
+                  fullName && "opacity-0"
+                )}
+              >
+                Full name
+              </label>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-[var(--iris-text)]">
-                Work email
-              </label>
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
               <input
                 id="email"
                 type="email"
                 autoComplete="email"
                 required
-                className="w-full rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-4 py-3 text-sm text-[var(--iris-text)] placeholder-[var(--iris-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] focus:border-[var(--iris-primary)] disabled:opacity-70"
+                className="peer w-full rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-3 text-sm text-[var(--iris-text)] placeholder-transparent focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@agency.gov"
+                placeholder="Email address"
                 disabled={isLoading}
               />
+              <label
+                htmlFor="email"
+                className={cn(
+                  "pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm text-[var(--iris-text-subtle)] transition-opacity duration-150",
+                  "peer-focus:opacity-0",
+                  email && "opacity-0"
+                )}
+              >
+                Work email
+              </label>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-[var(--iris-text)]">
-                Password
-              </label>
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
               <input
                 id="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
                 required
-                className="w-full rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-4 py-3 text-sm text-[var(--iris-text)] placeholder-[var(--iris-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] focus:border-[var(--iris-primary)] disabled:opacity-70"
+                className="peer w-full rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-3 pr-10 text-sm text-[var(--iris-text)] placeholder-transparent focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 8 characters"
+                placeholder="Password"
                 disabled={isLoading}
               />
+              {password.length > 0 && isPasswordValid ? (
+                <CheckCircle2 className="pointer-events-none absolute right-10 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--iris-text-subtle)] hover:text-[var(--iris-primary)]"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+              <label
+                htmlFor="password"
+                className={cn(
+                  "pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm text-[var(--iris-text-subtle)] transition-opacity duration-150",
+                  "peer-focus:opacity-0",
+                  password && "opacity-0"
+                )}
+              >
+                Password
+              </label>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="text-sm font-medium text-[var(--iris-text)]">
-                Confirm password
-              </label>
+            {password.length > 0 && !isPasswordValid && (
+              <div className="rounded-lg border border-[var(--iris-border)] bg-[var(--iris-primary-light)]/40 px-3 py-2 text-xs text-[var(--iris-text)]">
+                <p className="mb-1 font-semibold text-[var(--iris-text-subtle)]">Password requirements</p>
+                <ul className="list-disc space-y-1 pl-5">
+                  <li className={cn(checks.length ? "text-emerald-700" : "text-[var(--iris-text-subtle)]")}>At least 8 characters</li>
+                  <li className={cn(checks.uppercase ? "text-emerald-700" : "text-[var(--iris-text-subtle)]")}>One uppercase letter</li>
+                  <li className={cn(checks.number ? "text-emerald-700" : "text-[var(--iris-text-subtle)]")}>One number</li>
+                </ul>
+              </div>
+            )}
+
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
               <input
                 id="confirmPassword"
-                type="password"
+                type={showConfirmPassword ? "text" : "password"}
                 autoComplete="new-password"
                 required
-                className="w-full rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-4 py-3 text-sm text-[var(--iris-text)] placeholder-[var(--iris-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] focus:border-[var(--iris-primary)] disabled:opacity-70"
+                className="peer w-full rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-3 pr-10 text-sm text-[var(--iris-text)] placeholder-transparent focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Repeat your password"
+                placeholder="Confirm password"
                 disabled={isLoading}
               />
+              {confirmPassword.length > 0 && confirmPassword === password ? (
+                <CheckCircle2 className="pointer-events-none absolute right-10 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--iris-text-subtle)] hover:text-[var(--iris-primary)]"
+                aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+              >
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+              <label
+                htmlFor="confirmPassword"
+                className={cn(
+                  "pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm text-[var(--iris-text-subtle)] transition-opacity duration-150",
+                  "peer-focus:opacity-0",
+                  confirmPassword && "opacity-0"
+                )}
+              >
+                Confirm password
+              </label>
             </div>
 
             {message ? (
@@ -194,7 +287,7 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full rounded-lg bg-[var(--iris-primary)] hover:bg-[var(--iris-primary-strong)] text-white font-semibold py-3 transition-all duration-200 shadow-[0_10px_30px_rgba(30,79,163,0.35)] disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full rounded-lg bg-[var(--iris-primary)] hover:bg-[var(--iris-primary-strong)] text-white font-semibold py-2.5 transition-all duration-200 shadow-[0_10px_30px_rgba(30,79,163,0.35)] disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <span className="inline-flex items-center justify-center gap-2">
@@ -208,7 +301,7 @@ export default function SignupPage() {
 
             <button
               type="button"
-              className="w-full inline-flex items-center justify-center gap-3 rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] py-3 text-sm font-semibold text-[var(--iris-text)] shadow-sm hover:border-[#D1D5DB] transition-colors"
+              className="w-full inline-flex items-center justify-center gap-3 rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] py-2.5 text-sm font-semibold text-[var(--iris-text)] shadow-sm hover:border-[#D1D5DB] transition-colors"
             >
               <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M21.6 12.2273C21.6 11.5182 21.5364 10.8364 21.4182 10.1818H12V14.05H17.4182C17.1864 15.3 16.4909 16.3364 15.4455 17.0273V19.5909H18.5455C20.5091 17.7818 21.6 15.2727 21.6 12.2273Z" fill="#4285F4" />
@@ -219,19 +312,86 @@ export default function SignupPage() {
               Sign up with Google
             </button>
 
-            <p className="text-xs text-[#6B7280] text-center">
-              By continuing, you agree to the IRIS Terms of Use and Privacy Policy.
+            <p className="text-center text-xs text-[#6B7280]">
+              By creating an account, you agree to our
+              <button type="button" onClick={() => openLegalDoc("terms")} className="mx-1 font-semibold text-[#1E4FA3] hover:text-[#173E82]">
+                Terms of Service
+              </button>
+              and acknowledge our
+              <button type="button" onClick={() => openLegalDoc("privacy")} className="ml-1 font-semibold text-[#1E4FA3] hover:text-[#173E82]">
+                Privacy Policy
+              </button>
+              .
             </p>
           </form>
 
-          <p className="text-center text-sm text-[#6B7280]">
-            Already have an account?{" "}
-            <Link href="/login" className="font-semibold text-[#1E4FA3] hover:text-[#173E82]">
-              Log in instead
-            </Link>
-          </p>
+            <p className="text-center text-sm text-[#6B7280]">
+              Already have an account?{" "}
+              <Link href="/login" className="font-semibold text-[#1E4FA3] hover:text-[#173E82]">
+                Log in instead
+              </Link>
+            </p>
+          </div>
         </div>
       </section>
+
+      {legalDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-[var(--iris-border)] bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[var(--iris-border)] px-6 py-4">
+              <h3 className="text-lg font-semibold text-[var(--iris-text)]">{legalContent[legalDoc].title}</h3>
+              <button
+                type="button"
+                onClick={() => setLegalDoc(null)}
+                aria-label="Close dialog"
+                className="rounded-md p-1 text-[var(--iris-text-subtle)] hover:bg-[var(--iris-primary-light)]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="max-h-[65vh] overflow-y-auto px-6 py-5 text-sm text-[var(--iris-text)]">
+              <p className="mb-4 text-[var(--iris-text-subtle)]">{legalContent[legalDoc].intro}</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {legalContent[legalDoc].body.map((item, index) => {
+                  const [heading, ...rest] = item.split(": ");
+                  const detail = rest.join(": ");
+                  const icons = [ShieldCheck, ClipboardCheck, Database, UserCheck] as const;
+                  const Icon = icons[index % icons.length];
+
+                  return (
+                    <div key={item} className="rounded-xl border border-[var(--iris-border)] bg-[var(--iris-primary-light)]/35 p-3">
+                      <div className="mb-1 inline-flex items-center gap-2 text-[var(--iris-primary)]">
+                        <Icon className="h-4 w-4" />
+                        <p className="text-xs font-semibold uppercase tracking-wide">{heading}</p>
+                      </div>
+                      <p className="text-xs leading-relaxed text-[var(--iris-text)]/85">{detail}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t border-[var(--iris-border)] px-6 py-4">
+              <label className="inline-flex items-center gap-2 text-xs text-[var(--iris-text-subtle)]">
+                <input
+                  type="checkbox"
+                  checked={legalAccepted}
+                  onChange={(e) => setLegalAccepted(e.target.checked)}
+                  className="h-4 w-4 rounded border-[#D1D5DB] text-[var(--iris-primary)] focus:ring-[var(--iris-primary)]"
+                />
+                I have read and understood this policy.
+              </label>
+              <button
+                type="button"
+                onClick={() => setLegalDoc(null)}
+                disabled={!legalAccepted}
+                className="rounded-lg bg-[var(--iris-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--iris-primary-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Accept
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

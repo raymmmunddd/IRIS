@@ -39,6 +39,12 @@
   --sidebar-primary: #1e4fa3;
   --sidebar-primary-foreground: #ffffff;
 
+  /* Sidebar nav (avoid blue hover/active backgrounds) */
+  --sidebar-nav-active-bg: #e8f0ff;
+  --sidebar-nav-active-foreground: #f2b705;
+  --sidebar-nav-hover-bg: #f2b705d4;
+  --sidebar-nav-hover-foreground: #e8f0ff;
+
   /* KPI Cards */
   --kpi-default: #ffffff;
   --kpi-urgent: #fdeaea;
@@ -51,6 +57,17 @@
   --chart-neutral: #9ba5b8;
   --chart-muted: #e3e8ef;
   --chart-accent: #22c55e;
+
+  /* Auth pages (legacy IRIS tokens used by /login and /signup) */
+  --iris-bg: var(--background);
+  --iris-surface: var(--card);
+  --iris-text: var(--foreground);
+  --iris-text-subtle: var(--text-secondary);
+  --iris-border: var(--border);
+  --iris-muted: var(--muted-foreground);
+  --iris-primary: var(--primary);
+  --iris-primary-strong: var(--primary-hover);
+  --iris-primary-light: var(--primary-light);
 }
 
 .dark {
@@ -89,6 +106,13 @@
   --sidebar-primary: #0f172a;
   --sidebar-primary-foreground: #e6ecf7;
 
+  /* Sidebar nav (avoid blue hover/active backgrounds) */
+  --sidebar-nav-active-bg: var(--card);
+  --sidebar-nav-active-foreground: var(--foreground);
+  --sidebar-nav-hover-bg: var(--secondary);
+  --sidebar-nav-hover-foreground: var(--background);
+  --sidebar-nav-hover-border: var(--secondary-hover);
+
   --kpi-default: #11182e;
   --kpi-urgent: #3f1c1c;
   --kpi-positive-accent: #f2b705;
@@ -99,6 +123,17 @@
   --chart-neutral: #9ba5b8;
   --chart-muted: #1e2a46;
   --chart-accent: #22c55e;
+
+  /* Auth pages (legacy IRIS tokens used by /login and /signup) */
+  --iris-bg: var(--background);
+  --iris-surface: var(--card);
+  --iris-text: var(--foreground);
+  --iris-text-subtle: var(--text-secondary);
+  --iris-border: var(--border);
+  --iris-muted: var(--muted-foreground);
+  --iris-primary: var(--primary);
+  --iris-primary-strong: var(--primary-hover);
+  --iris-primary-light: var(--primary-light);
 }
 
 @theme inline {
@@ -117,4 +152,17 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.auth-hero-radial {
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.18), transparent 35%),
+    radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.12), transparent 28%),
+    radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.14), transparent 32%);
+}
+
+.auth-hero-linear {
+  background-image:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 35%, rgba(255, 255, 255, 0) 50%),
+    linear-gradient(210deg, rgba(255, 255, 255, 0.05) 10%, rgba(255, 255, 255, 0.02) 48%, rgba(255, 255, 255, 0) 72%);
 }
