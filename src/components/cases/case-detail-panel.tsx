@@ -282,10 +282,13 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate }: CaseDetailPanel
                         <div className="pt-2 pb-1">
                             <label className="text-xs font-semibold text-foreground mb-2 block">Assign Officer</label>
                             <div className="flex flex-col gap-2">
-                                <select className="w-full h-10 rounded-lg border border-border bg-muted/30 px-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none">
-                                    <option value="" disabled selected>Select officer</option>
-                                    <option>{caseData.assignedOfficer}</option>
-                                    <option>Officer 2</option>
+                                <select 
+                                    defaultValue=""
+                                    className="w-full h-10 rounded-lg border border-border bg-muted/30 px-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                                >
+                                    <option value="" disabled>Select officer</option>
+                                    <option value={caseData.assignedOfficer}>{caseData.assignedOfficer}</option>
+                                    <option value="Officer 2">Officer 2</option>
                                 </select>
                                 <button className="w-full h-10 px-4 bg-[#0f172a] text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-opacity shadow-sm flex items-center justify-center gap-2">
                                     <User className="h-4 w-4" />

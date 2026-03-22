@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { login } from "@/lib/auth";
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,9 +36,17 @@ export default function LoginPage() {
     event.preventDefault();
     setIsLoading(true);
     setMessage(null);
+    
+    // Simulate login delay
     setTimeout(() => {
-      setIsLoading(false);
-      router.push("/dashboard");
+      const success = login(email, password);
+      if (success) {
+        setIsLoading(false);
+        router.push("/dashboard");
+      } else {
+        setIsLoading(false);
+        setMessage("Invalid email or password");
+      }
     }, 800);
   };
 

@@ -42,8 +42,9 @@
   /* Sidebar nav (avoid blue hover/active backgrounds) */
   --sidebar-nav-active-bg: #e8f0ff;
   --sidebar-nav-active-foreground: #f2b705;
-  --sidebar-nav-hover-bg: #f2b705d4;
-  --sidebar-nav-hover-foreground: #e8f0ff;
+  --sidebar-nav-hover-bg: #e8f0ff;
+  --sidebar-nav-hover-foreground: #f2b705;
+  --sidebar-nav-hover-border: var(--secondary-hover);
 
   /* KPI Cards */
   --kpi-default: #ffffff;
