@@ -29,7 +29,7 @@ const mainNavItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="h-5 w-5" /> },
   { label: "Cases", href: "/cases", icon: <Briefcase className="h-5 w-5" /> },
   { label: "Operations", href: "/operations", icon: <Users className="h-5 w-5" /> },
-  { label: "Reports", href: "#", icon: <FileText className="h-5 w-5" /> },
+  { label: "Reports", href: "/reports", icon: <FileText className="h-5 w-5" /> },
   { label: "Administration", href: "#", icon: <ShieldCheck className="h-5 w-5" /> },
 ]
 
