@@ -14,6 +14,7 @@ import {
   LogOut,
   PanelRightClose,
   PanelRightOpen,
+  Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { logout } from "@/lib/auth"
@@ -27,7 +28,7 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="h-5 w-5" /> },
   { label: "Cases", href: "/cases", icon: <Briefcase className="h-5 w-5" /> },
-  { label: "Operations", href: "#", icon: <Cog className="h-5 w-5" /> },
+  { label: "Operations", href: "/operations", icon: <Users className="h-5 w-5" /> },
   { label: "Reports", href: "#", icon: <FileText className="h-5 w-5" /> },
   { label: "Administration", href: "#", icon: <ShieldCheck className="h-5 w-5" /> },
 ]

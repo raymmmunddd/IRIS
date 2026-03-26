@@ -15,9 +15,10 @@ interface CaseDetailPanelProps {
   caseData: CaseRecord
   onClose: () => void
   onUpdate?: () => void
+  isPage?: boolean
 }
 
-export function CaseDetailPanel({ caseData, onClose, onUpdate }: CaseDetailPanelProps) {
+export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false }: CaseDetailPanelProps) {
     const [internalNotes, setInternalNotes] = useState("")
     const [isSavingNotes, setIsSavingNotes] = useState(false)
     const [showEvidenceViewer, setShowEvidenceViewer] = useState(false)
@@ -49,7 +50,12 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate }: CaseDetailPanel
         : []
 
     return (
-        <div className="absolute inset-0 z-50 w-full h-full flex flex-col bg-slate-50/50 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div className={cn(
+            "flex flex-col",
+            isPage 
+                ? "w-full h-full bg-background" 
+                : "absolute inset-0 z-50 w-full h-full bg-slate-50/50 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-4 duration-200"
+        )}>
             <div className="flex-1 overflow-y-auto p-6 md:p-8">
                 <div className="mx-auto max-w-7xl space-y-6 pb-12">
                     {/* Back Navigation */}

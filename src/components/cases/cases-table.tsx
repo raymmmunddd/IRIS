@@ -1,11 +1,11 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Search } from "lucide-react"
 import type { CaseRecord, CaseStatus, CaseCategory, CasePriority } from "@/lib/types"
 import { getActiveCases, getArchivedCases } from "@/lib/caseStorage"
 import { CaseActionDropdown } from "./case-action-dropdown"
-import { CaseDetailPanel } from "./case-detail-panel"
 import { cn } from "@/lib/utils"
 import {
   Select,
@@ -54,14 +54,13 @@ export function CasesTable() {
   const [categoryFilter, setCategoryFilter] = useState<"All" | CaseCategory>("All")
   const [priorityFilter, setPriorityFilter] = useState<"All" | CasePriority>("All")
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCase, setSelectedCase] = useState<CaseRecord | null>(null)
   const [openActionId, setOpenActionId] = useState<string | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const router = useRouter()
 
   // Refresh helper to reload from storage after updates
   const handleRefresh = () => {
     setRefreshTrigger((prev) => prev + 1)
-    setSelectedCase(null)
   }
 
   // Load cases from storage when filters change to keep in sync with persisted data
@@ -105,16 +104,6 @@ export function CasesTable() {
   const getAvatarColor = (priority: CasePriority) => {
     // Return a default background if needed, but styling is handled by priorityColors now
     return "bg-muted text-muted-foreground"
-  }
-
-  if (selectedCase) {
-    return (
-      <CaseDetailPanel
-        caseData={selectedCase}
-        onClose={() => setSelectedCase(null)}
-        onUpdate={handleRefresh}
-      />
-    )
   }
 
   return (
@@ -175,10 +164,10 @@ export function CasesTable() {
 
       <div className="mb-5 flex items-center gap-3">
         <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "All" | CaseStatus)}>
-          <SelectTrigger className="w-[140px] rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-card-foreground outline-none transition-colors duration-200 focus:ring-1 focus:ring-[#16a34a] hover:bg-muted">
+          <SelectTrigger className="w-[140px] rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-3 py-1.5 text-xs font-medium text-[var(--iris-text)] outline-none transition-colors duration-200 focus:ring-1 focus:ring-[#16a34a]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-[var(--iris-surface)] border-[var(--iris-border)]">
             {allStatuses.map((s) => (
               <SelectItem key={s} value={s}>
                 {s === "All" ? "All Statuses" : s}
@@ -188,10 +177,10 @@ export function CasesTable() {
         </Select>
 
         <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value as "All" | CaseCategory)}>
-          <SelectTrigger className="w-[160px] rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-card-foreground outline-none transition-colors duration-200 focus:ring-1 focus:ring-[#16a34a] hover:bg-muted">
+          <SelectTrigger className="w-[160px] rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-3 py-1.5 text-xs font-medium text-[var(--iris-text)] outline-none transition-colors duration-200 focus:ring-1 focus:ring-[#16a34a]">
             <SelectValue placeholder="Category" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-[var(--iris-surface)] border-[var(--iris-border)]">
             {allCategories.map((c) => (
               <SelectItem key={c} value={c}>
                 {c === "All" ? "All Categories" : c}
@@ -201,10 +190,10 @@ export function CasesTable() {
         </Select>
 
         <Select value={priorityFilter} onValueChange={(value) => setPriorityFilter(value as "All" | CasePriority)}>
-          <SelectTrigger className="w-[140px] rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-card-foreground outline-none transition-colors duration-200 focus:ring-1 focus:ring-[#16a34a] hover:bg-muted">
+          <SelectTrigger className="w-[140px] rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-3 py-1.5 text-xs font-medium text-[var(--iris-text)] outline-none transition-colors duration-200 focus:ring-1 focus:ring-[#16a34a]">
             <SelectValue placeholder="Priority" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-[var(--iris-surface)] border-[var(--iris-border)]">
             {allPriorities.map((p) => (
               <SelectItem key={p} value={p}>
                 {p === "All" ? "All Priorities" : p}
@@ -232,7 +221,7 @@ export function CasesTable() {
               {filtered.map((caseItem) => (
                 <tr
                   key={caseItem.id}
-                  onClick={() => setSelectedCase(caseItem)}
+                  onClick={() => router.push(`/cases/case-details/${encodeURIComponent(caseItem.id)}`)}
                   className="cursor-pointer border-b border-border/50 transition-colors hover:bg-muted/30 last:border-0"
                 >
                   <td className="px-4 py-3.5">
@@ -280,14 +269,6 @@ export function CasesTable() {
           </table>
         </div>
       </div>
-
-      {selectedCase && (
-        <CaseDetailPanel
-          caseData={selectedCase}
-          onClose={() => setSelectedCase(null)}
-          onUpdate={handleRefresh}
-        />
-      )}
     </>
   )
 }

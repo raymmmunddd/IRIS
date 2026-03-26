@@ -72,8 +72,7 @@ export function StatusSelector({
 
       {!isReadOnly && !isArchived && (
         <p className="text-xs text-muted-foreground">
-          {isMovingToArchive &&
-          (currentStatus === "Resolved" || currentStatus === "Closed")
+          {isMovingToArchive
             ? "⚠️ Changing to Resolved or Closed will move this case to the archive"
             : "Select a new status to update the case"}
         </p>
