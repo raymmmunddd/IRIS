@@ -30,7 +30,7 @@ const mainNavItems: NavItem[] = [
   { label: "Cases", href: "/cases", icon: <Briefcase className="h-5 w-5" /> },
   { label: "Operations", href: "/operations", icon: <Users className="h-5 w-5" /> },
   { label: "Reports", href: "/reports", icon: <FileText className="h-5 w-5" /> },
-  { label: "Administration", href: "#", icon: <ShieldCheck className="h-5 w-5" /> },
+  { label: "Administration", href: "/admin", icon: <ShieldCheck className="h-5 w-5" /> },
 ]
 
 const bottomNavItems: NavItem[] = [
