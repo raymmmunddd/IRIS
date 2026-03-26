@@ -41,7 +41,7 @@ export default function LoginPage() {
     setTimeout(() => {
       const success = login(email, password);
       if (success) {
-        setIsLoading(false);
+        // Do not set isLoading(false) here, let the navigation handle it
         router.push("/dashboard");
       } else {
         setIsLoading(false);
@@ -209,7 +209,7 @@ export default function LoginPage() {
                 <label className="inline-flex items-center gap-2 select-none">
                   <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-[#D1D5DB] text-[var(--iris-primary)] focus:ring-[var(--iris-primary)]"
+                    className="h-4 w-4 rounded border-[#D1D5DB] text-[var(--iris-primary)] focus:ring-[var(--iris-primary)] accent-[var(--iris-primary)]"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
                   />
@@ -235,7 +235,7 @@ export default function LoginPage() {
                   Signing in...
                 </span>
               ) : (
-                "Login Now"
+                "Login"
               )}
             </button>
 
@@ -276,22 +276,28 @@ export default function LoginPage() {
       </section>
 
       {legalDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
-          <div className="w-full max-w-2xl rounded-2xl border border-[var(--iris-border)] bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl transform rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 transition-all animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-[var(--iris-border)] px-6 py-4">
-              <h3 className="text-lg font-semibold text-[var(--iris-text)]">{legalContent[legalDoc].title}</h3>
+              <h3 className="text-lg font-semibold text-[var(--iris-text)] flex items-center gap-2">
+                 <ShieldCheck className="h-5 w-5 text-[var(--iris-primary)]" />
+                 {legalContent[legalDoc].title}
+              </h3>
               <button
                 type="button"
                 onClick={() => setLegalDoc(null)}
                 aria-label="Close dialog"
-                className="rounded-md p-1 text-[var(--iris-text-subtle)] hover:bg-[var(--iris-primary-light)]"
+                className="rounded-full p-2 text-[var(--iris-text-subtle)] hover:bg-[var(--iris-muted)] hover:text-[var(--iris-text)] transition-colors"
+                style={{ borderRadius: '50%' }}
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="max-h-[65vh] overflow-y-auto px-6 py-5 text-sm text-[var(--iris-text)]">
-              <p className="mb-4 text-[var(--iris-text-subtle)]">{legalContent[legalDoc].intro}</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="max-h-[60vh] overflow-y-auto px-6 py-6 text-sm text-[var(--iris-text)] custom-scrollbar">
+              <div className="mb-6 rounded-lg bg-[var(--iris-primary-light)]/50 p-4 text-[var(--iris-primary-strong)]">
+                  <p className="font-medium">{legalContent[legalDoc].intro}</p>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {legalContent[legalDoc].body.map((item, index) => {
                   const [heading, ...rest] = item.split(": ");
                   const detail = rest.join(": ");
@@ -299,39 +305,42 @@ export default function LoginPage() {
                   const Icon = icons[index % icons.length];
 
                   return (
-                    <div key={item} className="rounded-xl border border-[var(--iris-border)] bg-[var(--iris-primary-light)]/35 p-3">
-                      <div className="mb-1 inline-flex items-center gap-2 text-[var(--iris-primary)]">
-                        <Icon className="h-4 w-4" />
-                        <p className="text-xs font-semibold uppercase tracking-wide">{heading}</p>
+                    <div key={item} className="group rounded-xl border border-[var(--iris-border)] bg-white p-4 hover:border-[var(--iris-primary)]/30 hover:shadow-sm transition-all">
+                      <div className="mb-2 inline-flex items-center gap-2 text-[var(--iris-primary)]">
+                        <div className="rounded-lg bg-[var(--iris-primary-light)] p-1.5 group-hover:bg-[var(--iris-primary)] group-hover:text-white transition-colors">
+                            <Icon className="h-4 w-4" />
+                        </div>
+                        <p className="text-xs font-bold uppercase tracking-wide text-[var(--iris-text)] group-hover:text-[var(--iris-primary)] transition-colors">{heading}</p>
                       </div>
-                      <p className="text-xs leading-relaxed text-[var(--iris-text)]/85">{detail}</p>
+                      <p className="text-xs leading-relaxed text-[var(--iris-text-subtle)]">{detail}</p>
                     </div>
                   );
                 })}
               </div>
             </div>
-            <div className="flex items-center justify-between gap-3 border-t border-[var(--iris-border)] px-6 py-4">
-              <label className="inline-flex items-center gap-2 text-xs text-[var(--iris-text-subtle)]">
+            <div className="flex items-center justify-between gap-3 border-t border-[var(--iris-border)] bg-gray-50/50 px-6 py-4 rounded-b-2xl">
+              <label className="inline-flex items-center gap-2 text-sm text-[var(--iris-text-subtle)] cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={legalAccepted}
                   onChange={(e) => setLegalAccepted(e.target.checked)}
-                  className="h-4 w-4 rounded border-[#D1D5DB] text-[var(--iris-primary)] focus:ring-[var(--iris-primary)]"
+                  className="h-4 w-4 rounded border-[#D1D5DB] text-[var(--iris-primary)] focus:ring-[var(--iris-primary)] accent-[var(--iris-primary)]"
                 />
-                I have read and understood this policy.
+                <span className="font-medium">I have read and agree</span>
               </label>
               <button
-                type="button"
-                onClick={() => setLegalDoc(null)}
-                disabled={!legalAccepted}
-                className="rounded-lg bg-[var(--iris-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--iris-primary-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+                 type="button"
+                 onClick={() => setLegalDoc(null)}
+                 disabled={!legalAccepted}
+                 className="rounded-lg bg-[var(--iris-primary)] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[var(--iris-primary-strong)] disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
               >
-                Accept
+                 Continue
               </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }

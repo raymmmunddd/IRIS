@@ -3,9 +3,10 @@
 import * as React from 'react'
 import * as ToastPrimitives from '@radix-ui/react-toast'
 import { cva, type VariantProps } from 'class-variance-authority'
-import { X } from 'lucide-react'
+import { X, CheckCircle, AlertTriangle, AlertCircle, HelpCircle } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
+import { useToast } from '@/hooks/use-toast'
 
 const ToastProvider = ToastPrimitives.Provider
 
@@ -25,11 +26,15 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName
 
 const toastVariants = cva(
-  'group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full',
+  'group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-4 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full',
   {
     variants: {
       variant: {
         default: 'border bg-background text-foreground',
+        success: 'bg-white border-l-4 border-l-green-500 text-slate-800',
+        warning: 'bg-white border-l-4 border-l-orange-500 text-slate-800',
+        error: 'bg-white border-l-4 border-l-red-500 text-slate-800',
+        help: 'bg-white border-l-4 border-l-blue-500 text-slate-800',
         destructive:
           'destructive group border-destructive bg-destructive text-destructive-foreground',
       },
@@ -77,7 +82,12 @@ const ToastClose = React.forwardRef<
   <ToastPrimitives.Close
     ref={ref}
     className={cn(
-      'absolute right-2 top-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100 group-[.destructive]:text-red-300 group-[.destructive]:hover:text-red-50 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600',
+      'absolute right-2 top-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100',
+      'group-[.destructive]:text-red-300 group-[.destructive]:hover:text-red-50 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600',
+      'group-[.success]:text-green-600 group-[.success]:hover:bg-green-50',
+      'group-[.warning]:text-orange-600 group-[.warning]:hover:bg-orange-50',
+      'group-[.error]:text-red-600 group-[.error]:hover:bg-red-50',
+      'group-[.help]:text-blue-600 group-[.help]:hover:bg-blue-50',
       className,
     )}
     toast-close=""
@@ -116,6 +126,65 @@ type ToastProps = React.ComponentPropsWithoutRef<typeof Toast>
 
 type ToastActionElement = React.ReactElement<typeof ToastAction>
 
+function Toaster() {
+  const { toasts } = useToast()
+
+  return (
+    <ToastProvider>
+      {toasts.map(function ({ id, title, description, action, variant, ...props }) {
+        return (
+          <Toast key={id} variant={variant} {...props}>
+            <div className="flex w-full gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-opacity-20 pointer-events-none">
+                {variant === 'success' && (
+                  <div className="rounded-full bg-green-100 p-2 text-green-600">
+                    <CheckCircle className="h-5 w-5" />
+                  </div>
+                )}
+                {variant === 'warning' && (
+                  <div className="rounded-full bg-orange-100 p-2 text-orange-500">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                )}
+                {(variant === 'destructive' || variant === 'error') && (
+                  <div className="rounded-full bg-red-100 p-2 text-red-600">
+                    <AlertCircle className="h-5 w-5" />
+                  </div>
+                )}
+                {variant === 'help' && (
+                  <div className="rounded-full bg-blue-100 p-2 text-blue-600">
+                    <HelpCircle className="h-5 w-5" />
+                  </div>
+                )}
+                {(!variant || variant === 'default') && (
+                   <div className="rounded-full bg-slate-100 p-2 text-slate-600">
+                      <HelpCircle className="h-5 w-5" />
+                   </div>
+                )}
+              </div>
+
+              <div className="grid gap-1 py-1">
+                {title && <ToastTitle className={cn(
+                  variant === 'success' && "text-green-700",
+                  variant === 'warning' && "text-orange-700",
+                  (variant === 'destructive' || variant === 'error') && "text-red-700",
+                  variant === 'help' && "text-blue-700",
+                )}>{title}</ToastTitle>}
+                {description && (
+                  <ToastDescription className="text-slate-600 font-normal">{description}</ToastDescription>
+                )}
+              </div>
+            </div>
+            {action}
+            <ToastClose />
+          </Toast>
+        )
+      })}
+      <ToastViewport />
+    </ToastProvider>
+  )
+}
+
 export {
   type ToastProps,
   type ToastActionElement,
@@ -126,4 +195,5 @@ export {
   ToastDescription,
   ToastClose,
   ToastAction,
+  Toaster
 }
