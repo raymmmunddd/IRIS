@@ -12,14 +12,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 import { login } from "@/lib/auth";
 
 export default function LoginPage() {
+  const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(false);
   const [role, setRole] = useState<"resident" | "official" | "bpat">("resident");
   const [legalDoc, setLegalDoc] = useState<"terms" | "privacy" | null>(null);
@@ -34,18 +35,36 @@ export default function LoginPage() {
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in all required fields.",
+        variant: "warning",
+      });
+      return;
+    }
+
     setIsLoading(true);
-    setMessage(null);
     
     // Simulate login delay
     setTimeout(() => {
       const success = login(email, password);
       if (success) {
+        toast({
+          title: "Login successful",
+          description: "Welcome back!",
+          variant: "success",
+        });
         // Do not set isLoading(false) here, let the navigation handle it
         router.push("/dashboard");
       } else {
         setIsLoading(false);
-        setMessage("Invalid email or password");
+        toast({
+          title: "Login failed",
+          description: "Invalid email or password. Please try again.",
+          variant: "destructive",
+        });
       }
     }, 800);
   };
@@ -153,7 +172,6 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                required
                 className="peer w-full rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-3 text-sm text-[var(--iris-text)] placeholder-transparent focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -178,7 +196,6 @@ export default function LoginPage() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
-                required
                 className="peer w-full rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-3 pr-11 text-sm text-[var(--iris-text)] placeholder-transparent focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -217,12 +234,6 @@ export default function LoginPage() {
                 </label>
                 <Link href="#" className="font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">Forgot your password?</Link>
             </div>
-
-            {message ? (
-              <div className="rounded-lg border border-[var(--iris-border)] bg-[var(--iris-primary-light)] px-4 py-3 text-sm text-[var(--iris-text)]">
-                {message}
-              </div>
-            ) : null}
 
             <button
               type="submit"

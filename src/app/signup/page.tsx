@@ -11,14 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SignupPage() {
+  const { toast } = useToast();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [role, setRole] = useState<"resident" | "official" | "bpat">("resident");
   const [legalDoc, setLegalDoc] = useState<"terms" | "privacy" | null>(null);
   const [legalAccepted, setLegalAccepted] = useState(false);
@@ -27,19 +28,35 @@ export default function SignupPage() {
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    setMessage(null);
+
+    if (!fullName || !email || !password || !confirmPassword) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in all required fields.",
+        variant: "warning",
+      });
+      return;
+    }
 
     if (password !== confirmPassword) {
-      setMessage("Passwords do not match.");
+      toast({
+        title: "Password mismatch",
+        description: "Passwords do not match.",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsLoading(true);
-    setMessage(null);
     
     // Simulate signup
     setTimeout(() => {
         // Assume signup success
+        toast({
+          title: "Account created",
+          description: "Your account has been successfully created.",
+          variant: "success",
+        });
         // Do not set isLoading(false) here, let the navigation handle it or show success state
         // setIsLoading(false) -> removed
     }, 900);
@@ -157,7 +174,6 @@ export default function SignupPage() {
                 id="fullName"
                 type="text"
                 autoComplete="name"
-                required
                 className="peer w-full rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-3 text-sm text-[var(--iris-text)] placeholder-transparent focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
@@ -182,7 +198,6 @@ export default function SignupPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                required
                 className="peer w-full rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-3 text-sm text-[var(--iris-text)] placeholder-transparent focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -207,7 +222,6 @@ export default function SignupPage() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
-                required
                 className="peer w-full rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-3 pr-10 text-sm text-[var(--iris-text)] placeholder-transparent focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -254,7 +268,6 @@ export default function SignupPage() {
                 id="confirmPassword"
                 type={showConfirmPassword ? "text" : "password"}
                 autoComplete="new-password"
-                required
                 className="peer w-full rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-3 pr-10 text-sm text-[var(--iris-text)] placeholder-transparent focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -283,12 +296,6 @@ export default function SignupPage() {
                 Confirm password
               </label>
             </div>
-
-            {message ? (
-              <div className="rounded-lg border border-[var(--iris-border)] bg-[var(--iris-primary-light)] px-4 py-3 text-sm text-[var(--iris-text)]">
-                {message}
-              </div>
-            ) : null}
 
             <button
               type="submit"
