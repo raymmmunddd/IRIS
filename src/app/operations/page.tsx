@@ -24,12 +24,18 @@ export default function OperationsPage() {
 
         <div className="mt-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="officers" className="gap-2">
+            <TabsList className="h-auto w-full justify-start gap-0 rounded-none border-b border-border bg-transparent p-0">
+              <TabsTrigger
+                value="officers"
+                className="relative rounded-none border-0 bg-transparent px-4 py-3 text-sm font-medium text-muted-foreground shadow-none hover:text-foreground data-[state=active]:text-primary data-[state=active]:shadow-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-primary after:opacity-0 data-[state=active]:after:opacity-100"
+              >
                 <Users className="h-4 w-4" />
                 Officers
               </TabsTrigger>
-              <TabsTrigger value="mediation" className="gap-2">
+              <TabsTrigger
+                value="mediation"
+                className="relative rounded-none border-0 bg-transparent px-4 py-3 text-sm font-medium text-muted-foreground shadow-none hover:text-foreground data-[state=active]:text-primary data-[state=active]:shadow-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-primary after:opacity-0 data-[state=active]:after:opacity-100"
+              >
                 <Calendar className="h-4 w-4" />
                 Mediation
               </TabsTrigger>

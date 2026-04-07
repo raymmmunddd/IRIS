@@ -3,6 +3,7 @@ export type NotificationItem = {
   title: string
   message: string
   time: string
+  date?: string
   read: boolean
   category: "case" | "system" | "report"
 }
@@ -15,6 +16,7 @@ const defaultNotifications: NotificationItem[] = [
     title: "New Case Escalated",
     message: "Case #C-2045 has been escalated for admin review.",
     time: "5m ago",
+    date: "Apr 07, 2026",
     read: false,
     category: "case",
   },
@@ -23,6 +25,7 @@ const defaultNotifications: NotificationItem[] = [
     title: "Officer Assignment Updated",
     message: "Officer Dela Cruz was assigned to a mediation request.",
     time: "22m ago",
+    date: "Apr 07, 2026",
     read: false,
     category: "case",
   },
@@ -31,6 +34,7 @@ const defaultNotifications: NotificationItem[] = [
     title: "Daily Report Ready",
     message: "The daily incident summary is now available.",
     time: "1h ago",
+    date: "Apr 07, 2026",
     read: false,
     category: "report",
   },
@@ -39,6 +43,7 @@ const defaultNotifications: NotificationItem[] = [
     title: "System Maintenance Reminder",
     message: "Scheduled maintenance starts at 11:00 PM.",
     time: "Yesterday",
+    date: "Apr 06, 2026",
     read: true,
     category: "system",
   },
@@ -47,6 +52,7 @@ const defaultNotifications: NotificationItem[] = [
     title: "Data Export Completed",
     message: "Public data export finished successfully.",
     time: "2 days ago",
+    date: "Apr 05, 2026",
     read: true,
     category: "report",
   },

@@ -22,45 +22,43 @@ export default function AdminPage() {
         />
 
         <Tabs defaultValue="users" className="space-y-6">
-          <div className="rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)]/95 p-3 shadow-sm">
-            <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-xl bg-transparent p-0 lg:grid-cols-5">
+          <TabsList className="h-auto w-full justify-start gap-0 rounded-none border-b border-border bg-transparent p-0">
             <TabsTrigger
               value="users"
-              className="gap-2 rounded-lg border border-transparent px-3 py-2.5 data-[state=active]:border-[var(--iris-border)] data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              className="relative rounded-none border-0 bg-transparent px-4 py-3 text-sm font-medium text-muted-foreground shadow-none hover:text-foreground data-[state=active]:text-primary data-[state=active]:shadow-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-primary after:opacity-0 data-[state=active]:after:opacity-100"
             >
               <Users className="h-4 w-4" />
               Users
             </TabsTrigger>
             <TabsTrigger
               value="announcements"
-              className="gap-2 rounded-lg border border-transparent px-3 py-2.5 data-[state=active]:border-[var(--iris-border)] data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              className="relative rounded-none border-0 bg-transparent px-4 py-3 text-sm font-medium text-muted-foreground shadow-none hover:text-foreground data-[state=active]:text-primary data-[state=active]:shadow-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-primary after:opacity-0 data-[state=active]:after:opacity-100"
             >
               <Megaphone className="h-4 w-4" />
               Announcements
             </TabsTrigger>
             <TabsTrigger
               value="public-data"
-              className="gap-2 rounded-lg border border-transparent px-3 py-2.5 data-[state=active]:border-[var(--iris-border)] data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              className="relative rounded-none border-0 bg-transparent px-4 py-3 text-sm font-medium text-muted-foreground shadow-none hover:text-foreground data-[state=active]:text-primary data-[state=active]:shadow-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-primary after:opacity-0 data-[state=active]:after:opacity-100"
             >
               <Eye className="h-4 w-4" />
               Public Data
             </TabsTrigger>
             <TabsTrigger
               value="audit-logs"
-              className="gap-2 rounded-lg border border-transparent px-3 py-2.5 data-[state=active]:border-[var(--iris-border)] data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              className="relative rounded-none border-0 bg-transparent px-4 py-3 text-sm font-medium text-muted-foreground shadow-none hover:text-foreground data-[state=active]:text-primary data-[state=active]:shadow-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-primary after:opacity-0 data-[state=active]:after:opacity-100"
             >
               <FileText className="h-4 w-4" />
               Audit Logs
             </TabsTrigger>
             <TabsTrigger
               value="settings"
-              className="gap-2 rounded-lg border border-transparent px-3 py-2.5 data-[state=active]:border-[var(--iris-border)] data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              className="relative rounded-none border-0 bg-transparent px-4 py-3 text-sm font-medium text-muted-foreground shadow-none hover:text-foreground data-[state=active]:text-primary data-[state=active]:shadow-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-primary after:opacity-0 data-[state=active]:after:opacity-100"
             >
               <Settings className="h-4 w-4" />
               Settings
             </TabsTrigger>
-            </TabsList>
-          </div>
+          </TabsList>
 
           <TabsContent value="users" className="space-y-4">
             <UsersTab />

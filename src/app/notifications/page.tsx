@@ -1,7 +1,16 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { BellRing, CheckCircle2, Clock3, Dot, Sparkles } from "lucide-react"
+import {
+  BellRing,
+  Briefcase,
+  CalendarDays,
+  Clock3,
+  Dot,
+  FileText,
+  Settings,
+  Sparkles,
+} from "lucide-react"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { Button } from "@/components/ui/button"
@@ -37,6 +46,12 @@ export default function NotificationsPage() {
   const handleMarkAllRead = () => {
     const updated = markAllNotificationsAsRead()
     setNotifications(updated)
+  }
+
+  const getCategoryIcon = (category: NotificationItem["category"]) => {
+    if (category === "case") return <Briefcase className="h-3.5 w-3.5" />
+    if (category === "report") return <FileText className="h-3.5 w-3.5" />
+    return <Settings className="h-3.5 w-3.5" />
   }
 
   return (
@@ -80,9 +95,16 @@ export default function NotificationsPage() {
                   className="w-full rounded-lg border border-border bg-background p-3 text-left transition-colors hover:bg-muted"
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center rounded-md bg-primary/10 p-1 text-primary">
+                        {getCategoryIcon(item.category)}
+                      </span>
+                      <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                    </div>
                     {item.read ? (
-                      <Badge variant="secondary">Read</Badge>
+                      <Badge variant="secondary" className="bg-slate-100 text-slate-500">
+                        Read
+                      </Badge>
                     ) : (
                       <Badge className="h-5 gap-1 bg-emerald-600 px-1.5 text-[10px] text-white">
                         <Sparkles className="h-3 w-3 text-white" />
@@ -94,6 +116,9 @@ export default function NotificationsPage() {
                   <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
                     <Clock3 className="h-3 w-3" />
                     {item.time}
+                    <span className="mx-1">•</span>
+                    <CalendarDays className="h-3 w-3" />
+                    {item.date ?? "Apr 2026"}
                   </p>
                 </button>
               ))}
@@ -115,21 +140,31 @@ export default function NotificationsPage() {
                   className="w-full rounded-lg border border-border bg-background p-3 text-left transition-colors hover:bg-muted"
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center rounded-md bg-primary/10 p-1 text-primary">
+                        {getCategoryIcon(item.category)}
+                      </span>
+                      <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                    </div>
                     {!item.read ? (
                       <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
                         <Dot className="h-5 w-5 text-emerald-600" />
                         Unread
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-xs text-emerald-700">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-500">
                         Read
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">{item.message}</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">{item.time}</p>
+                  <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Clock3 className="h-3 w-3" />
+                    {item.time}
+                    <span className="mx-1">•</span>
+                    <CalendarDays className="h-3 w-3" />
+                    {item.date ?? "Apr 2026"}
+                  </p>
                 </button>
               ))}
             </CardContent>

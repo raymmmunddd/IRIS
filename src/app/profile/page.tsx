@@ -301,14 +301,14 @@ export default function ProfilePage() {
         </div>
 
         <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
-          <DialogContent className="rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)]/95 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.12)]">
-            <DialogHeader className="mb-1 text-center">
+          <DialogContent className="max-w-md rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)]/95 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.12)]">
+            <DialogHeader className="mb-2 text-center">
               <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--iris-primary-light)] text-[var(--iris-primary)]">
                 <KeyRound className="h-5 w-5" />
               </div>
-              <DialogTitle className="text-2xl font-bold text-[var(--iris-text)]">Change Email</DialogTitle>
-              <DialogDescription className="mt-1 text-sm text-[var(--iris-text-subtle)]">
-                Enter your new email, request a verification code, and confirm to continue.
+              <DialogTitle className="text-2xl">Change Email</DialogTitle>
+              <DialogDescription className="mt-1">
+                Enter your new email and verify with the code sent to your inbox.
               </DialogDescription>
             </DialogHeader>
 
@@ -318,7 +318,7 @@ export default function ProfilePage() {
                 <Input
                   id="newEmail"
                   type="email"
-                  className="rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-3 py-2.5 focus-visible:ring-0 focus-visible:ring-transparent"
+                  className="focus-visible:ring-0 focus-visible:ring-transparent"
                   value={newEmail}
                   onChange={(event) => setNewEmail(event.target.value)}
                 />
@@ -328,49 +328,47 @@ export default function ProfilePage() {
                 <Label htmlFor="verificationCode">Verification code</Label>
                 <Input
                   id="verificationCode"
-                  className="rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-3 py-2.5 focus-visible:ring-0 focus-visible:ring-transparent"
+                  className="focus-visible:ring-0 focus-visible:ring-transparent"
                   value={verificationCodeInput}
                   onChange={(event) => setVerificationCodeInput(event.target.value)}
                   placeholder="Enter 6-digit code"
                 />
               </div>
 
-              <div className="rounded-xl border border-[var(--iris-border)] bg-background/60 p-3">
-                {!hasSentCode ? (
+              {!hasSentCode ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={sendVerificationCode}
+                  disabled={!canSendCode}
+                  className="w-full"
+                >
+                  Send Code
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={sendVerificationCode}
-                    disabled={!canSendCode}
-                    className="w-full rounded-xl"
+                    disabled={!canResendCode}
+                    className="flex-1"
                   >
-                    Send Code
+                    <RotateCw className="mr-2 h-4 w-4" />
+                    Resend Code
                   </Button>
-                ) : (
-                  <div className="flex items-center justify-between gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={sendVerificationCode}
-                      disabled={!canResendCode}
-                      className="flex-1 rounded-xl"
-                    >
-                      <RotateCw className="mr-1 h-4 w-4" />
-                      Resend Code
-                    </Button>
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {resendCooldown > 0 ? `${resendCooldown}s` : "Ready"}
-                    </p>
-                  </div>
-                )}
-              </div>
+                  <p className="w-14 text-right text-xs font-medium text-muted-foreground">
+                    {resendCooldown > 0 ? `${resendCooldown}s` : "Ready"}
+                  </p>
+                </div>
+              )}
 
-              <DialogFooter className="pt-1">
-                <Button type="button" variant="outline" className="rounded-xl" onClick={() => setIsEmailDialogOpen(false)}>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="button" className="rounded-xl" onClick={confirmEmailChange} disabled={!canConfirm}>
-                  <CheckCircle2 className="mr-1 h-4 w-4" />
+                <Button type="button" onClick={confirmEmailChange} disabled={!canConfirm}>
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
                   Confirm
                 </Button>
               </DialogFooter>
