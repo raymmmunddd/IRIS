@@ -20,7 +20,7 @@ const categories = [
 export function PublicDataTab() {
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="border-[var(--iris-border)] bg-[var(--iris-surface)]/95 shadow-sm">
         <CardHeader>
           <CardTitle>Public Transparency Settings</CardTitle>
           <CardDescription>Control what data is visible on the public dashboard</CardDescription>
@@ -29,7 +29,7 @@ export function PublicDataTab() {
           <div>
             <h3 className="text-lg font-medium mb-4">Public Statistics</h3>
             <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="flex items-center justify-between rounded-xl border border-[var(--iris-border)] bg-white p-4">
                 <div className="space-y-0.5">
                   <Label className="text-base">Display Total Case Count</Label>
                   <p className="text-sm text-muted-foreground">
@@ -38,7 +38,7 @@ export function PublicDataTab() {
                 </div>
                 <Switch defaultChecked />
               </div>
-              <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="flex items-center justify-between rounded-xl border border-[var(--iris-border)] bg-white p-4">
                 <div className="space-y-0.5">
                   <Label className="text-base">Show Resolution Rate</Label>
                   <p className="text-sm text-muted-foreground">
@@ -47,7 +47,7 @@ export function PublicDataTab() {
                 </div>
                 <Switch defaultChecked />
               </div>
-              <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="flex items-center justify-between rounded-xl border border-[var(--iris-border)] bg-white p-4">
                 <div className="space-y-0.5">
                   <Label className="text-base">Category Breakdown</Label>
                   <p className="text-sm text-muted-foreground">
@@ -75,7 +75,7 @@ export function PublicDataTab() {
           </div>
           
           <div className="pt-4">
-            <Button className="bg-slate-900 text-white hover:bg-slate-800">
+            <Button className="rounded-lg bg-slate-900 text-white hover:bg-slate-800">
                 Save Public Data Settings
             </Button>
           </div>

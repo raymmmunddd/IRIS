@@ -22,7 +22,7 @@ export function SettingsTab() {
   return (
     <div className="space-y-6">
       {/* AI Configuration */}
-      <Card>
+      <Card className="border-[var(--iris-border)] bg-[var(--iris-surface)]/95 shadow-sm">
         <CardHeader>
           <CardTitle>AI Configuration</CardTitle>
           <CardDescription>Configure AI thresholds and automation settings</CardDescription>
@@ -55,7 +55,7 @@ export function SettingsTab() {
             </div>
 
             <div className="pt-2">
-                <Button className="bg-slate-900 text-white hover:bg-slate-800">
+                <Button className="rounded-lg bg-slate-900 text-white hover:bg-slate-800">
                     Save AI Settings
                 </Button>
             </div>
@@ -64,7 +64,7 @@ export function SettingsTab() {
       </Card>
 
       {/* Category Configuration */}
-      <Card>
+      <Card className="border-[var(--iris-border)] bg-[var(--iris-surface)]/95 shadow-sm">
         <CardHeader>
           <CardTitle>Category Configuration</CardTitle>
           <CardDescription>Manage incident categories</CardDescription>
@@ -72,16 +72,16 @@ export function SettingsTab() {
         <CardContent>
           <div className="space-y-2">
             {categories.map((category) => (
-                <div key={category} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                <div key={category} className="flex items-center justify-between rounded-xl border border-[var(--iris-border)] bg-white p-3 transition-colors hover:bg-accent/50">
                     <span className="font-medium">{category}</span>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="h-8">Edit</Button>
-                        <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-700 hover:bg-red-50">Remove</Button>
+                    <Button variant="outline" size="sm" className="h-8 rounded-lg">Edit</Button>
+                    <Button variant="ghost" size="sm" className="h-8 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-700">Remove</Button>
                     </div>
                 </div>
             ))}
             <div className="pt-4">
-                <Button className="bg-slate-900 text-white hover:bg-slate-800">
+                <Button className="rounded-lg bg-slate-900 text-white hover:bg-slate-800">
                     Add New Category
                 </Button>
             </div>
@@ -90,13 +90,13 @@ export function SettingsTab() {
       </Card>
 
       {/* Role Permissions */}
-      <Card>
+      <Card className="border-[var(--iris-border)] bg-[var(--iris-surface)]/95 shadow-sm">
         <CardHeader>
           <CardTitle>Role Permissions</CardTitle>
           <CardDescription>Manage access levels and capabilities</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="rounded-lg border p-4 space-y-4">
+          <div className="space-y-4 rounded-xl border border-[var(--iris-border)] bg-white p-4">
             <div className="flex items-center gap-2 mb-4">
                 <Shield className="h-5 w-5 text-slate-900" />
                 <h3 className="font-semibold text-lg">Admin</h3>
@@ -117,7 +117,7 @@ export function SettingsTab() {
             </div>
           </div>
 
-          <div className="rounded-lg border p-4 space-y-4">
+          <div className="space-y-4 rounded-xl border border-[var(--iris-border)] bg-white p-4">
             <div className="flex items-center gap-2 mb-4">
                 <User className="h-5 w-5 text-slate-900" />
                 <h3 className="font-semibold text-lg">Officer</h3>
@@ -139,7 +139,7 @@ export function SettingsTab() {
           </div>
           
           <div className="pt-2">
-            <Button className="bg-slate-900 text-white hover:bg-slate-800">
+            <Button className="rounded-lg bg-slate-900 text-white hover:bg-slate-800">
                 Manage Permissions
             </Button>
           </div>

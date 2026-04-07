@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Check, Users, X } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const mockUsers = [
@@ -43,11 +43,14 @@ const mockUsers = [
 export function UsersTab() {
   return (
     <div className="space-y-4">
-      <Card>
+      <Card className="border-[var(--iris-border)] bg-[var(--iris-surface)]/95 shadow-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Resident Verification</CardTitle>
-            <Badge variant="secondary">1 Pending</Badge>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              Resident Verification
+            </CardTitle>
+            <Badge variant="secondary" className="bg-amber-100 text-amber-800">1 Pending</Badge>
           </div>
           <CardDescription>
             Manage user registration and account status
@@ -91,21 +94,21 @@ export function UsersTab() {
                     <div className="flex justify-end gap-2">
                         {user.status === "Pending" && (
                             <>
-                                <Button size="sm" variant="outline" className="h-8 gap-1">
+                                <Button size="sm" variant="outline" className="h-8 gap-1 rounded-lg">
                                     <Check className="h-4 w-4" /> Approve
                                 </Button>
-                                <Button size="sm" variant="destructive" className="h-8 gap-1">
+                                <Button size="sm" variant="destructive" className="h-8 gap-1 rounded-lg">
                                     <X className="h-4 w-4" /> Reject
                                 </Button>
                             </>
                         )}
                         {user.status === "Verified" && (
-                            <Button size="sm" variant="secondary" className="h-8">
+                              <Button size="sm" variant="secondary" className="h-8 rounded-lg">
                                 Suspend
                             </Button>
                         )}
                         {user.status === "Suspended" && (
-                            <Button size="sm" variant="default" className="bg-slate-900 h-8">
+                              <Button size="sm" variant="default" className="h-8 rounded-lg bg-slate-900">
                                 Reinstate
                             </Button>
                         )}

@@ -1,9 +1,12 @@
 export type LoginResult = { success: boolean; message?: string };
 
+export type UserRole = "resident" | "official" | "bpat";
+
 export interface AuthUser {
   email: string;
   id: string;
   createdAt: string;
+  role: UserRole;
 }
 
 const STORAGE_KEY = "auth_user";
@@ -23,7 +26,18 @@ export function isAuthenticated(): boolean {
   return !!getAuthUser();
 }
 
-export function login(email: string, password: string): boolean {
+export function getRoleLandingPath(role: UserRole): string {
+  if (role === "resident") return "/resident";
+  if (role === "bpat") return "/bpat-officers";
+  return "/dashboard";
+}
+
+export function isRoleAuthorized(allowedRoles: UserRole[]): boolean {
+  const user = getAuthUser();
+  return !!user && allowedRoles.includes(user.role);
+}
+
+export function login(email: string, password: string, role: UserRole = "official"): boolean {
   if (!email || !password) return false;
 
   try {
@@ -31,6 +45,7 @@ export function login(email: string, password: string): boolean {
       email,
       id: `user_${Date.now()}`,
       createdAt: new Date().toISOString(),
+      role,
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
@@ -40,7 +55,12 @@ export function login(email: string, password: string): boolean {
   }
 }
 
-export function signup(email: string, password: string, confirmPassword: string): boolean {
+export function signup(
+  email: string,
+  password: string,
+  confirmPassword: string,
+  role: UserRole = "resident"
+): boolean {
   if (!email || !password || !confirmPassword) return false;
   if (password !== confirmPassword) return false;
   if (password.length < 6) return false;
@@ -50,6 +70,7 @@ export function signup(email: string, password: string, confirmPassword: string)
       email,
       id: `user_${Date.now()}`,
       createdAt: new Date().toISOString(),
+      role,
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));

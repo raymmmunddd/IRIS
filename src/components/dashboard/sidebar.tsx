@@ -2,22 +2,17 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   Briefcase,
-  Cog,
   FileText,
   ShieldCheck,
-  Bell,
-  Settings,
-  LogOut,
   PanelRightClose,
   PanelRightOpen,
   Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { logout } from "@/lib/auth"
 
 interface NavItem {
   label: string
@@ -33,24 +28,13 @@ const mainNavItems: NavItem[] = [
   { label: "Administration", href: "/admin", icon: <ShieldCheck className="h-5 w-5" /> },
 ]
 
-const bottomNavItems: NavItem[] = [
-  { label: "Notification", href: "#", icon: <Bell className="h-5 w-5" /> },
-  { label: "Settings", href: "#", icon: <Settings className="h-5 w-5" /> },
-]
-
 export function DashboardSidebar() {
   const pathname = usePathname()
-  const router = useRouter()
   const [isMinimized, setIsMinimized] = useState(false)
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/"
     return pathname.startsWith(href)
-  }
-
-  const handleLogout = () => {
-    logout()
-    router.push("/login")
   }
 
   return (
@@ -125,36 +109,7 @@ export function DashboardSidebar() {
       </nav>
 
       {/* Bottom Navigation */}
-      <div className="px-4 pb-6">
-        <ul className="flex flex-col gap-1">
-          {bottomNavItems.map((item) => (
-            <li key={item.label}>
-              <Link
-                href={item.href}
-                className={cn(
-                  "relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-nav-hover-border)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar-bg)]",
-                  isActive(item.href)
-                    ? "bg-[var(--sidebar-nav-active-bg)] text-[var(--sidebar-nav-active-foreground)] shadow-sm"
-                    : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-nav-hover-bg)] hover:text-[var(--sidebar-nav-hover-foreground)]"
-                )}
-              >
-                {item.icon}
-                {!isMinimized && <span>{item.label}</span>}
-              </Link>
-            </li>
-          ))}
-          <li>
-            <button 
-              onClick={handleLogout}
-              className="ml-0 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[#f87171] transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar-bg)]"
-            >
-              <LogOut className="h-5 w-5" />
-              {!isMinimized && <span>Logout</span>}
-            </button>
-          </li>
-        </ul>
-      </div>
+      <div className="px-4 pb-6" />
     </aside>
   )
 }

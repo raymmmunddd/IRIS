@@ -44,18 +44,18 @@ const mockLogs = [
 export function AuditLogsTab() {
   return (
     <div className="space-y-4">
-      <Card>
+      <Card className="border-[var(--iris-border)] bg-[var(--iris-surface)]/95 shadow-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>System Audit Logs</CardTitle>
             <div className="flex items-center gap-2">
                 <div className="w-40">
-                    <Input type="text" placeholder="dd/mm/yyyy" className="h-9" />
+                    <Input type="text" placeholder="dd/mm/yyyy" className="h-9 rounded-lg" />
                 </div>
-                <Button variant="outline" size="sm" className="h-9 gap-1">
+                  <Button variant="outline" size="sm" className="h-9 gap-1 rounded-lg">
                     <Filter className="h-4 w-4" /> Filter
                 </Button>
-                <Button variant="outline" size="sm" className="h-9 gap-1">
+                  <Button variant="outline" size="sm" className="h-9 gap-1 rounded-lg">
                     <Download className="h-4 w-4" /> Export
                 </Button>
             </div>
