@@ -59,6 +59,97 @@ export function getCaseById(caseId: string): CaseRecord | undefined {
   return getCases().find((c) => c.id === caseId);
 }
 
+type CreateResidentCaseInput = {
+  fullName: string;
+  category: CaseRecord["category"];
+  incidentDate: string;
+  contact: string;
+  email: string;
+  street: string;
+  details: string;
+};
+
+function toShortName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 0) return "Resident";
+  if (parts.length === 1) return parts[0];
+
+  const firstInitial = parts[0].charAt(0).toUpperCase();
+  const lastName = parts[parts.length - 1];
+  return `${firstInitial}. ${lastName}`;
+}
+
+function nextCaseNumber(existingCases: CaseRecord[]): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const nextSeq = existingCases.length + 1;
+  return `IRIS-${year}-${String(nextSeq).padStart(3, "0")}`;
+}
+
+function inferPriority(category: CaseRecord["category"]): CaseRecord["priority"] {
+  if (category === "Violence or Threats" || category === "Child & Vulnerable Protection") {
+    return "High";
+  }
+
+  if (category === "Property & Theft" || category === "Fraud & Scams") {
+    return "Medium";
+  }
+
+  return "Low";
+}
+
+export function createResidentCaseReport(input: CreateResidentCaseInput): CaseRecord | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const allCases = getCases();
+    const nowIso = new Date().toISOString();
+    const nowDisplay = new Date().toLocaleDateString();
+    const caseNumber = nextCaseNumber(allCases);
+
+    const createdCase: CaseRecord = {
+      id: `case_${Date.now()}`,
+      caseNumber,
+      fullName: input.fullName,
+      shortName: toShortName(input.fullName),
+      category: input.category,
+      type: "Resident Report",
+      priority: inferPriority(input.category),
+      status: "Pending",
+      assignedOfficer: "Unassigned",
+      date: nowDisplay,
+      gender: "Not specified",
+      contact: input.contact,
+      email: input.email,
+      street: input.street,
+      details: input.details,
+      dateSubmitted: nowDisplay,
+      incidentDate: input.incidentDate,
+      evidence: 0,
+      evidenceFiles: [],
+      statusHistory: [{ status: "Pending" as CaseStatus, changedAt: nowIso, changedBy: "Resident Portal" }],
+      assignedOfficerHistory: [{ officer: "Unassigned", assignedAt: nowIso, assignedBy: "System" }],
+      lastUpdated: nowIso,
+      version: 1,
+    };
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([createdCase, ...allCases]));
+
+    addActivityLog({
+      label: "Resident report filed",
+      detail: `${caseNumber} was submitted under ${input.category}.`,
+      category: "cases",
+      status: "Verified",
+      timestamp: nowIso,
+    });
+
+    return createdCase;
+  } catch (e) {
+    console.error("Failed to create resident case report:", e);
+    return null;
+  }
+}
+
 export function updateCaseStatus(caseId: string, newStatus: CaseStatus): CaseRecord | null {
   if (typeof window === "undefined") return null;
 

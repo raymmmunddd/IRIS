@@ -72,19 +72,64 @@ export default function LoginPage() {
 
   const roleCopy = {
     resident: {
-      title: "Hello, Resident! 👋",
-      body: "Report incidents, track status updates, and stay informed with IRIS. Your community updates are just a click away.",
-      loginCopy: "Use your community email to report incidents and track case updates.",
+      title: "Welcome, Resident! 👋",
+      body: "Report incidents, track case updates, and stay informed in your community.",
+      loginCopy: "Access your IRIS account to report and monitor incidents.",
+      actionTitle: "Login",
+      highlights: [
+        {
+          heading: "Fast Reporting",
+          detail: "Submit incidents in minutes",
+        },
+        {
+          heading: "Verified Updates",
+          detail: "Track real-time case status",
+        },
+        {
+          heading: "Secure Access",
+          detail: "Role-based system protection",
+        },
+      ],
     },
     official: {
       title: "Welcome, Admin! 👋",
-      body: "Verify cases, schedule assignments, and monitor reports efficiently. IRIS keeps your dashboard and community operations organized.",
-      loginCopy: "Use your work email to access dashboards, cases, and collaboration.",
+      body: "Manage cases, assign tasks, and monitor barangay operations efficiently with IRIS.",
+      loginCopy: "Use your work email to access the case management tools.",
+      actionTitle: "Login",
+      highlights: [
+        {
+          heading: "Case Verification",
+          detail: "Review and validate reported incidents",
+        },
+        {
+          heading: "Task Assignment",
+          detail: "Schedule and assign officers",
+        },
+        {
+          heading: "Real-Time Monitoring",
+          detail: "Track case progress and reports",
+        },
+      ],
     },
     bpat: {
-      title: "Hello, BPAT Officer! 👋",
-      body: "Log mediation updates, manage field cases, and respond to AI-flagged reports. IRIS helps you act quickly and keep every case moving.",
-      loginCopy: "Use your work email to access dashboards, cases, and collaboration.",
+      title: "Welcome, Officer! 👋",
+      body: "Log mediation updates, manage field cases, and respond to assigned incidents in real time.",
+      loginCopy: "Use your work email to access field operations and case updates.",
+      actionTitle: "Login",
+      highlights: [
+        {
+          heading: "Field Case Updates",
+          detail: "Record on-site progress and outcomes",
+        },
+        {
+          heading: "Mediation Logs",
+          detail: "Document disputes and resolutions",
+        },
+        {
+          heading: "Real-Time Alerts",
+          detail: "Respond to new and priority cases quickly",
+        },
+      ],
     },
   } as const;
 
@@ -138,19 +183,16 @@ export default function LoginPage() {
               <h1 className="text-3xl xl:text-4xl leading-tight font-semibold">{roleCopy[role].title}</h1>
               <p className="text-base xl:text-lg text-white/80 leading-relaxed">{roleCopy[role].body}</p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
-                <p className="text-xs uppercase tracking-[0.14em] text-white/70">Fast reporting</p>
-                <p className="mt-2 text-sm font-semibold text-white">Capture incidents in minutes</p>
-              </div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
-                <p className="text-xs uppercase tracking-[0.14em] text-white/70">Verified updates</p>
-                <p className="mt-2 text-sm font-semibold text-white">Always know case status</p>
-              </div>
+            <div className="grid gap-3">
+              {roleCopy[role].highlights.map((item) => (
+                <div key={item.heading} className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+                  <p className="text-xs uppercase tracking-[0.14em] text-white/70">{item.heading}</p>
+                  <p className="mt-2 text-sm font-semibold text-white">{item.detail}</p>
+                </div>
+              ))}
             </div>
           </div>
-          <div className="flex items-center justify-between text-xs text-white/60">
-            <span>Protected by role permissions</span>
+          <div className="text-xs text-white/70">
             <span>© 2026 IRIS</span>
           </div>
         </div>
@@ -161,7 +203,7 @@ export default function LoginPage() {
           <div className="text-sm">
             <Link href="/" className="inline-flex items-center gap-2 font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">
               <ArrowLeft className="h-4 w-4" />
-              Go back
+              Go Back to Homepage
             </Link>
           </div>
 
@@ -170,7 +212,7 @@ export default function LoginPage() {
               <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--iris-primary-light)] text-[var(--iris-primary)]">
                 <LogIn className="h-5 w-5" />
               </div>
-              <h2 className="text-2xl lg:text-3xl font-bold text-[var(--iris-text)]">Login</h2>
+              <h2 className="text-2xl lg:text-3xl font-bold text-[var(--iris-text)]">{roleCopy[role].actionTitle}</h2>
               <p className="text-sm text-[var(--iris-text-subtle)]">{roleCopy[role].loginCopy}</p>
             </div>
 
@@ -319,7 +361,7 @@ export default function LoginPage() {
             <p className="text-center text-sm text-[var(--iris-text-subtle)]">
               Don&apos;t have an account?{" "}
               <Link href="/signup" className="font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">
-                Create an account.
+                Create one.
               </Link>
             </p>
           </div>

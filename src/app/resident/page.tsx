@@ -38,7 +38,7 @@ const recentUpdates = [
 ];
 
 const shortcuts = [
-  { label: "Report Incident", icon: Plus, href: "/cases" },
+  { label: "Report Incident", icon: Plus, href: "/resident/report-intake" },
   { label: "My Cases", icon: ClipboardList, href: "/cases" },
   { label: "Announcements", icon: Megaphone, href: "/reports" },
   { label: "Help Center", icon: LifeBuoy, href: "/operations" },

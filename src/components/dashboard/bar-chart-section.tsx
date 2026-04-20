@@ -1,7 +1,10 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useMemo, useState } from "react"
 import {
+  Bar,
+  BarChart,
+  Cell,
   LineChart,
   Line,
   XAxis,
@@ -9,7 +12,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
+  LabelList,
 } from "recharts"
 import { cn } from "@/lib/utils"
 
@@ -47,31 +50,36 @@ const categoryData = [
 
 type FilterMode = "cases" | "category"
 
-const categoryLines = [
-  { key: "violence", name: "Violence or Threats", color: "#d64545" },
-  { key: "harassment", name: "Harassment & Abuse", color: "#d99e04" },
-  { key: "fraud", name: "Fraud & Scams", color: "#f2b705" },
-  { key: "disturbance", name: "Public Disturbance", color: "#0ea5e9" },
-  { key: "property", name: "Property & Theft", color: "#1e4fa3" },
-  { key: "community", name: "Community Dispute", color: "#7c3aed" },
-  { key: "child", name: "Child & Vulnerable", color: "#8b5cf6" },
+const categoryMeta = [
+  { key: "violence", name: "Violence or Threats", shortName: "Violence/Threats", color: "#d64545" },
+  { key: "harassment", name: "Harassment & Abuse", shortName: "Harassment", color: "#d99e04" },
+  { key: "fraud", name: "Fraud & Scams", shortName: "Fraud/Scams", color: "#f2b705" },
+  { key: "disturbance", name: "Public Disturbance", shortName: "Public Disturb.", color: "#0ea5e9" },
+  { key: "property", name: "Property & Theft", shortName: "Property/Theft", color: "#1e4fa3" },
+  { key: "community", name: "Community Dispute", shortName: "Community Disp.", color: "#7c3aed" },
+  { key: "child", name: "Child & Vulnerable", shortName: "Child/Vulnerable", color: "#8b5cf6" },
 ]
 
 export function MonthlyTrendChart() {
   const [filter, setFilter] = useState<FilterMode>("cases")
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const [selectedMonth, setSelectedMonth] = useState("Dec")
 
-  const data = filter === "cases" ? casesData : categoryData
+  const selectedCategoryMonth = useMemo(
+    () => categoryData.find((item) => item.month === selectedMonth) ?? categoryData[categoryData.length - 1],
+    [selectedMonth]
+  )
 
-  const handleScroll = (direction: "left" | "right") => {
-    if (scrollContainerRef.current) {
-      const scrollAmount = 200
-      scrollContainerRef.current.scrollBy({
-        left: direction === "left" ? -scrollAmount : scrollAmount,
-        behavior: "smooth",
-      })
+  const categoryBarData = categoryMeta.map((category) => {
+    const amount = selectedCategoryMonth[category.key as keyof typeof selectedCategoryMonth]
+
+    return {
+      key: category.key,
+      fullName: category.name,
+      shortName: category.shortName,
+      value: typeof amount === "number" ? amount : 0,
+      color: category.color,
     }
-  }
+  })
 
   return (
     <div className="flex h-full flex-col rounded-xl border border-border bg-card p-5">
@@ -98,14 +106,29 @@ export function MonthlyTrendChart() {
         </div>
       </div>
 
-      {/* Scrollable Chart Container */}
-      <div
-        ref={scrollContainerRef}
-        className="flex-1 overflow-x-auto scrollbar-thin scrollbar-thumb-[var(--muted-foreground)] scrollbar-track-[var(--muted)]"
-      >
-        <div className="min-w-max">
-          <ResponsiveContainer width={1400} height={280}>
-            <LineChart data={data}>
+      {filter === "category" && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {months.map((month) => (
+            <button
+              key={month}
+              onClick={() => setSelectedMonth(month)}
+              className={cn(
+                "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
+                selectedMonth === month
+                  ? "border-[var(--chart-main)] bg-[color-mix(in_srgb,var(--chart-main)_12%,transparent)] text-[var(--chart-main)]"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-card-foreground"
+              )}
+            >
+              {month}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex-1">
+        <ResponsiveContainer width="100%" height={300}>
+          {filter === "cases" ? (
+            <LineChart data={casesData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
               <XAxis
                 dataKey="month"
@@ -128,38 +151,58 @@ export function MonthlyTrendChart() {
                   boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                 }}
               />
-              <Legend
-                wrapperStyle={{ fontSize: "10px", color: "var(--muted-foreground)", paddingTop: "8px" }}
-                iconType="circle"
-                iconSize={6}
+              <Line
+                type="monotone"
+                dataKey="cases"
+                name="Cases"
+                stroke="var(--chart-main)"
+                strokeWidth={2.5}
+                dot={{ r: 3, fill: "var(--chart-main)", strokeWidth: 0 }}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: "var(--card)" }}
               />
-              {filter === "cases" ? (
-                <Line
-                  type="monotone"
-                  dataKey="cases"
-                  name="Cases"
-                  stroke="var(--chart-main)"
-                  strokeWidth={2.5}
-                  dot={{ r: 3, fill: "var(--chart-main)", strokeWidth: 0 }}
-                  activeDot={{ r: 5, strokeWidth: 2, stroke: "var(--card)" }}
-                />
-              ) : (
-                categoryLines.map((line) => (
-                  <Line
-                    key={line.key}
-                    type="monotone"
-                    dataKey={line.key}
-                    name={line.name}
-                    stroke={line.color}
-                    strokeWidth={2}
-                    dot={{ r: 2, fill: line.color, strokeWidth: 0 }}
-                    activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)" }}
-                  />
-                ))
-              )}
             </LineChart>
-          </ResponsiveContainer>
-        </div>
+          ) : (
+            <BarChart
+              data={categoryBarData}
+              layout="vertical"
+              margin={{ top: 4, right: 24, bottom: 6, left: 8 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+              <XAxis
+                type="number"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+              />
+              <YAxis
+                type="category"
+                dataKey="shortName"
+                width={122}
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+              />
+              <Tooltip
+                cursor={{ fill: "color-mix(in srgb,var(--muted) 35%, transparent)" }}
+                formatter={(value: number, _name, payload) => [`${value} cases`, payload?.payload?.fullName]}
+                contentStyle={{
+                  borderRadius: "8px",
+                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--card)",
+                  fontSize: "12px",
+                  color: "var(--card-foreground)",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                }}
+              />
+              <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                {categoryBarData.map((item) => (
+                  <Cell key={item.key} fill={item.color} />
+                ))}
+                <LabelList dataKey="value" position="right" className="fill-muted-foreground text-[11px]" />
+              </Bar>
+            </BarChart>
+          )}
+        </ResponsiveContainer>
       </div>
     </div>
   )
