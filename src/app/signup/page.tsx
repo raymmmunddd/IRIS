@@ -5,13 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UserPlus, User, Mail, Lock, X, CheckCircle2, Eye, EyeOff, ShieldCheck, ClipboardCheck, Database, UserCheck, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { signup, type UserRole } from "@/lib/auth";
 
@@ -79,7 +72,7 @@ export default function SignupPage() {
       body: "Report incidents, track status updates, and stay informed with IRIS. Your community updates are just a click away.",
     },
     official: {
-      title: "Welcome, Official! 👋",
+      title: "Welcome, Admin! 👋",
       body: "Verify cases, schedule assignments, and monitor reports efficiently. IRIS keeps your dashboard and community operations organized.",
     },
     bpat: {
@@ -104,7 +97,7 @@ export default function SignupPage() {
     terms: {
       title: "Terms of Service",
       intro:
-        "These Terms govern your use of IRIS (Incident Reporting and Intelligence System) for community reporting and case tracking.",
+        "These Terms govern your use of IRIS (Incident Report and Information System) for community reporting and case tracking.",
       body: [
         "1. Authentic Information: You agree to submit accurate incident details and avoid false, abusive, or misleading reports.",
         "2. Responsible Access: Your account is personal; do not share credentials or perform actions on behalf of other users.",
@@ -189,16 +182,27 @@ export default function SignupPage() {
             <form className="space-y-3" onSubmit={handleSubmit}>
               <div className="space-y-2">
                 <p className="text-sm font-medium text-[var(--iris-text)]">Select your role</p>
-                <Select value={role} onValueChange={(value) => setRole(value as UserRole)}>
-                  <SelectTrigger className="h-11 w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)]">
-                    <SelectValue placeholder="Select your role" />
-                  </SelectTrigger>
-                  <SelectContent className="border border-[var(--iris-border)] bg-[var(--iris-surface)]">
-                    <SelectItem value="resident">Resident</SelectItem>
-                    <SelectItem value="official">Barangay Official</SelectItem>
-                    <SelectItem value="bpat">BPAT Officer</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-3 rounded-xl border border-[var(--iris-border)] bg-[var(--iris-primary-light)]/25 p-1">
+                  {[
+                    { value: "resident", label: "Resident" },
+                    { value: "official", label: "Admin" },
+                    { value: "bpat", label: "Officer" },
+                  ].map((roleItem) => (
+                    <button
+                      key={roleItem.value}
+                      type="button"
+                      onClick={() => setRole(roleItem.value as UserRole)}
+                      className={cn(
+                        "h-9 rounded-lg border text-sm font-medium transition",
+                        role === roleItem.value
+                          ? "border-[var(--iris-primary)]/45 bg-[var(--iris-primary-light)]/60 text-[var(--iris-primary-strong)]"
+                          : "border-transparent bg-transparent text-[var(--iris-text-subtle)] hover:border-[var(--iris-primary)]/25 hover:bg-[var(--iris-primary-light)]/35 hover:text-[var(--iris-primary)]"
+                      )}
+                    >
+                      {roleItem.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="relative">

@@ -11,6 +11,7 @@ export type UserProfile = {
 
 export type ProfileSecurity = {
   passwordLastUpdated: string
+  twoFactorEnabled: boolean
 }
 
 const PROFILE_STORAGE_KEY = "iris_user_profile"
@@ -56,27 +57,45 @@ export function saveUserProfile(profile: UserProfile): void {
 
 export function getProfileSecurity(): ProfileSecurity {
   if (typeof window === "undefined") {
-    return { passwordLastUpdated: "Never" }
+    return { passwordLastUpdated: "Never", twoFactorEnabled: false }
   }
 
   try {
     const raw = localStorage.getItem(SECURITY_STORAGE_KEY)
     if (!raw) {
-      const defaults: ProfileSecurity = { passwordLastUpdated: "Never" }
+      const defaults: ProfileSecurity = { passwordLastUpdated: "Never", twoFactorEnabled: false }
       localStorage.setItem(SECURITY_STORAGE_KEY, JSON.stringify(defaults))
       return defaults
     }
 
-    return JSON.parse(raw) as ProfileSecurity
+    const parsed = JSON.parse(raw) as Partial<ProfileSecurity>
+    return {
+      passwordLastUpdated: parsed.passwordLastUpdated ?? "Never",
+      twoFactorEnabled: parsed.twoFactorEnabled ?? false,
+    }
   } catch {
-    return { passwordLastUpdated: "Never" }
+    return { passwordLastUpdated: "Never", twoFactorEnabled: false }
   }
 }
 
 export function updatePasswordTimestamp(): void {
   if (typeof window === "undefined") return
+  const existing = getProfileSecurity()
   const payload: ProfileSecurity = {
-    passwordLastUpdated: new Date().toLocaleString(),
+    passwordLastUpdated: new Date().toISOString(),
+    twoFactorEnabled: existing.twoFactorEnabled,
   }
+  localStorage.setItem(SECURITY_STORAGE_KEY, JSON.stringify(payload))
+}
+
+export function updateTwoFactorEnabled(enabled: boolean): void {
+  if (typeof window === "undefined") return
+
+  const existing = getProfileSecurity()
+  const payload: ProfileSecurity = {
+    passwordLastUpdated: existing.passwordLastUpdated,
+    twoFactorEnabled: enabled,
+  }
+
   localStorage.setItem(SECURITY_STORAGE_KEY, JSON.stringify(payload))
 }

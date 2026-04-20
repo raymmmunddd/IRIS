@@ -4,7 +4,8 @@ import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Search } from "lucide-react"
 import type { CaseRecord, CaseStatus, CaseCategory, CasePriority } from "@/lib/types"
-import { getActiveCases, getArchivedCases } from "@/lib/caseStorage"
+import { getActiveCases, getArchivedCases, updateAssignedOfficer, updateCaseStatus } from "@/lib/caseStorage"
+import { getAvailableOfficers } from "@/lib/mock-officers"
 import { CaseActionDropdown } from "./case-action-dropdown"
 import { cn } from "@/lib/utils"
 import {
@@ -91,14 +92,45 @@ export function CasesTable() {
   }, [])
 
   function handleAction(action: string, caseItem: CaseRecord) {
-    const labels: Record<string, string> = {
-      verify: "Verified",
-      assign: "Assign Officer triggered for",
-      mediation: "Mediation scheduled for",
-      resolve: "Marked as Resolved:",
-      close: "Case closed:",
+    if (action === "verify") {
+      updateCaseStatus(caseItem.id, "Under Review")
+      handleRefresh()
+      alert(`Verified ${caseItem.caseNumber} - ${caseItem.fullName}`)
+      return
     }
-    alert(`${labels[action] || action} ${caseItem.caseNumber} - ${caseItem.fullName}`)
+
+    if (action === "assign") {
+      const officers = getAvailableOfficers().filter((officer) => officer !== "Unassigned")
+      const currentIndex = officers.findIndex((officer) => officer === caseItem.assignedOfficer)
+      const nextOfficer = officers[(currentIndex + 1) % officers.length]
+
+      if (nextOfficer) {
+        updateAssignedOfficer(caseItem.id, nextOfficer)
+        handleRefresh()
+        alert(`Assigned ${nextOfficer} to ${caseItem.caseNumber}`)
+      }
+      return
+    }
+
+    if (action === "mediation") {
+      updateCaseStatus(caseItem.id, "Mediation")
+      handleRefresh()
+      alert(`Mediation scheduled for ${caseItem.caseNumber}`)
+      return
+    }
+
+    if (action === "resolve") {
+      updateCaseStatus(caseItem.id, "Resolved")
+      handleRefresh()
+      alert(`Marked as Resolved: ${caseItem.caseNumber}`)
+      return
+    }
+
+    if (action === "close") {
+      updateCaseStatus(caseItem.id, "Closed")
+      handleRefresh()
+      alert(`Case closed: ${caseItem.caseNumber}`)
+    }
   }
 
   const getAvatarColor = (priority: CasePriority) => {

@@ -1,17 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LogIn, Mail, Lock, X, Eye, EyeOff, ShieldCheck, ClipboardCheck, Database, UserCheck, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
 import { getRoleLandingPath, login, type UserRole } from "@/lib/auth";
@@ -22,19 +15,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [role, setRole] = useState<UserRole>("resident");
+  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [legalDoc, setLegalDoc] = useState<"terms" | "privacy" | null>(null);
   const [legalAccepted, setLegalAccepted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    const roleFromQuery = searchParams.get("role");
-    if (roleFromQuery === "resident" || roleFromQuery === "official" || roleFromQuery === "bpat") {
-      setRole(roleFromQuery);
-    }
-  }, [searchParams]);
+  const roleFromQuery = searchParams.get("role");
+  const queryRole: UserRole | null =
+    roleFromQuery === "resident" || roleFromQuery === "official" || roleFromQuery === "bpat"
+      ? roleFromQuery
+      : null;
+  const role: UserRole = selectedRole ?? queryRole ?? "resident";
 
   const openLegalDoc = (doc: "terms" | "privacy") => {
     setLegalAccepted(false);
@@ -84,7 +77,7 @@ export default function LoginPage() {
       loginCopy: "Use your community email to report incidents and track case updates.",
     },
     official: {
-      title: "Welcome, Official! 👋",
+      title: "Welcome, Admin! 👋",
       body: "Verify cases, schedule assignments, and monitor reports efficiently. IRIS keeps your dashboard and community operations organized.",
       loginCopy: "Use your work email to access dashboards, cases, and collaboration.",
     },
@@ -99,7 +92,7 @@ export default function LoginPage() {
     terms: {
       title: "Terms of Service",
       intro:
-        "These Terms govern your access to IRIS (Incident Reporting and Intelligence System) for incident filing, case tracking, and barangay operations.",
+        "These Terms govern your access to IRIS (Incident Report and Information System) for incident filing, case tracking, and barangay operations.",
       body: [
         "1. Account Responsibility: You are responsible for maintaining the confidentiality of your account and all actions performed under your login.",
         "2. Acceptable Use: You agree to submit truthful incident data, avoid impersonation, and not upload harmful, illegal, or misleading content.",
@@ -177,23 +170,34 @@ export default function LoginPage() {
               <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--iris-primary-light)] text-[var(--iris-primary)]">
                 <LogIn className="h-5 w-5" />
               </div>
-              <h2 className="text-2xl lg:text-3xl font-bold text-[var(--iris-text)]">Login with IRIS</h2>
+              <h2 className="text-2xl lg:text-3xl font-bold text-[var(--iris-text)]">Login</h2>
               <p className="text-sm text-[var(--iris-text-subtle)]">{roleCopy[role].loginCopy}</p>
             </div>
 
             <form className="space-y-3" onSubmit={handleSubmit}>
               <div className="space-y-2">
                 <p className="text-sm font-medium text-[var(--iris-text)]">Select your role</p>
-                <Select value={role} onValueChange={(value) => setRole(value as UserRole)}>
-                  <SelectTrigger className="h-11 w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)]">
-                    <SelectValue placeholder="Select your role" />
-                  </SelectTrigger>
-                  <SelectContent className="border border-[var(--iris-border)] bg-[var(--iris-surface)]">
-                    <SelectItem value="resident">Resident</SelectItem>
-                    <SelectItem value="official">Barangay Official</SelectItem>
-                    <SelectItem value="bpat">BPAT Officer</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-3 rounded-xl border border-[var(--iris-border)] bg-[var(--iris-primary-light)]/25 p-1">
+                  {[
+                    { value: "resident", label: "Resident" },
+                    { value: "official", label: "Admin" },
+                    { value: "bpat", label: "Officer" },
+                  ].map((roleItem) => (
+                    <button
+                      key={roleItem.value}
+                      type="button"
+                      onClick={() => setSelectedRole(roleItem.value as UserRole)}
+                      className={cn(
+                        "h-9 rounded-lg border text-sm font-medium transition",
+                        role === roleItem.value
+                          ? "border-[var(--iris-primary)]/45 bg-[var(--iris-primary-light)]/60 text-[var(--iris-primary-strong)]"
+                          : "border-transparent bg-transparent text-[var(--iris-text-subtle)] hover:border-[var(--iris-primary)]/25 hover:bg-[var(--iris-primary-light)]/35 hover:text-[var(--iris-primary)]"
+                      )}
+                    >
+                      {roleItem.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="relative">

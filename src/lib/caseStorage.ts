@@ -1,5 +1,6 @@
 import type { CaseRecord, CaseStatus } from "./types";
 import { mockCases } from "./mock-cases";
+import { addActivityLog } from "./activityLogs";
 
 const STORAGE_KEY = "iris_cases";
 
@@ -78,6 +79,14 @@ export function updateCaseStatus(caseId: string, newStatus: CaseStatus): CaseRec
     caseRecord.lastUpdated = new Date().toISOString();
     caseRecord.version = (caseRecord.version || 1) + 1;
 
+    addActivityLog({
+      label: "Case status updated",
+      detail: `${caseRecord.caseNumber} is now ${newStatus}.`,
+      category: "cases",
+      status: "Verified",
+      timestamp: caseRecord.lastUpdated,
+    });
+
     localStorage.setItem(STORAGE_KEY, JSON.stringify(allCases));
     return caseRecord;
   } catch (e) {
@@ -106,6 +115,14 @@ export function updateAssignedOfficer(caseId: string, newOfficer: string): CaseR
     caseRecord.lastUpdated = new Date().toISOString();
     caseRecord.version = (caseRecord.version || 1) + 1;
 
+    addActivityLog({
+      label: "Officer assignment updated",
+      detail: `${newOfficer} was assigned to ${caseRecord.caseNumber}.`,
+      category: "cases",
+      status: "Verified",
+      timestamp: caseRecord.lastUpdated,
+    });
+
     localStorage.setItem(STORAGE_KEY, JSON.stringify(allCases));
     return caseRecord;
   } catch (e) {
@@ -123,6 +140,7 @@ export function updateCase(caseId: string, updatedCase: Partial<CaseRecord>): Ca
     if (caseIndex === -1) return null;
 
     const caseRecord = allCases[caseIndex];
+    let activityDetails: string[] = [];
 
     if (updatedCase.status && updatedCase.status !== caseRecord.status) {
       caseRecord.statusHistory = caseRecord.statusHistory || [
@@ -130,6 +148,7 @@ export function updateCase(caseId: string, updatedCase: Partial<CaseRecord>): Ca
       ];
       caseRecord.statusHistory.push({ status: updatedCase.status, changedAt: new Date().toISOString() });
       caseRecord.status = updatedCase.status;
+      activityDetails.push(`status changed to ${updatedCase.status}`);
     }
 
     if (updatedCase.assignedOfficer && updatedCase.assignedOfficer !== caseRecord.assignedOfficer) {
@@ -138,10 +157,21 @@ export function updateCase(caseId: string, updatedCase: Partial<CaseRecord>): Ca
       ];
       caseRecord.assignedOfficerHistory.push({ officer: updatedCase.assignedOfficer, assignedAt: new Date().toISOString() });
       caseRecord.assignedOfficer = updatedCase.assignedOfficer;
+      activityDetails.push(`assigned officer set to ${updatedCase.assignedOfficer}`);
     }
 
     caseRecord.lastUpdated = new Date().toISOString();
     caseRecord.version = (caseRecord.version || 1) + 1;
+
+    if (activityDetails.length > 0) {
+      addActivityLog({
+        label: "Case updated",
+        detail: `${caseRecord.caseNumber}: ${activityDetails.join(", ")}.`,
+        category: "cases",
+        status: "Verified",
+        timestamp: caseRecord.lastUpdated,
+      });
+    }
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(allCases));
     return caseRecord;

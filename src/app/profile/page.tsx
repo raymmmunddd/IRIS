@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import { addActivityLog } from "@/lib/activityLogs"
 import { getUserProfile, saveUserProfile, type UserProfile } from "@/lib/profile"
 
 export default function ProfilePage() {
@@ -38,6 +39,12 @@ export default function ProfilePage() {
   const [generatedCode, setGeneratedCode] = useState("")
   const [hasSentCode, setHasSentCode] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
+  const [isCropDialogOpen, setIsCropDialogOpen] = useState(false)
+  const [cropImageSrc, setCropImageSrc] = useState("")
+  const [cropZoom, setCropZoom] = useState(1)
+  const [cropX, setCropX] = useState(0)
+  const [cropY, setCropY] = useState(0)
+  const [cropPreviewSrc, setCropPreviewSrc] = useState("")
 
   useEffect(() => {
     setProfile(getUserProfile())
@@ -59,13 +66,39 @@ export default function ProfilePage() {
     return () => window.clearInterval(timer)
   }, [hasSentCode, resendCooldown])
 
+  useEffect(() => {
+    if (!cropImageSrc) return
+
+    buildCroppedImage(cropImageSrc, cropZoom, cropX, cropY, 320)
+      .then(setCropPreviewSrc)
+      .catch(() => setCropPreviewSrc(cropImageSrc))
+  }, [cropImageSrc, cropZoom, cropX, cropY])
+
   const update = (field: keyof UserProfile, value: string) => {
     setProfile((prev) => ({ ...prev, [field]: value }))
     setSaved(false)
   }
 
   const handleSave = () => {
+    const previous = getUserProfile()
     saveUserProfile(profile)
+
+    if (previous.fullName !== profile.fullName) {
+      addActivityLog({
+        label: "Profile name updated",
+        detail: `Display name changed to ${profile.fullName || "Admin User"}.`,
+        category: "profile",
+      })
+    }
+
+    if (previous.phone !== profile.phone || previous.address !== profile.address || previous.bio !== profile.bio) {
+      addActivityLog({
+        label: "Account details updated",
+        detail: "Phone number, address, or bio information was updated.",
+        category: "profile",
+      })
+    }
+
     setSaved(true)
     toast({
       title: "Profile saved",
@@ -91,15 +124,101 @@ export default function ProfilePage() {
     const reader = new FileReader()
     reader.onload = () => {
       const result = typeof reader.result === "string" ? reader.result : ""
-      setProfile((prev) => ({ ...prev, photoUrl: result }))
-      setSaved(false)
-      toast({
-        title: "Profile picture updated",
-        description: "Your new profile image has been selected.",
-        variant: "success",
-      })
+      setCropImageSrc(result)
+      setCropZoom(1)
+      setCropX(0)
+      setCropY(0)
+      setIsCropDialogOpen(true)
     }
     reader.readAsDataURL(file)
+
+    event.target.value = ""
+  }
+
+  const buildCroppedImage = (
+    src: string,
+    zoom: number,
+    horizontalOffset: number,
+    verticalOffset: number,
+    outputSize: number,
+  ): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const image = new Image()
+
+      image.onload = () => {
+        const sourceWidth = image.naturalWidth
+        const sourceHeight = image.naturalHeight
+        const shortestSide = Math.min(sourceWidth, sourceHeight)
+        const cropSize = shortestSide / zoom
+
+        const maxOffsetX = (sourceWidth - cropSize) / 2
+        const maxOffsetY = (sourceHeight - cropSize) / 2
+        const cropStartX = (sourceWidth - cropSize) / 2 + horizontalOffset * maxOffsetX
+        const cropStartY = (sourceHeight - cropSize) / 2 + verticalOffset * maxOffsetY
+
+        const clampedX = Math.max(0, Math.min(cropStartX, sourceWidth - cropSize))
+        const clampedY = Math.max(0, Math.min(cropStartY, sourceHeight - cropSize))
+
+        const canvas = document.createElement("canvas")
+        canvas.width = outputSize
+        canvas.height = outputSize
+
+        const context = canvas.getContext("2d")
+        if (!context) {
+          reject(new Error("Could not initialize crop canvas"))
+          return
+        }
+
+        context.drawImage(
+          image,
+          clampedX,
+          clampedY,
+          cropSize,
+          cropSize,
+          0,
+          0,
+          outputSize,
+          outputSize,
+        )
+
+        resolve(canvas.toDataURL("image/png"))
+      }
+
+      image.onerror = () => reject(new Error("Failed to load image for cropping"))
+      image.src = src
+    })
+  }
+
+  const applyCroppedImage = async () => {
+    if (!cropImageSrc) return
+
+    let croppedDataUrl = ""
+    try {
+      croppedDataUrl = await buildCroppedImage(cropImageSrc, cropZoom, cropX, cropY, 512)
+    } catch {
+      toast({
+        title: "Image crop failed",
+        description: "Please try uploading your photo again.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setProfile((prev) => ({ ...prev, photoUrl: croppedDataUrl }))
+    setSaved(false)
+    setIsCropDialogOpen(false)
+
+    addActivityLog({
+      label: "Profile picture updated",
+      detail: "Profile photo was uploaded and cropped.",
+      category: "profile",
+    })
+
+    toast({
+      title: "Profile picture updated",
+      description: "Your cropped photo is ready for profile display.",
+      variant: "success",
+    })
   }
 
   const sendVerificationCode = () => {
@@ -149,6 +268,12 @@ export default function ProfilePage() {
     setGeneratedCode("")
     setVerificationCodeInput("")
     setHasSentCode(false)
+
+    addActivityLog({
+      label: "Email changed",
+      detail: `Primary email changed to ${newEmail}.`,
+      category: "security",
+    })
 
     toast({
       title: "Email changed",
@@ -226,7 +351,7 @@ export default function ProfilePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <UserCircle2 className="h-4 w-4 text-primary" />
-                Editable Details
+                Account Details
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -242,14 +367,13 @@ export default function ProfilePage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Email</Label>
-                  <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <p className="flex-1 text-sm text-foreground">{profile.email}</p>
+                  <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3">
+                    <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <p className="flex-1 truncate text-sm text-foreground">{profile.email}</p>
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
-                      className="focus-visible:ring-0 focus-visible:ring-transparent"
+                      className="h-7 px-3 text-xs focus-visible:ring-0 focus-visible:ring-transparent"
                       onClick={() => setIsEmailDialogOpen(true)}
                     >
                       Change Email
@@ -373,6 +497,83 @@ export default function ProfilePage() {
                 </Button>
               </DialogFooter>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isCropDialogOpen} onOpenChange={setIsCropDialogOpen}>
+          <DialogContent className="max-w-xl rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)]/95 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.12)]">
+            <DialogHeader>
+              <DialogTitle>Crop Profile Picture</DialogTitle>
+              <DialogDescription>
+                Reposition and zoom your image so your preferred area appears in your profile avatar.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="mx-auto h-64 w-64 overflow-hidden rounded-full border border-border bg-muted">
+                {cropPreviewSrc && (
+                  <img src={cropPreviewSrc} alt="Crop preview" className="h-full w-full object-cover" />
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cropZoom">Zoom</Label>
+                <input
+                  id="cropZoom"
+                  type="range"
+                  title="Zoom"
+                  aria-label="Zoom"
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  value={cropZoom}
+                  onChange={(event) => setCropZoom(Number(event.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="cropX">Horizontal Position</Label>
+                  <input
+                    id="cropX"
+                    type="range"
+                    title="Horizontal Position"
+                    aria-label="Horizontal Position"
+                    min={-1}
+                    max={1}
+                    step={0.01}
+                    value={cropX}
+                    onChange={(event) => setCropX(Number(event.target.value))}
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cropY">Vertical Position</Label>
+                  <input
+                    id="cropY"
+                    type="range"
+                    title="Vertical Position"
+                    aria-label="Vertical Position"
+                    min={-1}
+                    max={1}
+                    step={0.01}
+                    value={cropY}
+                    onChange={(event) => setCropY(Number(event.target.value))}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsCropDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={applyCroppedImage}>
+                Apply Crop
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </main>

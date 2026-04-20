@@ -167,7 +167,6 @@ export function DashboardHeader({ title, description, actionSlot }: DashboardHea
               </Avatar>
               <div className="hidden text-left sm:block">
                 <p className="text-sm font-semibold leading-tight text-card-foreground">{displayName}</p>
-                <p className="text-[11px] leading-tight text-muted-foreground">System Administrator</p>
               </div>
               <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
             </button>

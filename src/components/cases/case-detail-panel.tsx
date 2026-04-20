@@ -8,8 +8,11 @@ import {
 } from "lucide-react"
 import type { CaseRecord } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { updateAssignedOfficer, updateCaseStatus } from "@/lib/caseStorage"
 import { TimelineDisplay } from "./timeline-display"
 import { EvidenceViewer } from "./evidence-viewer"
+import { OfficerSelector } from "./officer-selector"
+import { StatusSelector } from "./status-selector"
 
 interface CaseDetailPanelProps {
   caseData: CaseRecord
@@ -48,6 +51,22 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false }:
     const evidenceFiles = caseData.evidenceFiles && caseData.evidenceFiles.length > 0
         ? caseData.evidenceFiles
         : []
+
+    const isArchived = caseData.status === "Resolved" || caseData.status === "Closed"
+
+    const handleStatusChange = (nextStatus: CaseRecord["status"]) => {
+        const updated = updateCaseStatus(caseData.id, nextStatus)
+        if (updated && onUpdate) {
+            onUpdate()
+        }
+    }
+
+    const handleOfficerChange = (nextOfficer: string) => {
+        const updated = updateAssignedOfficer(caseData.id, nextOfficer)
+        if (updated && onUpdate) {
+            onUpdate()
+        }
+    }
 
     return (
         <div className={cn(
@@ -242,6 +261,26 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false }:
 
              {/* Right Column (AI & Actions) */}
             <div className="space-y-6">
+
+                <div className="bg-card rounded-xl border border-border shadow-sm p-6 space-y-5">
+                    <div className="flex items-center gap-2 text-foreground">
+                        <Check className="h-4 w-4 text-primary" />
+                        <h2 className="text-base font-semibold">Case Actions</h2>
+                    </div>
+
+                    <StatusSelector
+                        currentStatus={caseData.status}
+                        onStatusChange={handleStatusChange}
+                        isArchived={isArchived}
+                        disabled={caseData.status === "Closed"}
+                    />
+
+                    <OfficerSelector
+                        currentOfficer={caseData.assignedOfficer}
+                        onOfficerChange={handleOfficerChange}
+                        disabled={caseData.status === "Closed"}
+                    />
+                </div>
                 
                 {/* AI Analysis Card */}
                 <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-6 shadow-sm">

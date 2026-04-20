@@ -1,32 +1,23 @@
 "use client"
 
-import { Activity, BadgeCheck, Clock3, ShieldCheck } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Activity, BadgeCheck, Clock3, Info, ShieldCheck } from "lucide-react"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-
-const activityItems = [
-  {
-    id: 1,
-    label: "Profile name updated",
-    detail: "You changed your display name.",
-    time: "Today, 9:14 AM",
-  },
-  {
-    id: 2,
-    label: "Password changed",
-    detail: "Your account password was updated successfully.",
-    time: "Yesterday, 8:02 PM",
-  },
-  {
-    id: 3,
-    label: "Admin login",
-    detail: "Signed in from trusted desktop device.",
-    time: "Yesterday, 7:46 PM",
-  },
-]
+import { formatActivityTime, getActivityLogs, type ActivityLogItem } from "@/lib/activityLogs"
+import { getProfileSecurity } from "@/lib/profile"
 
 export default function ProfileActivityPage() {
+  const [activityItems, setActivityItems] = useState<ActivityLogItem[]>([])
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
+
+  useEffect(() => {
+    const security = getProfileSecurity()
+    setTwoFactorEnabled(security.twoFactorEnabled)
+    setActivityItems(getActivityLogs())
+  }, [])
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <DashboardSidebar />
@@ -37,7 +28,7 @@ export default function ProfileActivityPage() {
           description="Review profile-related actions and recent security events"
         />
 
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
           <Card className="border-[var(--iris-border)] bg-[var(--iris-surface)]/95">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -54,6 +45,12 @@ export default function ProfileActivityPage() {
                 <p className="text-sm font-semibold">Current Session</p>
                 <p className="text-xs text-muted-foreground">Desktop browser active</p>
               </div>
+              <div className="rounded-lg border border-border bg-background p-3">
+                <p className="text-sm font-semibold">Two-Factor Authentication</p>
+                <p className="text-xs text-muted-foreground">
+                  {twoFactorEnabled ? "Configured" : "Not configured"}
+                </p>
+              </div>
             </CardContent>
           </Card>
 
@@ -64,23 +61,39 @@ export default function ProfileActivityPage() {
                 Recent Activity
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {activityItems.map((item) => (
-                <div key={item.id} className="rounded-lg border border-border bg-background p-3">
-                  <div className="mb-1 flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-foreground">{item.label}</p>
-                    <span className="inline-flex items-center gap-1 text-xs text-emerald-700">
-                      <BadgeCheck className="h-4 w-4" />
-                      Verified
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{item.detail}</p>
-                  <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <Clock3 className="h-3 w-3" />
-                    {item.time}
-                  </p>
+            <CardContent>
+              {activityItems.length === 0 && (
+                <div className="rounded-lg border border-border bg-background p-3">
+                  <p className="text-sm font-semibold text-foreground">No activity yet</p>
+                  <p className="text-xs text-muted-foreground">Recent account and case actions will appear here.</p>
                 </div>
-              ))}
+              )}
+
+              <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-2">
+                {activityItems.map((item) => (
+                  <div key={item.id} className="rounded-lg border border-border bg-background p-3">
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-foreground">{item.label}</p>
+                      {item.status === "Verified" ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-emerald-700">
+                          <BadgeCheck className="h-4 w-4" />
+                          Verified
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-blue-700">
+                          <Info className="h-4 w-4" />
+                          Info
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{item.detail}</p>
+                    <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <Clock3 className="h-3 w-3" />
+                      {formatActivityTime(item.timestamp)}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>

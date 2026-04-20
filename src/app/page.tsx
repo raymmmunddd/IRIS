@@ -24,7 +24,7 @@ export default function Home() {
       <div className="max-w-2xl w-full text-center">
         <div className="mb-8">
           <h1 className="text-5xl md:text-6xl font-bold mb-4 text-[#1F2937]">IRIS</h1>
-          <p className="text-xl text-[#6B7280]">Integrated Response and Investigation System</p>
+          <p className="text-xl text-[#6B7280]">Incident Report and Information System</p>
         </div>
 
         <p className="text-lg text-[#6B7280] mb-12">

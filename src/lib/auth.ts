@@ -1,5 +1,7 @@
 export type LoginResult = { success: boolean; message?: string };
 
+import { addActivityLog } from "@/lib/activityLogs";
+
 export type UserRole = "resident" | "official" | "bpat";
 
 export interface AuthUser {
@@ -49,6 +51,12 @@ export function login(email: string, password: string, role: UserRole = "officia
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+    addActivityLog({
+      label: "Admin login",
+      detail: `Signed in with ${email} (${role}).`,
+      category: "security",
+      status: "Verified",
+    });
     return true;
   } catch {
     return false;
@@ -82,6 +90,12 @@ export function signup(
 
 export function logout(): void {
   if (typeof window !== "undefined") {
+    addActivityLog({
+      label: "Session ended",
+      detail: "You signed out from the current browser session.",
+      category: "security",
+      status: "Info",
+    });
     localStorage.removeItem(STORAGE_KEY);
   }
 }
