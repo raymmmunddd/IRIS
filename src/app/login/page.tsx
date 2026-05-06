@@ -7,7 +7,7 @@ import { LogIn, Mail, Lock, X, Eye, EyeOff, ShieldCheck, ClipboardCheck, Databas
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-import { getRoleLandingPath, login, type UserRole } from "@/lib/auth";
+import { getRoleLandingPath, saveAuthUser, type AuthUser, type UserRole } from "@/lib/auth";
 
 export default function LoginPage() {
   const { toast } = useToast();
@@ -34,7 +34,7 @@ export default function LoginPage() {
     setLegalDoc(doc);
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
     if (!email || !password) {
@@ -48,26 +48,33 @@ export default function LoginPage() {
 
     setIsLoading(true);
     
-    // Simulate login delay
-    setTimeout(() => {
-      const success = login(email, password, role);
-      if (success) {
-        toast({
-          title: "Login successful",
-          description: "Welcome back!",
-          variant: "success",
-        });
-        // Do not set isLoading(false) here, let the navigation handle it
-        router.push(getRoleLandingPath(role));
-      } else {
-        setIsLoading(false);
-        toast({
-          title: "Login failed",
-          description: "Invalid email or password. Please try again.",
-          variant: "destructive",
-        });
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, role }),
+      });
+      const result: { success: boolean; message: string; data: AuthUser | null } = await response.json();
+
+      if (!result.success || !result.data) {
+        throw new Error(result.message);
       }
-    }, 800);
+
+      saveAuthUser(result.data);
+      toast({
+        title: "Login successful",
+        description: "Welcome back!",
+        variant: "success",
+      });
+      router.push(getRoleLandingPath(result.data.role));
+    } catch (error) {
+      setIsLoading(false);
+      toast({
+        title: "Login failed",
+        description: error instanceof Error ? error.message : "Invalid email or password. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const roleCopy = {

@@ -1,5 +1,5 @@
 export type NotificationItem = {
-  id: number
+  id: string
   title: string
   message: string
   time: string
@@ -12,7 +12,7 @@ const STORAGE_KEY = "iris_notifications"
 
 const defaultNotifications: NotificationItem[] = [
   {
-    id: 101,
+    id: "101",
     title: "New Case Escalated",
     message: "Case #C-2045 has been escalated for admin review.",
     time: "5m ago",
@@ -21,7 +21,7 @@ const defaultNotifications: NotificationItem[] = [
     category: "case",
   },
   {
-    id: 102,
+    id: "102",
     title: "Officer Assignment Updated",
     message: "Officer Dela Cruz was assigned to a mediation request.",
     time: "22m ago",
@@ -30,7 +30,7 @@ const defaultNotifications: NotificationItem[] = [
     category: "case",
   },
   {
-    id: 103,
+    id: "103",
     title: "Daily Report Ready",
     message: "The daily incident summary is now available.",
     time: "1h ago",
@@ -39,7 +39,7 @@ const defaultNotifications: NotificationItem[] = [
     category: "report",
   },
   {
-    id: 104,
+    id: "104",
     title: "System Maintenance Reminder",
     message: "Scheduled maintenance starts at 11:00 PM.",
     time: "Yesterday",
@@ -48,7 +48,7 @@ const defaultNotifications: NotificationItem[] = [
     category: "system",
   },
   {
-    id: 105,
+    id: "105",
     title: "Data Export Completed",
     message: "Public data export finished successfully.",
     time: "2 days ago",
@@ -85,7 +85,7 @@ export function saveNotifications(notifications: NotificationItem[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications))
 }
 
-export function markNotificationAsRead(id: number): NotificationItem[] {
+export function markNotificationAsRead(id: string): NotificationItem[] {
   const updated = getNotifications().map((item) =>
     item.id === id ? { ...item, read: true } : item,
   )

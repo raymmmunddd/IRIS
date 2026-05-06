@@ -5,29 +5,73 @@ import { Activity, BadgeCheck, Clock3, Info, ShieldCheck } from "lucide-react"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { formatActivityTime, getActivityLogs, type ActivityLogItem } from "@/lib/activityLogs"
-import { getProfileSecurity } from "@/lib/profile"
+import { getAuthUser } from "@/lib/auth"
+
+type ActivityLogItem = {
+  id: string
+  label: string
+  detail: string
+  category: string
+  status: "Verified" | "Info"
+  timestamp: string
+  timeLabel: string
+}
 
 export default function ProfileActivityPage() {
+  const authUser = getAuthUser()
   const [activityItems, setActivityItems] = useState<ActivityLogItem[]>([])
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const security = getProfileSecurity()
-    setTwoFactorEnabled(security.twoFactorEnabled)
-    setActivityItems(getActivityLogs())
-  }, [])
+    async function loadActivity() {
+      if (!authUser?.email) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        const [settingsResponse, activityResponse] = await Promise.all([
+          fetch(`/api/settings?email=${encodeURIComponent(authUser.email)}`),
+          fetch(`/api/profile/activity?email=${encodeURIComponent(authUser.email)}`),
+        ])
+
+        const settingsResult = await settingsResponse.json()
+        const activityResult = await activityResponse.json()
+
+        if (settingsResult.success && settingsResult.data) {
+          setTwoFactorEnabled(settingsResult.data.twoFactorEnabled)
+        }
+        if (activityResult.success && activityResult.data) {
+          setActivityItems(activityResult.data)
+        }
+      } catch (error) {
+        console.error("Failed to load activity:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadActivity()
+  }, [authUser?.email])
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <DashboardSidebar />
+      <div className="hidden lg:flex h-screen shrink-0">
+        <DashboardSidebar />
+      </div>
 
-      <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+      <main className="min-w-0 flex-1 overflow-y-auto p-6 lg:p-8">
         <DashboardHeader
           title="Profile Activity Logs"
           description="Review profile-related actions and recent security events"
         />
 
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+          </div>
+        ) : (
         <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
           <Card className="border-[var(--iris-border)] bg-[var(--iris-surface)]/95">
             <CardHeader>
@@ -89,7 +133,7 @@ export default function ProfileActivityPage() {
                     <p className="text-xs text-muted-foreground">{item.detail}</p>
                     <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                       <Clock3 className="h-3 w-3" />
-                      {formatActivityTime(item.timestamp)}
+                      {item.timeLabel}
                     </p>
                   </div>
                 ))}
@@ -97,6 +141,7 @@ export default function ProfileActivityPage() {
             </CardContent>
           </Card>
         </div>
+        )}
       </main>
     </div>
   )

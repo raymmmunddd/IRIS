@@ -17,9 +17,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  getNotifications,
-  markAllNotificationsAsRead,
-  markNotificationAsRead,
   type NotificationItem,
 } from "@/lib/notifications"
 
@@ -27,8 +24,18 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
 
   useEffect(() => {
-    setNotifications(getNotifications())
+    loadNotifications()
   }, [])
+
+  async function loadNotifications() {
+    try {
+      const response = await fetch("/api/notifications")
+      const result = await response.json()
+      if (result.success) setNotifications(result.data)
+    } catch (error) {
+      console.error("Failed to load notifications:", error)
+    }
+  }
 
   const unreadCount = useMemo(
     () => notifications.filter((item) => !item.read).length,
@@ -38,14 +45,14 @@ export default function NotificationsPage() {
   const recentNotifications = notifications.slice(0, 3)
   const allRead = unreadCount === 0
 
-  const handleMarkSingleRead = (id: number) => {
-    const updated = markNotificationAsRead(id)
-    setNotifications(updated)
+  const handleMarkSingleRead = async (id: string) => {
+    await fetch(`/api/notifications/${encodeURIComponent(id)}`, { method: "PATCH" })
+    loadNotifications()
   }
 
-  const handleMarkAllRead = () => {
-    const updated = markAllNotificationsAsRead()
-    setNotifications(updated)
+  const handleMarkAllRead = async () => {
+    await fetch("/api/notifications", { method: "PATCH" })
+    loadNotifications()
   }
 
   const getCategoryIcon = (category: NotificationItem["category"]) => {

@@ -16,17 +16,17 @@ function StatCard({ title, value, period, change, trending, icon, iconBg, accent
   const isUp = trending === "up"
 
   return (
-    <div className={cn("flex items-center gap-4 rounded-xl border px-4 py-3.5", "border-border bg-card shadow-sm")}>
-      <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 shadow-sm", iconBg)}>
+    <div className={cn("flex items-center gap-3 sm:gap-4 rounded-xl border px-3 sm:px-4 py-3 sm:py-3.5", "border-border bg-card shadow-sm")}>
+      <div className={cn("flex h-8 sm:h-10 w-8 sm:w-10 shrink-0 items-center justify-center rounded-lg sm:rounded-xl text-xs sm:text-sm border border-white/20 shadow-sm", iconBg)}>
         {icon}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="truncate text-xs font-semibold text-[var(--foreground)]/80">{title}</p>
-        <p className="text-xl font-bold leading-tight text-[var(--foreground)]">{value}</p>
-        <div className="flex items-center gap-2 text-[11px]">
-          <span className="text-[var(--foreground)]/70">{period}</span>
-          <span className={cn("flex items-center gap-0.5 font-semibold", isUp ? "text-emerald-600" : "text-red-500", accentClass)}>
-            {isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+        <p className="truncate text-[11px] sm:text-xs font-semibold text-[var(--foreground)]/80">{title}</p>
+        <p className="text-lg sm:text-xl font-bold leading-tight text-[var(--foreground)]">{value}</p>
+        <div className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-[11px]">
+          <span className="text-[var(--foreground)]/70 truncate">{period}</span>
+          <span className={cn("flex items-center gap-0.5 font-semibold shrink-0", isUp ? "text-emerald-600" : "text-red-500", accentClass)}>
+            {isUp ? <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> : <TrendingDown className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
             {change}%
           </span>
         </div>
@@ -35,11 +35,19 @@ function StatCard({ title, value, period, change, trending, icon, iconBg, accent
   )
 }
 
-export function ReportStats() {
+interface ReportStatsProps {
+  data?: {
+    totalCases: number
+    resolutionRate: number
+    activeOfficers: number
+  }
+}
+
+export function ReportStats({ data }: ReportStatsProps) {
   const stats: StatCardProps[] = [
     {
       title: "Total Cases",
-      value: "1,247",
+      value: (data?.totalCases ?? 1247).toLocaleString(),
       period: "All time",
       change: 12.5,
       trending: "up",
@@ -48,7 +56,7 @@ export function ReportStats() {
     },
     {
       title: "Resolution Rate",
-      value: "88%",
+      value: `${data?.resolutionRate ?? 88}%`,
       period: "This month",
       change: 5.2,
       trending: "up",
@@ -69,7 +77,7 @@ export function ReportStats() {
     },
     {
       title: "Active Officers",
-      value: "8",
+      value: (data?.activeOfficers ?? 8).toString(),
       period: "Available",
       change: 0,
       trending: "up", // Stable

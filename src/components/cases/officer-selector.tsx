@@ -2,21 +2,20 @@
 
 import { ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { getAvailableOfficers } from "@/lib/mock-officers"
 
 interface OfficerSelectorProps {
   currentOfficer: string
   onOfficerChange: (officer: string) => void
   disabled?: boolean
+  officers?: string[]
 }
 
 export function OfficerSelector({
   currentOfficer,
   onOfficerChange,
   disabled = false,
+  officers = ["Unassigned"],
 }: OfficerSelectorProps) {
-  const officers = getAvailableOfficers()
-
   return (
     <div className="space-y-2">
       <label className="block text-xs font-semibold text-foreground">

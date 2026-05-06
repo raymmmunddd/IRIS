@@ -1,31 +1,50 @@
 ﻿"use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
     ArrowLeft, X, CheckCircle2, FileText, Image as ImageIcon,
     MapPin, Phone, User, Calendar, MessageSquare, Save,
     ShieldCheck, Check
 } from "lucide-react"
+import { toast } from "sonner"
 import type { CaseRecord } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import { updateAssignedOfficer, updateCaseStatus } from "@/lib/caseStorage"
 import { TimelineDisplay } from "./timeline-display"
 import { EvidenceViewer } from "./evidence-viewer"
 import { OfficerSelector } from "./officer-selector"
 import { StatusSelector } from "./status-selector"
+import { Button } from "@/components/ui/button"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 
 interface CaseDetailPanelProps {
   caseData: CaseRecord
   onClose: () => void
   onUpdate?: () => void
   isPage?: boolean
+  officers?: string[]
 }
 
-export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false }: CaseDetailPanelProps) {
+export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, officers = ["Unassigned"] }: CaseDetailPanelProps) {
     const [internalNotes, setInternalNotes] = useState("")
     const [isSavingNotes, setIsSavingNotes] = useState(false)
     const [showEvidenceViewer, setShowEvidenceViewer] = useState(false)
     const [activeEvidenceIndex, setActiveEvidenceIndex] = useState(0)
+    const [quickOfficer, setQuickOfficer] = useState(caseData.assignedOfficer || "Unassigned")
+    const [requestInfoOpen, setRequestInfoOpen] = useState(false)
+    const [requestMessage, setRequestMessage] = useState("")
+    const [isSendingRequest, setIsSendingRequest] = useState(false)
+
+    useEffect(() => {
+        setQuickOfficer(caseData.assignedOfficer || "Unassigned")
+    }, [caseData.assignedOfficer])
   
   // Tag Styles Helper
   const getPriorityStyle = (p: string) => {
@@ -54,17 +73,82 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false }:
 
     const isArchived = caseData.status === "Resolved" || caseData.status === "Closed"
 
-    const handleStatusChange = (nextStatus: CaseRecord["status"]) => {
-        const updated = updateCaseStatus(caseData.id, nextStatus)
-        if (updated && onUpdate) {
-            onUpdate()
+    const updateCase = async (input: { status?: CaseRecord["status"]; assignedOfficer?: string }, successMessage: string) => {
+        const response = await fetch(`/api/cases/${encodeURIComponent(caseData.id)}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(input),
+        })
+        const result = await response.json()
+        if (!result.success) throw new Error(result.message || "Unable to update case")
+        toast.success(successMessage)
+        onUpdate?.()
+    }
+
+    const handleStatusChange = async (nextStatus: CaseRecord["status"]) => {
+        try {
+            await updateCase({ status: nextStatus }, "Case status updated")
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Unable to update status")
         }
     }
 
-    const handleOfficerChange = (nextOfficer: string) => {
-        const updated = updateAssignedOfficer(caseData.id, nextOfficer)
-        if (updated && onUpdate) {
-            onUpdate()
+    const handleOfficerChange = async (nextOfficer: string) => {
+        try {
+            await updateCase({ assignedOfficer: nextOfficer }, "Assigned officer updated")
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Unable to assign officer")
+        }
+    }
+
+    const saveInternalNotes = async () => {
+        if (!internalNotes.trim()) {
+            toast.error("Write a note before saving")
+            return
+        }
+
+        setIsSavingNotes(true)
+        try {
+            const response = await fetch(`/api/cases/${encodeURIComponent(caseData.id)}/notes`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ note: internalNotes.trim() }),
+            })
+            const result = await response.json()
+            if (!result.success) throw new Error(result.message || "Unable to save note")
+            toast.success("Internal note saved")
+            setInternalNotes("")
+            onUpdate?.()
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Unable to save note")
+        } finally {
+            setIsSavingNotes(false)
+        }
+    }
+
+    const sendRequestInfo = async () => {
+        if (!requestMessage.trim()) {
+            toast.error("Write what information you need first")
+            return
+        }
+
+        setIsSendingRequest(true)
+        try {
+            const response = await fetch(`/api/cases/${encodeURIComponent(caseData.id)}/request-info`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: requestMessage.trim() }),
+            })
+            const result = await response.json()
+            if (!result.success) throw new Error(result.message || "Unable to send request")
+            toast.success("Information request sent")
+            setRequestMessage("")
+            setRequestInfoOpen(false)
+            onUpdate?.()
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Unable to request information")
+        } finally {
+            setIsSendingRequest(false)
         }
     }
 
@@ -163,20 +247,11 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false }:
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="flex items-start gap-3">
-                            <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-                            <div>
-                                <p className="text-xs font-medium text-muted-foreground">Purok</p>
-                                <p className="text-sm font-medium text-foreground">—</p>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-                            <div>
-                                <p className="text-xs font-medium text-muted-foreground">Location</p>
-                                <p className="text-sm font-medium text-foreground">{caseData.street}</p>
-                            </div>
+                    <div className="flex items-start gap-3">
+                        <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+                        <div>
+                            <p className="text-xs font-medium text-muted-foreground">Street</p>
+                            <p className="text-sm font-medium text-foreground">{caseData.street}</p>
                         </div>
                     </div>
 
@@ -246,14 +321,19 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false }:
               {/* Internal Notes */}
                              <div className="bg-card rounded-xl border border-border shadow-sm p-6">
                 <h2 className="text-base font-semibold text-foreground mb-4">Internal Notes</h2>
-                <div className="bg-muted/30 rounded-lg p-4 border border-border/50 mb-4">
-                    <p className="text-sm text-foreground">
-                        Both parties have been contacted. Mediation scheduled for March 1, 2026.
-                    </p>
-                </div>
-                <button className="inline-flex items-center gap-2 px-4 py-2 bg-[#0f172a] text-white text-sm font-medium rounded-lg hover:bg-[#0f172a]/90 transition-colors">
+                <Textarea
+                    value={internalNotes}
+                    onChange={(event) => setInternalNotes(event.target.value)}
+                    placeholder="Add an internal note for this case..."
+                    className="mb-4 min-h-28"
+                />
+                <button
+                    onClick={saveInternalNotes}
+                    disabled={isSavingNotes}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#0f172a] text-white text-sm font-medium rounded-lg hover:bg-[#0f172a]/90 transition-colors disabled:opacity-60"
+                >
                     <Save className="h-4 w-4" />
-                    Save Notes
+                    {isSavingNotes ? "Saving..." : "Save Notes"}
                 </button>
               </div>
 
@@ -279,6 +359,7 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false }:
                         currentOfficer={caseData.assignedOfficer}
                         onOfficerChange={handleOfficerChange}
                         disabled={caseData.status === "Closed"}
+                        officers={officers}
                     />
                 </div>
                 
@@ -314,12 +395,20 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false }:
                 <div className="bg-card rounded-xl border border-border shadow-sm p-6">
                     <h2 className="text-base font-semibold text-foreground mb-4">Quick Actions</h2>
                     <div className="space-y-3">
-                        <button className="w-full flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors text-left group">
+                        <button
+                            onClick={() => handleStatusChange("Under Review")}
+                            disabled={caseData.status === "Closed"}
+                            className="w-full flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors text-left group disabled:cursor-not-allowed disabled:opacity-50"
+                        >
                             <CheckCircle2 className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
                             <span className="text-sm font-medium text-foreground">Verify Case</span>
                         </button>
 
-                        <button className="w-full flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors text-left group">
+                        <button
+                            onClick={() => setRequestInfoOpen(true)}
+                            disabled={caseData.status === "Closed"}
+                            className="w-full flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors text-left group disabled:cursor-not-allowed disabled:opacity-50"
+                        >
                             <MessageSquare className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
                             <span className="text-sm font-medium text-foreground">Request Info</span>
                         </button>
@@ -328,30 +417,48 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false }:
                             <label className="text-xs font-semibold text-foreground mb-2 block">Assign Officer</label>
                             <div className="flex flex-col gap-2">
                                 <select 
-                                    defaultValue=""
+                                    value={quickOfficer}
+                                    onChange={(event) => setQuickOfficer(event.target.value)}
+                                    disabled={caseData.status === "Closed"}
                                     className="w-full h-10 rounded-lg border border-border bg-muted/30 px-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
                                 >
-                                    <option value="" disabled>Select officer</option>
-                                    <option value={caseData.assignedOfficer}>{caseData.assignedOfficer}</option>
-                                    <option value="Officer 2">Officer 2</option>
+                                    {officers.map((officer) => (
+                                        <option key={officer} value={officer}>{officer}</option>
+                                    ))}
                                 </select>
-                                <button className="w-full h-10 px-4 bg-[#0f172a] text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-opacity shadow-sm flex items-center justify-center gap-2">
+                                <button
+                                    onClick={() => handleOfficerChange(quickOfficer)}
+                                    disabled={caseData.status === "Closed"}
+                                    className="w-full h-10 px-4 bg-[#0f172a] text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-opacity shadow-sm flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
                                     <User className="h-4 w-4" />
                                     Assign
                                 </button>
                             </div>
                         </div>
 
-                        <button className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors">
+                        <button
+                            onClick={() => handleStatusChange("Mediation")}
+                            disabled={caseData.status === "Closed"}
+                            className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                        >
                             <Calendar className="h-4 w-4" />
                             <span className="text-sm font-medium text-foreground">Schedule Mediation</span>
                         </button>
 
-                        <button className="w-full flex items-center justify-center gap-2 p-3 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm mt-2">
+                        <button
+                            onClick={() => handleStatusChange("Resolved")}
+                            disabled={caseData.status === "Closed"}
+                            className="w-full flex items-center justify-center gap-2 p-3 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm mt-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
                             <Check className="h-4 w-4" />
                             <span className="text-sm font-semibold">Mark as Resolved</span>
                         </button>
-                        <button className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                        <button
+                            onClick={() => handleStatusChange("Closed")}
+                            disabled={caseData.status === "Closed"}
+                            className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                        >
                             <X className="h-4 w-4" />
                             <span className="text-sm font-semibold">Close Case</span>
                         </button>
@@ -370,6 +477,31 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false }:
                     initialIndex={activeEvidenceIndex}
                 />
             )}
+
+            <Dialog open={requestInfoOpen} onOpenChange={setRequestInfoOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Request Information</DialogTitle>
+                        <DialogDescription>
+                            Send a case update notification to {caseData.fullName}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Textarea
+                        value={requestMessage}
+                        onChange={(event) => setRequestMessage(event.target.value)}
+                        placeholder="Example: Please upload a clearer photo of the incident location."
+                        className="min-h-28"
+                    />
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRequestInfoOpen(false)} disabled={isSendingRequest}>
+                            Cancel
+                        </Button>
+                        <Button onClick={sendRequestInfo} disabled={isSendingRequest || !requestMessage.trim()}>
+                            {isSendingRequest ? "Sending..." : "Send Request"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
     </div>
   )
 }

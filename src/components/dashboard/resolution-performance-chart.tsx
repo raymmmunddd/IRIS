@@ -6,7 +6,10 @@ import { cn } from "@/lib/utils"
 
 type TimePeriod = "today" | "weekly" | "monthly" | "yearly"
 
-const dataByPeriod = {
+type ResolutionStatusData = Record<string, number>
+type ResolutionDataByPeriod = Partial<Record<TimePeriod, ResolutionStatusData>>
+
+const dataByPeriod: ResolutionDataByPeriod = {
   today: {
     "Under Review": 45,
     "Mediation": 38,
@@ -40,8 +43,13 @@ const statusLines = [
   { key: "Closed", color: "var(--chart-neutral)" },
 ]
 
-export function ResolutionPerformanceChart() {
+interface ResolutionPerformanceChartProps {
+  data?: ResolutionDataByPeriod
+}
+
+export function ResolutionPerformanceChart({ data }: ResolutionPerformanceChartProps) {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("weekly")
+  const sourceData = data ?? dataByPeriod
 
   const getPeriodLabel = () => {
     const labels: Record<TimePeriod, string> = {
@@ -54,7 +62,7 @@ export function ResolutionPerformanceChart() {
   }
 
   const getStatsByPeriod = () => {
-    const stats = dataByPeriod[timePeriod]
+    const stats = sourceData[timePeriod] ?? dataByPeriod[timePeriod]!
     const total = stats["Under Review"] + stats["Mediation"] + stats["Resolved"] + stats["Closed"]
     const periodLabel = getPeriodLabel()
 
@@ -101,10 +109,10 @@ export function ResolutionPerformanceChart() {
   const resolutionStats = getStatsByPeriod()
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:shadow-md">
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <h3 className="text-base font-semibold text-card-foreground">Case Resolution Status</h3>
-        <div className="flex items-center gap-2">
+    <div className="rounded-xl border border-border bg-card p-3 sm:p-5 transition-all duration-300 hover:shadow-md">
+      <div className="mb-3 sm:mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h3 className="text-sm sm:text-base font-semibold text-card-foreground">Case Resolution Status</h3>
+        <div className="flex items-center gap-2 overflow-x-auto">
           {(["weekly", "monthly", "yearly"] as TimePeriod[]).map((period) => {
             const labels = {"today": "Today", "weekly": "This Week", "monthly": "This Month", "yearly": "This Year"} as Record<TimePeriod, string>
             return (
@@ -112,7 +120,7 @@ export function ResolutionPerformanceChart() {
                 key={period}
                 onClick={() => setTimePeriod(period)}
                 className={cn(
-                  "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors capitalize",
+                  "rounded-lg border px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-medium transition-colors capitalize shrink-0",
                   timePeriod === period
                     ? "border-[var(--chart-main)] bg-[var(--chart-main)] text-white"
                     : "border-border bg-card text-card-foreground hover:bg-muted"
@@ -124,21 +132,21 @@ export function ResolutionPerformanceChart() {
           })}
         </div>
       </div>
-      <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
+      <div className="grid gap-2 sm:gap-3 grid-cols-1 md:grid-cols-2">
         {resolutionStats.map((stat) => {
           const isUp = stat.trending === "up"
           return (
-            <div key={stat.label} className={cn("rounded-lg p-4 transition-all hover:shadow-md", stat.color)}>
-              <p className="mb-2 text-sm font-semibold opacity-80">{stat.label}</p>
-              <p className="text-3xl font-bold">{stat.value}</p>
+            <div key={stat.label} className={cn("rounded-lg p-3 sm:p-4 transition-all hover:shadow-md", stat.color)}>
+              <p className="mb-2 text-xs sm:text-sm font-semibold opacity-80">{stat.label}</p>
+              <p className="text-2xl sm:text-3xl font-bold">{stat.value}</p>
               <div className="flex items-center justify-between mt-2">
-                <p className="text-sm font-semibold opacity-90">{stat.percentage}</p>
-                <div className={`flex items-center gap-0.5 text-sm font-semibold ${isUp ? "text-emerald-600" : "text-red-500"}`}>
-                  {isUp ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                <p className="text-xs sm:text-sm font-semibold opacity-90">{stat.percentage}</p>
+                <div className={`flex items-center gap-0.5 text-xs sm:text-sm font-semibold ${isUp ? "text-emerald-600" : "text-red-500"}`}>
+                  {isUp ? <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" /> : <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4" />}
                   {stat.change}%
                 </div>
               </div>
-              <p className="mt-1 text-xs font-medium opacity-70">{stat.periodLabel}</p>
+              <p className="mt-1 text-[10px] sm:text-xs font-medium opacity-70">{stat.periodLabel}</p>
             </div>
           )
         })}

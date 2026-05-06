@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import { AlertTriangle, ArrowLeft, CircleCheck, Gavel, ShieldAlert } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { getAuthUser, getRoleLandingPath, isRoleAuthorized } from "@/lib/auth"
-import { createResidentCaseReport } from "@/lib/caseStorage"
 import {
   CATEGORY_SCOPE_RULES,
   evaluateResidentReportScope,
@@ -37,10 +36,11 @@ const hearingFlow = [
 export default function ResidentReportIntakePage() {
   const router = useRouter()
   const { toast } = useToast()
+  const initialUser = getAuthUser()
 
-  const [fullName, setFullName] = useState("")
+  const [fullName, setFullName] = useState(initialUser?.email ?? "")
   const [contact, setContact] = useState("")
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState(initialUser?.email ?? "")
   const [street, setStreet] = useState("")
   const [incidentDate, setIncidentDate] = useState("")
   const [incidentCity, setIncidentCity] = useState("Olongapo City")
@@ -71,11 +71,7 @@ export default function ResidentReportIntakePage() {
       return
     }
 
-    if (!fullName) {
-      setFullName(user.email)
-      setEmail(user.email)
-    }
-  }, [fullName, router])
+  }, [router])
 
   const scopeProfile = CATEGORY_SCOPE_RULES[category]
   const parsedAmount = estimatedClaimAmount ? Number(estimatedClaimAmount) : null
@@ -112,7 +108,7 @@ export default function ResidentReportIntakePage() {
     ]
   )
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
 
     if (!fullName || !contact || !street || !incidentDate || !details) {
@@ -149,15 +145,27 @@ export default function ResidentReportIntakePage() {
       return
     }
 
-    const created = createResidentCaseReport({
-      fullName,
-      category,
-      incidentDate,
-      contact,
-      email,
-      street,
-      details,
-    })
+    let created: { id: string } | null = null
+
+    try {
+      const response = await fetch("/api/resident/cases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName,
+          category,
+          incidentDate,
+          contact,
+          email,
+          street,
+          details,
+        }),
+      })
+      const result = await response.json()
+      created = result.success ? result.data : null
+    } catch {
+      created = null
+    }
 
     setIsSubmitting(false)
 
@@ -168,7 +176,7 @@ export default function ResidentReportIntakePage() {
 
     toast({
       title: "Report filed",
-      description: `${created.caseNumber} was filed successfully under ${category}.`,
+      description: `${created.id} was filed successfully under ${category}.`,
     })
     router.push("/resident")
   }

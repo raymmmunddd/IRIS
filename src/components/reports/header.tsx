@@ -56,7 +56,7 @@ export function ReportsHeader() {
       "- Cases submitted: 934",
       "- Cases resolved: 812",
       "- Average resolution time: 2.8 days",
-      "- Highest activity area: East Tapinac Purok 3",
+      "- Highest activity street: Mabini Street",
     ].join("\n")
     downloadFile("iris-quarterly-summary.txt", summary)
     toast({ title: "Quarterly summary exported", description: "Summary file downloaded.", variant: "success" })

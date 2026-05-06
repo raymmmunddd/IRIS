@@ -8,8 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { addActivityLog } from "@/lib/activityLogs"
-import { getProfileSecurity, updatePasswordTimestamp, updateTwoFactorEnabled } from "@/lib/profile"
+import { getAuthUser } from "@/lib/auth"
 
 function parseStoredDate(value: string): Date | null {
   if (!value || value === "Never") return null
@@ -77,6 +76,7 @@ function getPasswordStatus(value: string): {
 }
 
 export default function SettingsPage() {
+  const authUser = getAuthUser()
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -84,12 +84,31 @@ export default function SettingsPage() {
   const [lastUpdated, setLastUpdated] = useState("Never")
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [, forceTimeRefresh] = useState(0)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const security = getProfileSecurity()
-    setLastUpdated(security.passwordLastUpdated)
-    setTwoFactorEnabled(security.twoFactorEnabled)
-  }, [])
+    async function loadSecurity() {
+      if (!authUser?.email) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/settings?email=${encodeURIComponent(authUser.email)}`)
+        const result = await response.json()
+        if (result.success && result.data) {
+          setLastUpdated(result.data.passwordLastUpdated)
+          setTwoFactorEnabled(result.data.twoFactorEnabled)
+        }
+      } catch (error) {
+        console.error("Failed to load security settings:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadSecurity()
+  }, [authUser?.email])
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -99,7 +118,7 @@ export default function SettingsPage() {
     return () => window.clearInterval(interval)
   }, [])
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
       setPasswordMessage("Please complete all password fields.")
       return
@@ -115,34 +134,53 @@ export default function SettingsPage() {
       return
     }
 
-    updatePasswordTimestamp()
-    const updatedSecurity = getProfileSecurity()
-    setLastUpdated(updatedSecurity.passwordLastUpdated)
-    setCurrentPassword("")
-    setNewPassword("")
-    setConfirmPassword("")
-    setPasswordMessage("Password updated successfully.")
-    addActivityLog({
-      label: "Password changed",
-      detail: "Your account password was updated successfully.",
-      category: "security",
-      status: "Verified",
-    })
+    try {
+      const response = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "password",
+          email: authUser?.email,
+          currentPassword,
+          newPassword,
+        }),
+      })
+      const result = await response.json()
+
+      if (!result.success || !result.data) {
+        throw new Error(result.message)
+      }
+
+      setLastUpdated(result.data.passwordLastUpdated)
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+      setPasswordMessage("Password updated successfully.")
+    } catch (error) {
+      setPasswordMessage(error instanceof Error ? error.message : "Failed to update password.")
+    }
   }
 
-  const handleToggleTwoFactor = () => {
+  const handleToggleTwoFactor = async () => {
     const next = !twoFactorEnabled
-    updateTwoFactorEnabled(next)
-    setTwoFactorEnabled(next)
-
-    addActivityLog({
-      label: next ? "Two-factor enabled" : "Two-factor disabled",
-      detail: next
-        ? "Two-factor authentication was configured for your account."
-        : "Two-factor authentication was turned off.",
-      category: "security",
-      status: next ? "Verified" : "Info",
-    })
+    try {
+      const response = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "twoFactor",
+          email: authUser?.email,
+          enabled: next,
+        }),
+      })
+      const result = await response.json()
+      if (result.success && result.data) {
+        setTwoFactorEnabled(result.data.twoFactorEnabled)
+        setLastUpdated(result.data.passwordLastUpdated)
+      }
+    } catch (error) {
+      console.error("Failed to update two-factor settings:", error)
+    }
   }
 
   const passwordStatus = getPasswordStatus(lastUpdated)
@@ -150,14 +188,21 @@ export default function SettingsPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <DashboardSidebar />
+      <div className="hidden lg:flex h-screen shrink-0">
+        <DashboardSidebar />
+      </div>
 
-      <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+      <main className="min-w-0 flex-1 overflow-y-auto p-6 lg:p-8">
         <DashboardHeader
           title="Account Settings"
           description="Manage your password and security preferences"
         />
 
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+          </div>
+        ) : (
         <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
           <Card className="border-[var(--iris-border)] bg-[var(--iris-surface)]/95 shadow-sm">
             <CardHeader>
@@ -266,6 +311,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </div>
+        )}
       </main>
     </div>
   )

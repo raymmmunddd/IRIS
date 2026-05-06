@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useIsMobile } from "@/hooks/use-mobile"
 import {
   Bar,
   BarChart,
@@ -18,7 +19,19 @@ import { cn } from "@/lib/utils"
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-const casesData = [
+type MonthlyTrendItem = {
+  month: string
+  cases: number
+  violence?: number
+  harassment?: number
+  fraud?: number
+  disturbance?: number
+  property?: number
+  community?: number
+  child?: number
+}
+
+const casesData: MonthlyTrendItem[] = [
   { month: "Jan", cases: 186 },
   { month: "Feb", cases: 215 },
   { month: "Mar", cases: 298 },
@@ -60,13 +73,21 @@ const categoryMeta = [
   { key: "child", name: "Child & Vulnerable", shortName: "Child/Vulnerable", color: "#8b5cf6" },
 ]
 
-export function MonthlyTrendChart() {
+interface MonthlyTrendChartProps {
+  data?: MonthlyTrendItem[]
+}
+
+export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
   const [filter, setFilter] = useState<FilterMode>("cases")
-  const [selectedMonth, setSelectedMonth] = useState("Dec")
+  const [selectedMonth, setSelectedMonth] = useState(months[new Date().getMonth()])
+  const isMobile = useIsMobile()
+  const chartHeight = isMobile ? 200 : 300
+  const chartData = data?.length ? data : casesData
+  const categoryChartData = data?.length ? data : categoryData
 
   const selectedCategoryMonth = useMemo(
-    () => categoryData.find((item) => item.month === selectedMonth) ?? categoryData[categoryData.length - 1],
-    [selectedMonth]
+    () => categoryChartData.find((item) => item.month === selectedMonth) ?? categoryChartData[categoryChartData.length - 1],
+    [categoryChartData, selectedMonth]
   )
 
   const categoryBarData = categoryMeta.map((category) => {
@@ -82,9 +103,9 @@ export function MonthlyTrendChart() {
   })
 
   return (
-    <div className="flex h-full flex-col rounded-xl border border-border bg-card p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-base font-semibold text-card-foreground">Monthly Trend</h3>
+    <div className="flex h-full flex-col rounded-xl border border-border bg-card p-3 sm:p-5">
+      <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h3 className="text-sm sm:text-base font-semibold text-card-foreground">Monthly Trend</h3>
         <div className="flex items-center gap-2">
           {(["cases", "category"] as FilterMode[]).map((mode) => {
             const labels = { "cases": "Cases", "category": "Category" } as Record<FilterMode, string>
@@ -93,7 +114,7 @@ export function MonthlyTrendChart() {
                 key={mode}
                 onClick={() => setFilter(mode)}
                 className={cn(
-                  "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors capitalize",
+                  "rounded-lg border px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-medium transition-colors capitalize",
                   filter === mode
                     ? "border-[var(--chart-main)] bg-[var(--chart-main)] text-white"
                     : "border-border bg-card text-card-foreground hover:bg-muted"
@@ -107,13 +128,13 @@ export function MonthlyTrendChart() {
       </div>
 
       {filter === "category" && (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="mb-3 sm:mb-4 flex flex-wrap items-center gap-1.5 sm:gap-2">
           {months.map((month) => (
             <button
               key={month}
               onClick={() => setSelectedMonth(month)}
               className={cn(
-                "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
+                "rounded-lg border px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium transition-colors",
                 selectedMonth === month
                   ? "border-[var(--chart-main)] bg-[color-mix(in_srgb,var(--chart-main)_12%,transparent)] text-[var(--chart-main)]"
                   : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-card-foreground"
@@ -125,10 +146,10 @@ export function MonthlyTrendChart() {
         </div>
       )}
 
-      <div className="flex-1">
-        <ResponsiveContainer width="100%" height={300}>
+      <div className="flex-1 min-h-0">
+        <ResponsiveContainer width="100%" height={chartHeight}>
           {filter === "cases" ? (
-            <LineChart data={casesData}>
+            <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
               <XAxis
                 dataKey="month"

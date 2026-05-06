@@ -3,10 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { UserPlus, User, Mail, Lock, X, CheckCircle2, Eye, EyeOff, ShieldCheck, ClipboardCheck, Database, UserCheck, ArrowLeft } from "lucide-react";
+import { UserPlus, User, Mail, Lock, X, CheckCircle2, Eye, EyeOff, ShieldCheck, ClipboardCheck, Database, UserCheck, ArrowLeft, Phone, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { signup, type UserRole } from "@/lib/auth";
+import { getRoleLandingPath, saveAuthUser, type AuthUser, type UserRole } from "@/lib/auth";
 
 export default function SignupPage() {
   const { toast } = useToast();
@@ -15,17 +15,40 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [street, setStreet] = useState("");
+  const [contact, setContact] = useState("");
+  const [gender, setGender] = useState<"MALE" | "FEMALE" | "OTHER">("MALE");
   const [isLoading, setIsLoading] = useState(false);
   const [role, setRole] = useState<UserRole>("resident");
   const [legalDoc, setLegalDoc] = useState<"terms" | "privacy" | null>(null);
   const [legalAccepted, setLegalAccepted] = useState(false);
+  const [legalScrolledToEnd, setLegalScrolledToEnd] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [verificationOpen, setVerificationOpen] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [devCode, setDevCode] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const requestVerificationCode = async () => {
+    const response = await fetch("/api/auth/signup/request-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fullName, email, password, confirmPassword, role, street, contact, gender }),
+    });
+    const result: { success: boolean; message: string; data?: { devCode?: string } } = await response.json();
+
+    if (!result.success) throw new Error(result.message);
+
+    setDevCode(result.data?.devCode ?? null);
+    return result;
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!fullName || !email || !password || !confirmPassword) {
+    if (!fullName || !email || !password || !confirmPassword || !street || !contact || !gender) {
       toast({
         title: "Missing fields",
         description: "Please fill in all required fields.",
@@ -43,27 +66,88 @@ export default function SignupPage() {
       return;
     }
 
+    if (!termsAccepted) {
+      toast({
+        title: "Terms required",
+        description: "Please read and accept the Terms of Service before creating an account.",
+        variant: "warning",
+      });
+      openLegalDoc("terms");
+      return;
+    }
+
     setIsLoading(true);
 
-    setTimeout(() => {
-      const success = signup(email, password, confirmPassword, role);
-      if (success) {
-        toast({
-          title: "Account created",
-          description: "Your account has been successfully created. Please log in.",
-          variant: "success",
-        });
-        router.push(`/login?role=${role}`);
-        return;
-      }
-
+    try {
+      await requestVerificationCode();
+      setIsLoading(false);
+      setVerificationOpen(true);
+      toast({
+        title: "Verification sent",
+        description: "Check your email for the 6-digit verification code.",
+        variant: "success",
+      });
+    } catch (error) {
       setIsLoading(false);
       toast({
         title: "Signup failed",
-        description: "Unable to create account. Please check your inputs and try again.",
+        description: error instanceof Error ? error.message : "Unable to create account. Please try again.",
         variant: "destructive",
       });
-    }, 900);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (verificationCode.length !== 6) {
+      toast({ title: "Invalid code", description: "Enter the 6-digit verification code.", variant: "warning" });
+      return;
+    }
+
+    setIsVerifying(true);
+
+    try {
+      const response = await fetch("/api/auth/signup/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code: verificationCode }),
+      });
+      const result: { success: boolean; message: string; data: AuthUser | null } = await response.json();
+
+      if (!result.success || !result.data) throw new Error(result.message);
+
+      saveAuthUser(result.data);
+      toast({
+        title: "Account verified",
+        description: "Your IRIS account is ready.",
+        variant: "success",
+      });
+      router.push(getRoleLandingPath(result.data.role));
+    } catch (error) {
+      setIsVerifying(false);
+      toast({
+        title: "Verification failed",
+        description: error instanceof Error ? error.message : "Invalid or expired code.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleResendCode = async () => {
+    try {
+      await requestVerificationCode();
+      setVerificationCode("");
+      toast({
+        title: "Code resent",
+        description: "A new verification code was sent to your email.",
+        variant: "success",
+      });
+    } catch (error) {
+      toast({
+        title: "Resend failed",
+        description: error instanceof Error ? error.message : "Unable to resend the code.",
+        variant: "destructive",
+      });
+    }
   };
 
   const roleCopy = {
@@ -90,6 +174,7 @@ export default function SignupPage() {
 
   const openLegalDoc = (doc: "terms" | "privacy") => {
     setLegalAccepted(false);
+    setLegalScrolledToEnd(doc === "privacy");
     setLegalDoc(doc);
   };
 
@@ -103,6 +188,10 @@ export default function SignupPage() {
         "2. Responsible Access: Your account is personal; do not share credentials or perform actions on behalf of other users.",
         "3. Case Conduct: Submitted cases may be reviewed by authorized barangay officials and BPAT staff for validation and response.",
         "4. Platform Updates: IRIS may update features, workflows, and security controls to improve service quality and reliability.",
+        "5. Authorized Purpose: You will use IRIS only for legitimate barangay reporting, case coordination, or official field operations.",
+        "6. Evidence Handling: Uploaded files and case information must be relevant to the report and may be reviewed by authorized personnel.",
+        "7. Account Review: Barangay administrators may suspend accounts involved in abuse, impersonation, or repeated false reporting.",
+        "8. Record Retention: Case and account activity may be retained as needed for audit, legal compliance, and public safety workflows.",
       ],
     },
     privacy: {
@@ -161,7 +250,7 @@ export default function SignupPage() {
         </div>
       </section>
 
-      <section className="flex min-h-screen items-center justify-center px-4 py-4 sm:px-6 sm:py-5 lg:min-h-0 lg:h-screen lg:px-10 lg:py-0">
+      <section className="flex min-h-screen items-center justify-center overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 lg:min-h-0 lg:h-screen lg:px-10 lg:py-6">
         <div className="w-full max-w-md space-y-3">
           <div className="text-sm">
             <Link href="/" className="inline-flex items-center gap-2 font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">
@@ -253,6 +342,71 @@ export default function SignupPage() {
               </label>
             </div>
 
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="relative">
+                <Phone className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                <input
+                  id="contact"
+                  type="tel"
+                  autoComplete="tel"
+                  className="peer w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-2.5 text-sm text-[var(--iris-text)] placeholder-transparent shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                  placeholder="Contact number"
+                  disabled={isLoading}
+                />
+                <label
+                  htmlFor="contact"
+                  className={cn(
+                    "pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm text-[var(--iris-text-subtle)] transition-opacity duration-150",
+                    "peer-focus:opacity-0",
+                    contact && "opacity-0"
+                  )}
+                >
+                  Contact number
+                </label>
+              </div>
+
+              <div className="relative">
+                <UserCheck className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                <select
+                  id="gender"
+                  className="w-full appearance-none rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-2.5 text-sm text-[var(--iris-text)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value as "MALE" | "FEMALE" | "OTHER")}
+                  disabled={isLoading}
+                >
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="relative">
+              <MapPin className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+              <input
+                id="street"
+                type="text"
+                autoComplete="street-address"
+                className="peer w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-2.5 text-sm text-[var(--iris-text)] placeholder-transparent shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                value={street}
+                onChange={(e) => setStreet(e.target.value)}
+                placeholder="Street"
+                disabled={isLoading}
+              />
+              <label
+                htmlFor="street"
+                className={cn(
+                  "pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm text-[var(--iris-text-subtle)] transition-opacity duration-150",
+                  "peer-focus:opacity-0",
+                  street && "opacity-0"
+                )}
+              >
+                Street
+              </label>
+            </div>
+
             <div className="relative">
               <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
               <input
@@ -335,8 +489,28 @@ export default function SignupPage() {
             </div>
 
             <button
+              type="button"
+              onClick={() => openLegalDoc("terms")}
+              className="flex w-full items-start gap-2 rounded-xl border border-[var(--iris-border)] bg-[var(--iris-primary-light)]/20 px-3 py-2 text-left text-xs text-[var(--iris-text)] transition hover:border-[var(--iris-primary)]/30"
+            >
+              <span
+                className={cn(
+                  "mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border",
+                  termsAccepted
+                    ? "border-[var(--iris-primary)] bg-[var(--iris-primary)] text-white"
+                    : "border-[#D1D5DB] bg-white"
+                )}
+              >
+                {termsAccepted ? <CheckCircle2 className="h-3 w-3" /> : null}
+              </span>
+              <span>
+                I agree to the <span className="font-semibold text-[var(--iris-primary)]">Terms and Conditions</span>.
+              </span>
+            </button>
+
+            <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !termsAccepted}
               className="w-full rounded-xl bg-[var(--iris-primary)] py-2.5 text-white font-semibold shadow-[0_12px_30px_rgba(30,79,163,0.3)] transition-all duration-200 hover:bg-[var(--iris-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isLoading ? (
@@ -409,7 +583,15 @@ export default function SignupPage() {
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto px-6 py-6 text-sm text-[var(--iris-text)] custom-scrollbar">
+              <div
+                className="flex-1 overflow-y-auto px-6 py-6 text-sm text-[var(--iris-text)] custom-scrollbar"
+                onScroll={(event) => {
+                  const target = event.currentTarget;
+                  if (target.scrollTop + target.clientHeight >= target.scrollHeight - 12) {
+                    setLegalScrolledToEnd(true);
+                  }
+                }}
+              >
                 <div className="mb-6 rounded-2xl border border-[var(--iris-border)] bg-white/70 p-4 text-[var(--iris-primary-strong)]">
                   <p className="font-medium">{legalContent[legalDoc].intro}</p>
                 </div>
@@ -435,22 +617,86 @@ export default function SignupPage() {
                 </div>
               </div>
               <div className="flex items-center justify-between gap-3 border-t border-[var(--iris-border)] bg-[var(--iris-primary-light)]/20 px-6 py-4">
-                <label className="inline-flex items-center gap-2 text-sm text-[var(--iris-text-subtle)] cursor-pointer select-none">
+                <label className="inline-flex cursor-pointer select-none items-center gap-2 text-sm text-[var(--iris-text-subtle)]">
                   <input
                     type="checkbox"
                     checked={legalAccepted}
+                    disabled={legalDoc === "terms" && !legalScrolledToEnd}
                     onChange={(e) => setLegalAccepted(e.target.checked)}
                     className="h-4 w-4 rounded border-[#D1D5DB] text-[var(--iris-primary)] focus:ring-[var(--iris-primary)] accent-[var(--iris-primary)]"
                   />
-                  <span className="font-medium">I have read and agree</span>
+                  <span className="font-medium">
+                    {legalDoc === "terms" && !legalScrolledToEnd ? "Scroll to the bottom to accept" : "I have read and agree"}
+                  </span>
                 </label>
                 <button
                   type="button"
-                  onClick={() => setLegalDoc(null)}
-                  disabled={!legalAccepted}
+                  onClick={() => {
+                    if (legalDoc === "terms") setTermsAccepted(true);
+                    setLegalDoc(null);
+                  }}
+                  disabled={!legalAccepted || (legalDoc === "terms" && !legalScrolledToEnd)}
                   className="rounded-lg bg-[var(--iris-primary)] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[var(--iris-primary-strong)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Continue
+                  {legalDoc === "terms" ? "Accept Terms" : "Continue"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {verificationOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] p-5 shadow-2xl">
+            <div className="space-y-2 text-center">
+              <div className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--iris-primary-light)] text-[var(--iris-primary)]">
+                <Mail className="h-5 w-5" />
+              </div>
+              <h3 className="text-xl font-bold text-[var(--iris-text)]">Verify your email</h3>
+              <p className="text-sm text-[var(--iris-text-subtle)]">Enter the 6-digit code sent to {email}.</p>
+              {devCode && (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                  Dev code: {devCode}
+                </p>
+              )}
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <input
+                value={verificationCode}
+                onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="000000"
+                className="w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-4 py-3 text-center text-2xl font-bold tracking-[0.45em] text-[var(--iris-text)] focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)]"
+              />
+
+              <button
+                type="button"
+                onClick={handleVerifyCode}
+                disabled={isVerifying || verificationCode.length !== 6}
+                className="w-full rounded-xl bg-[var(--iris-primary)] py-2.5 font-semibold text-white shadow-[0_12px_30px_rgba(30,79,163,0.3)] transition hover:bg-[var(--iris-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isVerifying ? "Verifying..." : "Verify Account"}
+              </button>
+
+              <div className="flex items-center justify-between text-sm">
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={isVerifying}
+                  className="font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)] disabled:opacity-50"
+                >
+                  Resend code
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVerificationOpen(false)}
+                  disabled={isVerifying}
+                  className="font-semibold text-[var(--iris-text-subtle)] hover:text-[var(--iris-text)] disabled:opacity-50"
+                >
+                  Cancel
                 </button>
               </div>
             </div>

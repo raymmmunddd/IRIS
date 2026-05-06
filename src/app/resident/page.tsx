@@ -1,22 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Bell,
-  CircleCheck,
-  ClipboardList,
-  FileText,
-  Home,
-  LifeBuoy,
-  Megaphone,
-  Plus,
-  User,
-} from "lucide-react";
+import { ClipboardList, LifeBuoy, Megaphone, Plus } from "lucide-react";
 import { getAuthUser, getRoleLandingPath, isRoleAuthorized } from "@/lib/auth";
+import { NotificationBell } from "@/components/NotificationBell";
+import { ResidentNav } from "@/components/ResidentNav";
 
-const recentUpdates = [
+const fallbackRecentUpdates = [
   {
     title: "Noise complaint #IR-219",
     detail: "Assigned to BPAT Team 2",
@@ -37,15 +29,22 @@ const recentUpdates = [
   },
 ];
 
+const STATUS_COLORS: Record<string, string> = {
+  "In progress": "bg-indigo-50 text-indigo-700",
+  Scheduled: "bg-purple-50 text-purple-700",
+  Closed: "bg-slate-100 text-slate-600",
+};
+
 const shortcuts = [
   { label: "Report Incident", icon: Plus, href: "/resident/report-intake" },
-  { label: "My Cases", icon: ClipboardList, href: "/cases" },
-  { label: "Announcements", icon: Megaphone, href: "/reports" },
-  { label: "Help Center", icon: LifeBuoy, href: "/operations" },
+  { label: "My Cases", icon: ClipboardList, href: "/resident/cases" },
+  { label: "Announcements", icon: Megaphone, href: "/resident/reports" },
+  { label: "Help Center", icon: LifeBuoy, href: "/resident/operations" },
 ];
 
 export default function ResidentPage() {
   const router = useRouter();
+  const [recentUpdates, setRecentUpdates] = useState(fallbackRecentUpdates);
 
   useEffect(() => {
     const user = getAuthUser();
@@ -57,7 +56,17 @@ export default function ResidentPage() {
 
     if (!isRoleAuthorized(["resident"])) {
       router.push(getRoleLandingPath(user.role));
+      return;
     }
+
+    fetch(`/api/resident/dashboard?email=${encodeURIComponent(user.email)}`)
+      .then((response) => response.json())
+      .then((result) => {
+        if (result.success && result.data?.recentUpdates) {
+          setRecentUpdates(result.data.recentUpdates);
+        }
+      })
+      .catch(() => setRecentUpdates(fallbackRecentUpdates));
   }, [router]);
 
   const user = getAuthUser();
@@ -70,13 +79,12 @@ export default function ResidentPage() {
             <p className="text-xs uppercase tracking-[0.2em] text-white/75">IRIS Resident</p>
             <h1 className="mt-1 text-xl font-bold">Community Mobile Portal</h1>
           </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
-            <Bell className="h-5 w-5" />
-          </div>
+          <NotificationBell />
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-md space-y-4 px-4 pb-24 pt-4">
+        {/* Welcome card */}
         <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
@@ -92,10 +100,10 @@ export default function ResidentPage() {
           </p>
         </section>
 
+        {/* Shortcuts */}
         <section className="grid grid-cols-2 gap-3">
           {shortcuts.map((shortcut) => {
             const Icon = shortcut.icon;
-
             return (
               <Link
                 key={shortcut.label}
@@ -109,10 +117,14 @@ export default function ResidentPage() {
           })}
         </section>
 
+        {/* Recent Updates */}
         <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="font-semibold">Recent Updates</h3>
-            <Link href="/cases" className="text-sm font-semibold text-[var(--primary)] hover:text-[var(--primary-hover)]">
+            <Link
+              href="/resident/cases"
+              className="text-sm font-semibold text-[var(--primary)] hover:text-[var(--primary-hover)]"
+            >
               View all
             </Link>
           </div>
@@ -127,7 +139,11 @@ export default function ResidentPage() {
                   </div>
                   <span className="text-xs font-medium text-muted-foreground">{item.when}</span>
                 </div>
-                <p className="mt-2 inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-medium text-[var(--primary)]">
+                <p
+                  className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    STATUS_COLORS[item.status] ?? "bg-white text-[var(--primary)]"
+                  }`}
+                >
                   {item.status}
                 </p>
               </article>
@@ -136,26 +152,7 @@ export default function ResidentPage() {
         </section>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border bg-card/95 backdrop-blur">
-        <div className="mx-auto grid w-full max-w-md grid-cols-4 px-2 py-2">
-          <Link href="/resident" className="flex flex-col items-center gap-1 rounded-lg py-2 text-[var(--primary)]">
-            <Home className="h-5 w-5" />
-            <span className="text-[11px] font-semibold">Home</span>
-          </Link>
-          <Link href="/cases" className="flex flex-col items-center gap-1 rounded-lg py-2 text-muted-foreground">
-            <FileText className="h-5 w-5" />
-            <span className="text-[11px]">Cases</span>
-          </Link>
-          <Link href="/reports" className="flex flex-col items-center gap-1 rounded-lg py-2 text-muted-foreground">
-            <CircleCheck className="h-5 w-5" />
-            <span className="text-[11px]">Updates</span>
-          </Link>
-          <Link href="/login" className="flex flex-col items-center gap-1 rounded-lg py-2 text-muted-foreground">
-            <User className="h-5 w-5" />
-            <span className="text-[11px]">Account</span>
-          </Link>
-        </div>
-      </nav>
+      <ResidentNav />
     </div>
   );
 }

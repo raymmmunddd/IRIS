@@ -6,7 +6,9 @@ import { cn } from "@/lib/utils"
 
 type TimePeriod = "today" | "weekly" | "monthly" | "yearly"
 
-const dataByPeriod = {
+type ResolutionOverviewData = Partial<Record<TimePeriod, Record<string, number>>>
+
+const dataByPeriod: ResolutionOverviewData = {
   today: {
     "Submitted": 45,
     "Under Review": 38,
@@ -33,8 +35,13 @@ const dataByPeriod = {
   },
 }
 
-export function ResolutionStatusOverview() {
+interface ResolutionStatusOverviewProps {
+  data?: ResolutionOverviewData
+}
+
+export function ResolutionStatusOverview({ data }: ResolutionStatusOverviewProps) {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("monthly")
+  const sourceData = data ?? dataByPeriod
 
   const getPeriodLabel = () => {
     const labels: Record<TimePeriod, string> = {
@@ -47,7 +54,7 @@ export function ResolutionStatusOverview() {
   }
 
   const getStatsByPeriod = () => {
-    const stats = dataByPeriod[timePeriod]
+    const stats = sourceData[timePeriod] ?? dataByPeriod[timePeriod]!
     const total = stats["Submitted"] + stats["Under Review"] + stats["Resolved"] + stats["Closed"]
     const periodLabel = getPeriodLabel()
 

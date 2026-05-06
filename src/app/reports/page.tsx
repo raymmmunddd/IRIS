@@ -1,54 +1,73 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { ReportsHeader } from "@/components/reports/header"
 import { ReportStats } from "@/components/reports/stats"
 import { MonthlyTrendChart } from "@/components/dashboard/bar-chart-section" 
 import { CategoryBreakdown } from "@/components/reports/category-breakdown"
 import { AIPriorityDistribution } from "@/components/reports/priority-distribution"
-import { PurokMap } from "@/components/reports/purok-map"
+import { StreetMap } from "@/components/reports/street-map"
 import { ResolutionStatusOverview } from "@/components/reports/resolution-overview"
 import { KeyInsights } from "@/components/reports/key-insights"
 import { OfficerResponseAnalysis } from "@/components/reports/officer-performance"
 
 export default function ReportsPage() {
+  const [reportsData, setReportsData] = useState<any>(null)
+
+  useEffect(() => {
+    async function loadReports() {
+      try {
+        const response = await fetch("/api/reports")
+        const result = await response.json()
+        if (result.success) setReportsData(result.data)
+      } catch (error) {
+        console.error("Failed to load reports data:", error)
+      }
+    }
+
+    loadReports()
+  }, [])
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <DashboardSidebar />
+      <div className="hidden lg:flex h-screen shrink-0">
+        <DashboardSidebar />
+      </div>
 
-      <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+      <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
         <ReportsHeader />
         
-        <div className="mt-6">
-           <ReportStats />
+        <div className="mt-4 sm:mt-6">
+           <ReportStats data={reportsData?.reportStats} />
         </div>
         
-        <div className="mt-6 h-[400px]">
-          <MonthlyTrendChart />
+        <div className="mt-4 sm:mt-6 h-80 sm:h-[400px]">
+          <MonthlyTrendChart data={reportsData?.monthlyTrend} />
         </div>
 
-        <div className="mt-6 grid gap-6 md:grid-cols-2">
-          <div className="h-[400px]">
-              <CategoryBreakdown />
+        <div className="mt-4 sm:mt-6 grid gap-4 sm:gap-6 md:grid-cols-2">
+          <div className="h-80 sm:h-[400px]">
+              <CategoryBreakdown data={reportsData?.categoryBreakdown} />
           </div>
-          <div className="h-[400px]">
-              <AIPriorityDistribution />
-          </div>
-        </div>
-
-        <div className="mt-6 grid gap-6 md:grid-cols-2">
-          <div className="h-[400px]">
-               <PurokMap />
-          </div>
-          <div className="h-[400px]">
-               <ResolutionStatusOverview />
+          <div className="h-80 sm:h-[400px]">
+              <AIPriorityDistribution data={reportsData?.priorityDistribution} />
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col gap-6">
+        <div className="mt-4 sm:mt-6 grid gap-4 sm:gap-6 md:grid-cols-2">
+          <div className="h-80 sm:h-[400px]">
+               <StreetMap />
+          </div>
+          <div className="h-80 sm:h-[400px]">
+               <ResolutionStatusOverview data={reportsData?.resolutionStatus} />
+          </div>
+        </div>
+
+        <div className="mt-4 sm:mt-6 flex flex-col gap-4 sm:gap-6">
            {/* KeyInsights spans full width naturally in flex-col */}
-           <KeyInsights />
-           <OfficerResponseAnalysis />
+           <KeyInsights data={reportsData?.keyInsights} />
+           <OfficerResponseAnalysis officers={reportsData?.officerPerformance} />
         </div>
       </main>
     </div>

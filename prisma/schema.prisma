@@ -1,0 +1,345 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  RESIDENT
+  ADMIN
+  BPAT_OFFICER
+  LUPON
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum OfficerRoleTitle {
+  BPAT_OFFICER
+  LUPON_MEMBER
+  LUPON_CHAIR
+  BARANGAY_CAPTAIN
+  BARANGAY_SECRETARY
+}
+
+enum CaseCategory {
+  DISPUTE
+  INJURY
+  VAWC
+  ORDINANCE_VIOLATION
+  OTHER
+}
+
+enum CasePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum CaseStatus {
+  PENDING
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+  REFERRED
+  ASSIGNED
+  SCHEDULED
+  ONGOING
+  RESOLVED
+  UNRESOLVED
+  DISMISSED
+  ARCHIVED
+}
+
+enum HearingStage {
+  MEDIATION
+  CONCILIATION
+}
+
+enum HearingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  POSTPONED
+}
+
+enum HearingOutcome {
+  RESOLVED
+  UNRESOLVED
+  ADJOURNED
+  DISMISSED
+}
+
+enum NotificationType {
+  CASE_UPDATE
+  HEARING_SCHEDULED
+  SETTLEMENT
+  ANNOUNCEMENT
+  SYSTEM
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  ASSIGN
+  ARCHIVE
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id              String    @id @default(uuid())
+  fullName        String    @map("full_name")
+  email           String    @unique
+  password        String?
+  contact         String?
+  street          String?
+  bio             String?
+  photoUrl        String?   @map("photo_url")
+  gender          Gender?
+  passwordLastUpdated DateTime? @map("password_last_updated")
+  twoFactorEnabled Boolean  @default(false) @map("two_factor_enabled")
+  role            UserRole  @default(RESIDENT)
+  status          UserStatus @default(ACTIVE)
+  isArchived      Boolean   @default(false) @map("is_archived")
+  archivedAt      DateTime? @map("archived_at")
+  archivedReason  String?   @map("archived_reason")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  officer             Officer?
+  casesAsComplainant  Case[]             @relation("Complainant")
+  casesAsRespondent   Case[]             @relation("Respondent")
+  notifications       Notification[]
+  announcements       Announcement[]
+  caseStatusHistory   CaseStatusHistory[]
+  activities          UserActivity[]
+
+  @@map("users")
+}
+
+model Officer {
+  id          String           @id @default(uuid())
+  userId      String           @unique @map("user_id")
+  fullName    String           @map("full_name")
+  roleTitle   OfficerRoleTitle @map("role_title")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cases     Case[]
+  hearings  Hearing[]
+
+  @@map("officers")
+}
+
+model Case {
+  id                 String       @id @default(uuid())
+  complainantId      String       @map("complainant_id")
+  respondentId       String?      @map("respondent_id")
+  respondentName     String?      @map("respondent_name")
+  respondentContact  String?      @map("respondent_contact")
+  respondentAddress  String?      @map("respondent_address")
+  assignedOfficerId  String?      @map("assigned_officer_id")
+  category           CaseCategory
+  type               String
+  details            String
+  priority           CasePriority @default(MEDIUM)
+  status             CaseStatus   @default(PENDING)
+  referredTo         String?      @map("referred_to")
+  deadlineDate       DateTime?    @map("deadline_date")
+  dismissedReason    String?      @map("dismissed_reason")
+  imageUrl           String?      @map("image_url")
+  isArchived         Boolean      @default(false) @map("is_archived")
+  archivedAt         DateTime?    @map("archived_at")
+  archivedReason     String?      @map("archived_reason")
+  dateSubmitted      DateTime     @default(now()) @map("date_submitted")
+  incidentDate       DateTime     @map("incident_date")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+
+  complainant        User         @relation("Complainant", fields: [complainantId], references: [id])
+  respondent         User?        @relation("Respondent", fields: [respondentId], references: [id])
+  assignedOfficer    Officer?     @relation(fields: [assignedOfficerId], references: [id], onDelete: SetNull)
+  evidence           Evidence[]
+  hearings           Hearing[]
+  statusHistory      CaseStatusHistory[]
+  settlement         Settlement?
+  monitoring         CaseMonitoring?
+  auditLogs          AuditLog[]
+  chatMessages       CaseChatMessage[]
+
+  @@map("cases")
+}
+
+model Hearing {
+  id                  String          @id @default(uuid())
+  caseId              String          @map("case_id")
+  conductedBy         String?         @map("conducted_by")
+  hearingNumber       Int             @map("hearing_number")
+  stage               HearingStage
+  scheduledDate       DateTime        @map("scheduled_date")
+  scheduledTime       String          @map("scheduled_time")
+  location            String
+  notes               String?
+  complainantAttended Boolean         @default(false) @map("complainant_attended")
+  respondentAttended  Boolean         @default(false) @map("respondent_attended")
+  outcome             HearingOutcome? 
+  status              HearingStatus   @default(SCHEDULED)
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+
+  case    Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  officer Officer? @relation(fields: [conductedBy], references: [id], onDelete: SetNull)
+
+  @@map("hearings")
+}
+
+model Evidence {
+  id         String   @id @default(uuid())
+  caseId     String   @map("case_id")
+  fileUrl    String   @map("file_url")
+  fileType   String   @map("file_type")
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("evidence")
+}
+
+model Settlement {
+  id                 String    @id @default(uuid())
+  caseId             String    @unique @map("case_id")
+  agreementText      String    @map("agreement_text")
+  proofUrl           String?   @map("proof_url")
+  complainantSigned  Boolean   @default(false) @map("complainant_signed")
+  respondentSigned   Boolean   @default(false) @map("respondent_signed")
+  signedAt           DateTime? @map("signed_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("settlements")
+}
+
+model CaseMonitoring {
+  id                String    @id @default(uuid())
+  caseId            String    @unique @map("case_id")
+  monitoringStart   DateTime  @map("monitoring_start")
+  monitoringEnd     DateTime  @map("monitoring_end")
+  isRepudiated      Boolean   @default(false) @map("is_repudiated")
+  repudiatedAt      DateTime? @map("repudiated_at")
+  repudiationReason String?   @map("repudiation_reason")
+  isClosed          Boolean   @default(false) @map("is_closed")
+  closedAt          DateTime? @map("closed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("case_monitoring")
+}
+
+model CaseStatusHistory {
+  id        String   @id @default(uuid())
+  caseId    String   @map("case_id")
+  changedBy String   @map("changed_by")
+  oldStatus CaseStatus @map("old_status")
+  newStatus CaseStatus @map("new_status")
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  case    Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  user    User @relation(fields: [changedBy], references: [id])
+
+  @@map("case_status_history")
+}
+
+model Announcement {
+  id          String   @id @default(uuid())
+  createdBy   String   @map("created_by")
+  title       String
+  content     String
+  imageUrl    String?  @map("image_url")
+  publishedAt DateTime @default(now()) @map("published_at")
+
+  author User @relation(fields: [createdBy], references: [id])
+
+  @@map("announcements")
+}
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  actorId     String      @map("actor_id")
+  action      AuditAction
+  targetTable String      @map("target_table")
+  targetId    String      @map("target_id")
+  changes     Json
+  loggedAt    DateTime    @default(now()) @map("logged_at")
+
+  case Case? @relation(fields: [targetId], references: [id], onDelete: SetNull, map: "audit_logs_case_fk")
+
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  message   String
+  type      NotificationType
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model CaseChatMessage {
+  id        String   @id @default(uuid())
+  caseId    String   @map("case_id")
+  senderId  String   @map("sender_id")
+  senderRole String  @map("sender_role")
+  message   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("case_chat_messages")
+}
+
+model UserActivity {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  label     String
+  detail    String
+  category  String
+  status    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_activities")
+}
+
+model AppSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
+}

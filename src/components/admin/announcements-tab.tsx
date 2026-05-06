@@ -4,37 +4,114 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Pin, Edit, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
-const mockAnnouncements = [
-  {
-    id: 1,
-    title: "System Maintenance Notice",
-    content: "IRIS will undergo maintenance on March 15, 2026 from 12:00 AM to 6:00 AM.",
-    author: "Admin",
-    date: "02/20/2026",
-    isPinned: true,
-  },
-  {
-    id: 2,
-    title: "New Reporting Categories Added",
-    content: "The system now includes Environmental Concerns and Community Safety categories.",
-    author: "Admin",
-    date: "02/15/2026",
-    isPinned: false,
-  },
-];
+type AdminAnnouncement = {
+  id: string
+  title: string
+  content: string
+  author: string
+  date: string
+  isPinned: boolean
+}
 
-export function AnnouncementsTab() {
+interface AnnouncementsTabProps {
+  announcements?: AdminAnnouncement[]
+  onUpdated?: () => void
+}
+
+export function AnnouncementsTab({ announcements = [], onUpdated }: AnnouncementsTabProps) {
+  const [isCreating, setIsCreating] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingAnnouncement, setEditingAnnouncement] = useState<AdminAnnouncement | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<AdminAnnouncement | null>(null)
+  const [title, setTitle] = useState("")
+  const [content, setContent] = useState("")
+
+  function openCreateModal() {
+    setEditingAnnouncement(null)
+    setTitle("")
+    setContent("")
+    setIsModalOpen(true)
+  }
+
+  function openEditModal(announcement: AdminAnnouncement) {
+    setEditingAnnouncement(announcement)
+    setTitle(announcement.title)
+    setContent(announcement.content)
+    setIsModalOpen(true)
+  }
+
+  async function saveAnnouncement() {
+    if (!title.trim() || !content.trim()) return
+
+    setIsCreating(true)
+    const response = await fetch(
+      editingAnnouncement ? `/api/admin/announcements/${encodeURIComponent(editingAnnouncement.id)}` : "/api/admin/announcements",
+      {
+        method: editingAnnouncement ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title.trim(), content: content.trim() }),
+      },
+    )
+    const result = await response.json()
+    setIsCreating(false)
+
+    if (!result.success) {
+      toast.error(result.message || "Unable to save announcement")
+      return
+    }
+
+    toast.success(editingAnnouncement ? "Announcement updated" : "Announcement published")
+    setTitle("")
+    setContent("")
+    setEditingAnnouncement(null)
+    setIsModalOpen(false)
+    onUpdated?.()
+  }
+
+  async function deleteAnnouncement() {
+    if (!deleteTarget) return
+
+    setIsCreating(true)
+    const response = await fetch(`/api/admin/announcements/${encodeURIComponent(deleteTarget.id)}`, {
+      method: "DELETE",
+    })
+    const result = await response.json()
+    setIsCreating(false)
+
+    if (!result.success) {
+      toast.error(result.message || "Unable to delete announcement")
+      return
+    }
+
+    toast.success("Announcement deleted")
+    setDeleteTarget(null)
+    onUpdated?.()
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button className="rounded-lg bg-slate-900 text-white hover:bg-slate-800">
+        <Button className="rounded-lg bg-slate-900 text-white hover:bg-slate-800" onClick={openCreateModal} disabled={isCreating}>
           <Plus className="mr-2 h-4 w-4" /> Create Announcement
         </Button>
       </div>
       
       <div className="grid gap-4">
-        {mockAnnouncements.map((announcement) => (
+        {announcements.length === 0 && (
+          <Card className="border-dashed">
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              No announcements found.
+            </CardContent>
+          </Card>
+        )}
+        {announcements.map((announcement) => (
           <Card key={announcement.id} className="border-[var(--iris-border)] bg-[var(--iris-surface)]/95 shadow-sm">
             <CardContent className="pt-6">
               <div className="flex items-start justify-between">
@@ -53,10 +130,10 @@ export function AnnouncementsTab() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="rounded-lg">
+                    <Button variant="outline" size="sm" className="rounded-lg" onClick={() => openEditModal(announcement)}>
                       <Edit className="mr-1 h-3.5 w-3.5" /> Edit
                     </Button>
-                    <Button variant="outline" size="sm" className="rounded-lg border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700">
+                    <Button variant="outline" size="sm" className="rounded-lg border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => setDeleteTarget(announcement)}>
                       <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
                     </Button>
                 </div>
@@ -65,6 +142,53 @@ export function AnnouncementsTab() {
           </Card>
         ))}
       </div>
+
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingAnnouncement ? "Edit Announcement" : "Create Announcement"}</DialogTitle>
+            <DialogDescription>{editingAnnouncement ? "Update the title or message for this announcement." : "Add a title and message for the barangay announcement."}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="announcement-title">Title</Label>
+              <Input id="announcement-title" value={title} onChange={(event) => setTitle(event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="announcement-content">Announcement</Label>
+              <Textarea
+                id="announcement-content"
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
+                className="min-h-32"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+            <Button onClick={saveAnnouncement} disabled={isCreating || !title.trim() || !content.trim()}>
+              {isCreating ? "Saving..." : editingAnnouncement ? "Save Changes" : "Publish"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Announcement</DialogTitle>
+            <DialogDescription>
+              This will remove "{deleteTarget?.title}" from the announcements list.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isCreating}>Cancel</Button>
+            <Button variant="destructive" onClick={deleteAnnouncement} disabled={isCreating}>
+              {isCreating ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

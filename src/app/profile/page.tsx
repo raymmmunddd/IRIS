@@ -19,14 +19,23 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { addActivityLog } from "@/lib/activityLogs"
-import { getUserProfile, saveUserProfile, type UserProfile } from "@/lib/profile"
+import { getAuthUser, saveAuthUser, type AuthUser } from "@/lib/auth"
+
+type UserProfile = {
+  fullName: string
+  email: string
+  phone: string
+  address: string
+  bio: string
+  photoUrl: string
+}
 
 export default function ProfilePage() {
   const { toast } = useToast()
+  const authUser = getAuthUser()
   const [profile, setProfile] = useState<UserProfile>({
     fullName: "",
-    email: "",
+    email: authUser?.email ?? "",
     phone: "",
     address: "",
     bio: "",
@@ -45,10 +54,30 @@ export default function ProfilePage() {
   const [cropX, setCropX] = useState(0)
   const [cropY, setCropY] = useState(0)
   const [cropPreviewSrc, setCropPreviewSrc] = useState("")
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setProfile(getUserProfile())
-  }, [])
+    async function loadProfile() {
+      if (!authUser?.email) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/profile?email=${encodeURIComponent(authUser.email)}`)
+        const result = await response.json()
+        if (result.success && result.data) {
+          setProfile(result.data)
+        }
+      } catch (error) {
+        console.error("Failed to load profile:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadProfile()
+  }, [authUser?.email])
 
   useEffect(() => {
     if (!hasSentCode || resendCooldown <= 0) return
@@ -79,32 +108,40 @@ export default function ProfilePage() {
     setSaved(false)
   }
 
-  const handleSave = () => {
-    const previous = getUserProfile()
-    saveUserProfile(profile)
+  const handleSave = async () => {
+    try {
+      const response = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: profile.email,
+          fullName: profile.fullName,
+          phone: profile.phone,
+          address: profile.address,
+          bio: profile.bio,
+          photoUrl: profile.photoUrl,
+        }),
+      })
+      const result = await response.json()
 
-    if (previous.fullName !== profile.fullName) {
-      addActivityLog({
-        label: "Profile name updated",
-        detail: `Display name changed to ${profile.fullName || "Admin User"}.`,
-        category: "profile",
+      if (!result.success || !result.data) {
+        throw new Error(result.message)
+      }
+
+      setProfile(result.data)
+      setSaved(true)
+      toast({
+        title: "Profile saved",
+        description: "Your profile information was updated successfully.",
+        variant: "success",
+      })
+    } catch (error) {
+      toast({
+        title: "Save failed",
+        description: error instanceof Error ? error.message : "Failed to save profile.",
+        variant: "destructive",
       })
     }
-
-    if (previous.phone !== profile.phone || previous.address !== profile.address || previous.bio !== profile.bio) {
-      addActivityLog({
-        label: "Account details updated",
-        detail: "Phone number, address, or bio information was updated.",
-        category: "profile",
-      })
-    }
-
-    setSaved(true)
-    toast({
-      title: "Profile saved",
-      description: "Your profile information was updated successfully.",
-      variant: "success",
-    })
   }
 
   const handleLocalImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -208,12 +245,6 @@ export default function ProfilePage() {
     setSaved(false)
     setIsCropDialogOpen(false)
 
-    addActivityLog({
-      label: "Profile picture updated",
-      detail: "Profile photo was uploaded and cropped.",
-      category: "profile",
-    })
-
     toast({
       title: "Profile picture updated",
       description: "Your cropped photo is ready for profile display.",
@@ -242,7 +273,7 @@ export default function ProfilePage() {
     })
   }
 
-  const confirmEmailChange = () => {
+  const confirmEmailChange = async () => {
     if (!hasSentCode) {
       toast({
         title: "Code required",
@@ -261,25 +292,41 @@ export default function ProfilePage() {
       return
     }
 
-    setProfile((prev) => ({ ...prev, email: newEmail }))
-    setSaved(false)
-    setIsEmailDialogOpen(false)
-    setNewEmail("")
-    setGeneratedCode("")
-    setVerificationCodeInput("")
-    setHasSentCode(false)
+    try {
+      const response = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: profile.email, nextEmail: newEmail }),
+      })
+      const result = await response.json()
 
-    addActivityLog({
-      label: "Email changed",
-      detail: `Primary email changed to ${newEmail}.`,
-      category: "security",
-    })
+      if (!result.success || !result.data) {
+        throw new Error(result.message)
+      }
 
-    toast({
-      title: "Email changed",
-      description: "Your new email has been verified and saved.",
-      variant: "success",
-    })
+      setProfile(result.data)
+      if (authUser) {
+        saveAuthUser({ ...(authUser as AuthUser), email: result.data.email })
+      }
+      setSaved(false)
+      setIsEmailDialogOpen(false)
+      setNewEmail("")
+      setGeneratedCode("")
+      setVerificationCodeInput("")
+      setHasSentCode(false)
+
+      toast({
+        title: "Email changed",
+        description: "Your new email has been verified and saved.",
+        variant: "success",
+      })
+    } catch (error) {
+      toast({
+        title: "Email change failed",
+        description: error instanceof Error ? error.message : "Failed to change email.",
+        variant: "destructive",
+      })
+    }
   }
 
   const isEmailValid = newEmail.includes("@") && newEmail.includes(".")
@@ -296,14 +343,21 @@ export default function ProfilePage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <DashboardSidebar />
+      <div className="hidden lg:flex h-screen shrink-0">
+        <DashboardSidebar />
+      </div>
 
-      <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+      <main className="min-w-0 flex-1 overflow-y-auto p-6 lg:p-8">
         <DashboardHeader
           title="Profile Overview"
           description="Manage your public and contact information"
         />
 
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+          </div>
+        ) : (
         <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
           <Card className="border-[var(--iris-border)] bg-[var(--iris-surface)]/95">
             <CardHeader>
@@ -423,6 +477,7 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
         </div>
+        )}
 
         <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
           <DialogContent className="max-w-md rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)]/95 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.12)]">

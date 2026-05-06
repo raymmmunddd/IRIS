@@ -39,6 +39,11 @@ export function isRoleAuthorized(allowedRoles: UserRole[]): boolean {
   return !!user && allowedRoles.includes(user.role);
 }
 
+export function saveAuthUser(user: AuthUser): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+}
+
 export function login(email: string, password: string, role: UserRole = "official"): boolean {
   if (!email || !password) return false;
 
@@ -50,7 +55,7 @@ export function login(email: string, password: string, role: UserRole = "officia
       role,
     };
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+    saveAuthUser(user);
     addActivityLog({
       label: "Admin login",
       detail: `Signed in with ${email} (${role}).`,
@@ -81,7 +86,7 @@ export function signup(
       role,
     };
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+    saveAuthUser(user);
     return true;
   } catch {
     return false;
