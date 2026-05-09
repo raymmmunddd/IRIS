@@ -8,11 +8,10 @@ export async function POST(request: Request) {
     const data = await loginUserData({
       email: body.email,
       password: body.password,
-      role: body.role,
     })
 
     if (!data) {
-      return NextResponse.json({ success: false, message: "Invalid email, password, or role.", data: null }, { status: 401 })
+      return NextResponse.json({ success: false, message: "Invalid email or password.", data: null }, { status: 401 })
     }
 
     await createUserActivityData({

@@ -1,37 +1,204 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { UserPlus, User, Mail, Lock, X, CheckCircle2, Eye, EyeOff, ShieldCheck, ClipboardCheck, Database, UserCheck, ArrowLeft, Phone, MapPin } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { UserPlus, User, Mail, Lock, X, CheckCircle2, Circle, Eye, EyeOff, ShieldCheck, ClipboardCheck, Database, UserCheck, ArrowLeft, Phone, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getRoleLandingPath, saveAuthUser, type AuthUser, type UserRole } from "@/lib/auth";
+
+const EAST_TAPINAC_BARANGAY = "Barangay East Tapinac";
+
+const EAST_TAPINAC_STREETS = [
+  "10th Street",
+  "14th Street",
+  "16th Street",
+  "17th Street",
+  "18th Street",
+  "20th Street",
+  "23rd Street",
+  "24th Street",
+  "6th Street",
+  "Acayan Street",
+  "Afable Street",
+  "Aguinaldo Street",
+  "Aim High Avenue",
+  "Anonas Street",
+  "Apo Rotonda",
+  "Ardoin Street",
+  "Argonaut Highway",
+  "Arthur Street",
+  "Baretto Street",
+  "Bonifacio Street",
+  "Braveheart Road",
+  "Brill Street",
+  "Burgos Street",
+  "Canal Road",
+  "Canda Street",
+  "Caron Street",
+  "Causeway Road",
+  "Coll Street",
+  "Commitment Street",
+  "Dahl Street",
+  "Davidson Street",
+  "Dela Cruz Drive",
+  "Dewey Avenue",
+  "E 21st Street",
+  "E 8th Street",
+  "East 12th Street",
+  "East 13th Street",
+  "East 16th Street",
+  "East 18th Street",
+  "East 1st Street",
+  "Efficiency Avenue",
+  "Elicaño Street",
+  "Espiritu Street",
+  "Faith Street",
+  "Fontaine Street",
+  "Gallagher Street",
+  "Gatbunton Street",
+  "Golden Fortune Street",
+  "Gordon Avenue",
+  "Graham Street",
+  "Hansen Street",
+  "Harris Street",
+  "Ibarra Street",
+  "Indiana Street",
+  "Innovative Street",
+  "Irving Street",
+  "Johnson Street",
+  "Johnson Street Extension",
+  "Jones Street",
+  "Joyful Street",
+  "Katipunan Street",
+  "Kentucky Street",
+  "Kessing Street",
+  "Labitan Street",
+  "Lake Walkway",
+  "Magsaysay Avenue",
+  "Magsaysay Bridge",
+  "Magsaysay Drive",
+  "Maine Street",
+  "Mc Kinley Street",
+  "Murphy Street",
+  "Natividad Street",
+  "Norton Street",
+  "Ohio Street",
+  "Old Hospital Road",
+  "Old Walk way",
+  "Olongapo - Bugallon Road",
+  "Oregon Street",
+  "Palm Street",
+  "Perimeter Road",
+  "Quezon Street",
+  "Ramos Street",
+  "Raymundo Street",
+  "Rizal Avenue",
+  "Rizal Highway",
+  "Rodriguez Street",
+  "Saint Columban Street",
+  "Sampson Road",
+  "Santa Rita Road",
+  "Security Road",
+  "Sunset Street",
+  "Texas Street",
+  "Washington Street",
+  "West 20th Place",
+  "West 20th Street",
+  "West 21st Place",
+  "West 21st Street",
+  "West 22nd Place",
+  "West 22nd Street",
+  "West 23rd Street",
+] as const;
+
+const normalizeStreetQuery = (value: string) => value.split(",")[0]?.trim() ?? "";
+
+const formatStreetWithBarangay = (value: string) => {
+  const cleaned = value.trim().replace(/\s+/g, " ");
+  if (!cleaned) return "";
+  if (/east tapinac/i.test(cleaned)) return cleaned;
+  return `${cleaned}, ${EAST_TAPINAC_BARANGAY}`;
+};
+
+const findStreetMatch = (value: string) => {
+  const query = normalizeStreetQuery(value).toLowerCase();
+  if (!query) return null;
+  return EAST_TAPINAC_STREETS.find((streetName) => streetName.toLowerCase() === query) ?? null;
+};
+
+const getStreetSuggestions = (value: string) => {
+  const query = normalizeStreetQuery(value).toLowerCase();
+  const matches = EAST_TAPINAC_STREETS.filter((streetName) =>
+    query ? streetName.toLowerCase().includes(query) : true,
+  );
+  return matches.slice(0, 8);
+};
+
+const formatPhilippinesContact = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  const digits = trimmed.replace(/\D/g, "");
+  const isInternational = trimmed.startsWith("+") || digits.startsWith("63");
+
+  if (isInternational) {
+    let rest = digits;
+    if (rest.startsWith("63")) {
+      rest = rest.slice(2);
+    }
+    rest = rest.slice(0, 10);
+    const part1 = rest.slice(0, 3);
+    const part2 = rest.slice(3, 6);
+    const part3 = rest.slice(6, 10);
+    return `+63${part1 ? ` ${part1}` : ""}${part2 ? ` ${part2}` : ""}${part3 ? ` ${part3}` : ""}`;
+  }
+
+  const local = digits.slice(0, 11);
+  const part1 = local.slice(0, 4);
+  const part2 = local.slice(4, 7);
+  const part3 = local.slice(7, 11);
+  return `${part1}${part2 ? `-${part2}` : ""}${part3 ? `-${part3}` : ""}`;
+};
 
 export default function SignupPage() {
   const { toast } = useToast();
   const router = useRouter();
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [suffix, setSuffix] = useState("");
+  const [suffixEnabled, setSuffixEnabled] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [street, setStreet] = useState("");
   const [contact, setContact] = useState("");
-  const [gender, setGender] = useState<"MALE" | "FEMALE" | "OTHER">("MALE");
+  const [gender, setGender] = useState<"MALE" | "FEMALE">("MALE");
   const [isLoading, setIsLoading] = useState(false);
-  const [role, setRole] = useState<UserRole>("resident");
+  const role: UserRole = "resident";
   const [legalDoc, setLegalDoc] = useState<"terms" | "privacy" | null>(null);
   const [legalAccepted, setLegalAccepted] = useState(false);
   const [legalScrolledToEnd, setLegalScrolledToEnd] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [verificationOpen, setVerificationOpen] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [devCode, setDevCode] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [streetFocused, setStreetFocused] = useState(false);
+
+  const buildFullName = () => {
+    const parts = [firstName, middleName, lastName, suffixEnabled ? suffix : ""]
+      .map((part) => part.trim())
+      .filter(Boolean);
+    return parts.join(" ");
+  };
 
   const requestVerificationCode = async () => {
+    const fullName = buildFullName();
     const response = await fetch("/api/auth/signup/request-verification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -47,8 +214,9 @@ export default function SignupPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    const fullName = buildFullName();
 
-    if (!fullName || !email || !password || !confirmPassword || !street || !contact || !gender) {
+    if (!firstName.trim() || !lastName.trim() || !fullName || !email || !password || !confirmPassword || !street || !contact || !gender) {
       toast({
         title: "Missing fields",
         description: "Please fill in all required fields.",
@@ -66,13 +234,13 @@ export default function SignupPage() {
       return;
     }
 
-    if (!termsAccepted) {
+    if (!termsAccepted || !privacyAccepted) {
       toast({
-        title: "Terms required",
-        description: "Please read and accept the Terms of Service before creating an account.",
+        title: "Agreement required",
+        description: "Please accept the Privacy Policy and Terms before creating an account.",
         variant: "warning",
       });
-      openLegalDoc("terms");
+      openLegalDoc(!termsAccepted ? "terms" : "privacy");
       return;
     }
 
@@ -172,10 +340,37 @@ export default function SignupPage() {
   };
   const isPasswordValid = checks.length && checks.uppercase && checks.number;
 
+  const streetSuggestions = useMemo(() => getStreetSuggestions(street), [street]);
+  const showStreetSuggestions = streetFocused && streetSuggestions.length > 0;
+  const streetQuery = normalizeStreetQuery(street).toLowerCase();
+
+  const handleStreetSelect = (streetName: string) => {
+    setStreet(formatStreetWithBarangay(streetName));
+    setStreetFocused(false);
+  };
+
   const openLegalDoc = (doc: "terms" | "privacy") => {
     setLegalAccepted(false);
     setLegalScrolledToEnd(doc === "privacy");
     setLegalDoc(doc);
+  };
+
+  const handleAgreementToggle = (doc: "terms" | "privacy") => {
+    if (doc === "terms") {
+      if (termsAccepted) {
+        setTermsAccepted(false);
+        return;
+      }
+      openLegalDoc("terms");
+      return;
+    }
+
+    if (privacyAccepted) {
+      setPrivacyAccepted(false);
+      return;
+    }
+
+    openLegalDoc("privacy");
   };
 
   const legalContent = {
@@ -184,14 +379,12 @@ export default function SignupPage() {
       intro:
         "These Terms govern your use of IRIS (Incident Report and Information System) for community reporting and case tracking.",
       body: [
-        "1. Authentic Information: You agree to submit accurate incident details and avoid false, abusive, or misleading reports.",
-        "2. Responsible Access: Your account is personal; do not share credentials or perform actions on behalf of other users.",
-        "3. Case Conduct: Submitted cases may be reviewed by authorized barangay officials and BPAT staff for validation and response.",
-        "4. Platform Updates: IRIS may update features, workflows, and security controls to improve service quality and reliability.",
-        "5. Authorized Purpose: You will use IRIS only for legitimate barangay reporting, case coordination, or official field operations.",
-        "6. Evidence Handling: Uploaded files and case information must be relevant to the report and may be reviewed by authorized personnel.",
-        "7. Account Review: Barangay administrators may suspend accounts involved in abuse, impersonation, or repeated false reporting.",
-        "8. Record Retention: Case and account activity may be retained as needed for audit, legal compliance, and public safety workflows.",
+        "Account Responsibility: Keep your credentials secure and notify administrators of unauthorized use.",
+        "Acceptable Use: Provide truthful reports and avoid impersonation, harassment, or abusive content.",
+        "Role-Based Access: Use only the features permitted to your assigned role and do not attempt to bypass access controls.",
+        "Evidence & Content: Upload only relevant materials you have the right to share for case handling.",
+        "Service Availability: IRIS may undergo updates, maintenance, or temporary outages to improve security and reliability.",
+        "Enforcement: Accounts may be reviewed, suspended, or removed for violations of these Terms.",
       ],
     },
     privacy: {
@@ -199,10 +392,12 @@ export default function SignupPage() {
       intro:
         "IRIS protects your personal and case data by limiting collection to what is required for operations, safety, and legal compliance.",
       body: [
-        "1. Data Collected: Name, email, account role, and incident data required to process reports and maintain case history.",
-        "2. Why We Use It: Data supports report verification, assignment tracking, notifications, and service improvement.",
-        "3. Data Protection: Access is permission-based and monitored through logs and role controls to reduce unauthorized use.",
-        "4. User Rights: You may request updates to account details and report inaccuracies through the barangay support team.",
+        "Data We Collect: Name, email, contact, street, gender, role, and account credentials (stored securely).",
+        "Case Information: Incident reports, evidence uploads, messages, and case updates needed for barangay workflows.",
+        "How We Use Data: Verification, case management, notifications, analytics, and service improvement.",
+        "Access & Sharing: Data is shared only with authorized barangay staff and officers for official purposes.",
+        "Retention: Account and case data may be retained for audits, legal compliance, and public safety needs.",
+        "Your Rights: You can request corrections or updates to your profile through the barangay administrator.",
       ],
     },
   } as const;
@@ -264,301 +459,300 @@ export default function SignupPage() {
               <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--iris-primary-light)] text-[var(--iris-primary)]">
                 <UserPlus className="h-5 w-5" />
               </div>
-              <h2 className="text-2xl lg:text-3xl font-bold text-[var(--iris-text)]">Create your account</h2>
-              <p className="text-sm text-[var(--iris-text-subtle)]">Set up your account now and join the community.</p>
+              <h2 className="text-2xl lg:text-3xl font-bold text-[var(--iris-text)]">Create an account</h2>
+              <p className="text-sm text-[var(--iris-text-subtle)]">Access your account to report or monitor incidents.</p>
             </div>
 
-            <form className="space-y-3" onSubmit={handleSubmit}>
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-[var(--iris-text)]">Select your role</p>
-                <div className="grid grid-cols-3 rounded-xl border border-[var(--iris-border)] bg-[var(--iris-primary-light)]/25 p-1">
-                  {[
-                    { value: "resident", label: "Resident" },
-                    { value: "official", label: "Admin" },
-                    { value: "bpat", label: "Officer" },
-                  ].map((roleItem) => (
-                    <button
-                      key={roleItem.value}
-                      type="button"
-                      onClick={() => setRole(roleItem.value as UserRole)}
-                      className={cn(
-                        "h-9 rounded-lg border text-sm font-medium transition",
-                        role === roleItem.value
-                          ? "border-[var(--iris-primary)]/45 bg-[var(--iris-primary-light)]/60 text-[var(--iris-primary-strong)]"
-                          : "border-transparent bg-transparent text-[var(--iris-text-subtle)] hover:border-[var(--iris-primary)]/25 hover:bg-[var(--iris-primary-light)]/35 hover:text-[var(--iris-primary)]"
-                      )}
-                    >
-                      {roleItem.label}
-                    </button>
-                  ))}
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                  <label htmlFor="firstName" className="sr-only">First name</label>
+                  <input
+                    id="firstName"
+                    type="text"
+                    autoComplete="given-name"
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="First Name"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                  <label htmlFor="lastName" className="sr-only">Last name</label>
+                  <input
+                    id="lastName"
+                    type="text"
+                    autoComplete="family-name"
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Last Name"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                  <label htmlFor="middleName" className="sr-only">Middle name</label>
+                  <input
+                    id="middleName"
+                    type="text"
+                    autoComplete="additional-name"
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    value={middleName}
+                    onChange={(e) => setMiddleName(e.target.value)}
+                    placeholder="Middle Name"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                  <label htmlFor="suffix" className="sr-only">Suffix</label>
+                  <input
+                    id="suffix"
+                    type="text"
+                    autoComplete="honorific-suffix"
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    value={suffixEnabled ? suffix : ""}
+                    onChange={(e) => setSuffix(e.target.value)}
+                    placeholder="Suffix"
+                    disabled={isLoading || !suffixEnabled}
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSuffixEnabled((prev) => {
+                        const next = !prev;
+                        if (!next) setSuffix("");
+                        return next;
+                      })
+                    }
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--iris-text-subtle)] hover:text-[var(--iris-primary)]"
+                    aria-label={suffixEnabled ? "Disable suffix" : "Enable suffix"}
+                  >
+                    {suffixEnabled ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
 
               <div className="relative">
-                <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                <Mail className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                <label htmlFor="email" className="sr-only">Email</label>
                 <input
-                  id="fullName"
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="relative">
+                  <Phone className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                  <label htmlFor="contact" className="sr-only">Contact</label>
+                  <input
+                    id="contact"
+                    type="tel"
+                    autoComplete="tel"
+                    inputMode="tel"
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    value={contact}
+                    onChange={(e) => setContact(formatPhilippinesContact(e.target.value))}
+                    placeholder="0999-999-9999"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="relative">
+                  <UserCheck className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                  <label htmlFor="gender" className="sr-only">Gender</label>
+                  <select
+                    id="gender"
+                    className="h-12 w-full appearance-none rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value as "MALE" | "FEMALE")}
+                    disabled={isLoading}
+                  >
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="relative">
+                <MapPin className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                <label htmlFor="street" className="sr-only">Street</label>
+                <input
+                  id="street"
                   type="text"
-                  autoComplete="name"
-                  className="peer w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-2.5 text-sm text-[var(--iris-text)] placeholder-transparent shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Full name"
+                  autoComplete="street-address"
+                  aria-autocomplete="list"
+                  aria-expanded={showStreetSuggestions}
+                  aria-controls="street-suggestions"
+                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  value={street}
+                  onChange={(e) => setStreet(e.target.value)}
+                  onFocus={() => setStreetFocused(true)}
+                  onBlur={(event) => {
+                    const match = findStreetMatch(event.currentTarget.value);
+                    if (match) {
+                      setStreet(formatStreetWithBarangay(match));
+                    }
+                    setStreetFocused(false);
+                  }}
+                  placeholder="Street"
                   disabled={isLoading}
                 />
-                <label
-                  htmlFor="fullName"
-                  className={cn(
-                    "pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm text-[var(--iris-text-subtle)] transition-opacity duration-150",
-                    "peer-focus:opacity-0",
-                    fullName && "opacity-0"
-                  )}
-                >
-                  Full name
-                </label>
-            </div>
-
-            <div className="relative">
-              <Mail className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                className="peer w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-2.5 text-sm text-[var(--iris-text)] placeholder-transparent shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email address"
-                disabled={isLoading}
-              />
-              <label
-                htmlFor="email"
-                className={cn(
-                  "pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm text-[var(--iris-text-subtle)] transition-opacity duration-150",
-                  "peer-focus:opacity-0",
-                  email && "opacity-0"
+                {showStreetSuggestions && (
+                  <div
+                    id="street-suggestions"
+                    role="listbox"
+                    className="absolute left-0 right-0 top-full z-20 mt-2 max-h-64 overflow-auto rounded-2xl border border-[var(--iris-border)] bg-white shadow-[0_14px_40px_rgba(15,23,42,0.15)]"
+                  >
+                    {streetSuggestions.map((streetName) => (
+                      <button
+                        key={streetName}
+                        type="button"
+                        role="option"
+                        aria-selected={streetQuery === streetName.toLowerCase()}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => handleStreetSelect(streetName)}
+                        className="flex w-full flex-col gap-1 px-4 py-3 text-left transition hover:bg-[var(--iris-primary-light)]/40 focus:bg-[var(--iris-primary-light)]/50 focus:outline-none"
+                      >
+                        <span className="text-sm font-semibold text-[var(--iris-text)]">{streetName}</span>
+                        <span className="text-xs text-[var(--iris-text-subtle)]">{EAST_TAPINAC_BARANGAY}</span>
+                      </button>
+                    ))}
+                  </div>
                 )}
-              >
-                Work email
-              </label>
-            </div>
+              </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
               <div className="relative">
-                <Phone className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                <label htmlFor="password" className="sr-only">Password</label>
                 <input
-                  id="contact"
-                  type="tel"
-                  autoComplete="tel"
-                  className="peer w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-2.5 text-sm text-[var(--iris-text)] placeholder-transparent shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                  value={contact}
-                  onChange={(e) => setContact(e.target.value)}
-                  placeholder="Contact number"
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
                   disabled={isLoading}
                 />
-                <label
-                  htmlFor="contact"
-                  className={cn(
-                    "pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm text-[var(--iris-text-subtle)] transition-opacity duration-150",
-                    "peer-focus:opacity-0",
-                    contact && "opacity-0"
-                  )}
+                {password.length > 0 && isPasswordValid ? (
+                  <CheckCircle2 className="pointer-events-none absolute right-10 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--iris-text-subtle)] hover:text-[var(--iris-primary)]"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  Contact number
-                </label>
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
 
               <div className="relative">
-                <UserCheck className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                <select
-                  id="gender"
-                  className="w-full appearance-none rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-2.5 text-sm text-[var(--iris-text)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value as "MALE" | "FEMALE" | "OTHER")}
+                <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                <label htmlFor="confirmPassword" className="sr-only">Confirm password</label>
+                <input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm Password"
                   disabled={isLoading}
+                />
+                {confirmPassword.length > 0 && confirmPassword === password ? (
+                  <CheckCircle2 className="pointer-events-none absolute right-10 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--iris-text-subtle)] hover:text-[var(--iris-primary)]"
+                  aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
                 >
-                  <option value="MALE">Male</option>
-                  <option value="FEMALE">Female</option>
-                  <option value="OTHER">Other</option>
-                </select>
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
-            </div>
 
-            <div className="relative">
-              <MapPin className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-              <input
-                id="street"
-                type="text"
-                autoComplete="street-address"
-                className="peer w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-2.5 text-sm text-[var(--iris-text)] placeholder-transparent shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                value={street}
-                onChange={(e) => setStreet(e.target.value)}
-                placeholder="Street"
-                disabled={isLoading}
-              />
-              <label
-                htmlFor="street"
-                className={cn(
-                  "pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm text-[var(--iris-text-subtle)] transition-opacity duration-150",
-                  "peer-focus:opacity-0",
-                  street && "opacity-0"
-                )}
-              >
-                Street
-              </label>
-            </div>
-
-            <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-              <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                autoComplete="new-password"
-                className="peer w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-2.5 pr-10 text-sm text-[var(--iris-text)] placeholder-transparent shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                disabled={isLoading}
-              />
-              {password.length > 0 && isPasswordValid ? (
-                <CheckCircle2 className="pointer-events-none absolute right-10 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
-              ) : null}
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--iris-text-subtle)] hover:text-[var(--iris-primary)]"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-              <label
-                htmlFor="password"
-                className={cn(
-                  "pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm text-[var(--iris-text-subtle)] transition-opacity duration-150",
-                  "peer-focus:opacity-0",
-                  password && "opacity-0"
-                )}
-              >
-                Password
-              </label>
-            </div>
-
-            {password.length > 0 && !isPasswordValid && (
-              <div className="rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-primary-light)]/40 px-3 py-2 text-xs text-[var(--iris-text)]">
-                <p className="mb-1 font-semibold text-[var(--iris-text-subtle)]">Password requirements</p>
-                <ul className="list-disc space-y-1 pl-5">
-                  <li className={cn(checks.length ? "text-emerald-700" : "text-[var(--iris-text-subtle)]")}>At least 8 characters</li>
-                  <li className={cn(checks.uppercase ? "text-emerald-700" : "text-[var(--iris-text-subtle)]")}>One uppercase letter</li>
-                  <li className={cn(checks.number ? "text-emerald-700" : "text-[var(--iris-text-subtle)]")}>One number</li>
-                </ul>
+              <div className="rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-primary-light)]/15 p-3">
+                <div className="space-y-2 text-sm text-[var(--iris-text)]">
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 rounded border-[#D1D5DB] text-[var(--iris-primary)] focus:ring-[var(--iris-primary)] accent-[var(--iris-primary)]"
+                      checked={privacyAccepted}
+                      onChange={() => handleAgreementToggle("privacy")}
+                    />
+                    <span>
+                      I accept the{" "}
+                      <button
+                        type="button"
+                        onClick={() => openLegalDoc("privacy")}
+                        className="font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]"
+                      >
+                        Privacy Policy
+                      </button>
+                      .
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 rounded border-[#D1D5DB] text-[var(--iris-primary)] focus:ring-[var(--iris-primary)] accent-[var(--iris-primary)]"
+                      checked={termsAccepted}
+                      onChange={() => handleAgreementToggle("terms")}
+                    />
+                    <span>
+                      I agree to the{" "}
+                      <button
+                        type="button"
+                        onClick={() => openLegalDoc("terms")}
+                        className="font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]"
+                      >
+                        Terms and Conditions
+                      </button>
+                      .
+                    </span>
+                  </label>
+                </div>
               </div>
-            )}
 
-            <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-              <input
-                id="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
-                autoComplete="new-password"
-                className="peer w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 py-2.5 pr-10 text-sm text-[var(--iris-text)] placeholder-transparent shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm password"
-                disabled={isLoading}
-              />
-              {confirmPassword.length > 0 && confirmPassword === password ? (
-                <CheckCircle2 className="pointer-events-none absolute right-10 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
-              ) : null}
               <button
-                type="button"
-                onClick={() => setShowConfirmPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--iris-text-subtle)] hover:text-[var(--iris-primary)]"
-                aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                type="submit"
+                disabled={isLoading || !termsAccepted || !privacyAccepted}
+                className="w-full rounded-xl bg-[var(--iris-primary)] py-2.5 text-white font-semibold shadow-[0_12px_30px_rgba(30,79,163,0.3)] transition-all duration-200 hover:bg-[var(--iris-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-              <label
-                htmlFor="confirmPassword"
-                className={cn(
-                  "pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm text-[var(--iris-text-subtle)] transition-opacity duration-150",
-                  "peer-focus:opacity-0",
-                  confirmPassword && "opacity-0"
+                {isLoading ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <span className="h-4 w-4 rounded-full border-2 border-white/60 border-t-white animate-spin" aria-hidden />
+                    Creating account...
+                  </span>
+                ) : (
+                  "Create Account"
                 )}
-              >
-                Confirm password
-              </label>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => openLegalDoc("terms")}
-              className="flex w-full items-start gap-2 rounded-xl border border-[var(--iris-border)] bg-[var(--iris-primary-light)]/20 px-3 py-2 text-left text-xs text-[var(--iris-text)] transition hover:border-[var(--iris-primary)]/30"
-            >
-              <span
-                className={cn(
-                  "mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border",
-                  termsAccepted
-                    ? "border-[var(--iris-primary)] bg-[var(--iris-primary)] text-white"
-                    : "border-[#D1D5DB] bg-white"
-                )}
-              >
-                {termsAccepted ? <CheckCircle2 className="h-3 w-3" /> : null}
-              </span>
-              <span>
-                I agree to the <span className="font-semibold text-[var(--iris-primary)]">Terms and Conditions</span>.
-              </span>
-            </button>
-
-            <button
-              type="submit"
-              disabled={isLoading || !termsAccepted}
-              className="w-full rounded-xl bg-[var(--iris-primary)] py-2.5 text-white font-semibold shadow-[0_12px_30px_rgba(30,79,163,0.3)] transition-all duration-200 hover:bg-[var(--iris-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {isLoading ? (
-                <span className="inline-flex items-center justify-center gap-2">
-                  <span className="h-4 w-4 rounded-full border-2 border-white/60 border-t-white animate-spin" aria-hidden />
-                  Creating account...
-                </span>
-              ) : (
-                "Create Account"
-              )}
-            </button>
-
-            <div className="flex items-center gap-3 text-xs text-[var(--iris-text-subtle)]">
-              <span className="h-px flex-1 bg-[var(--iris-border)]" />
-              Or continue with
-              <span className="h-px flex-1 bg-[var(--iris-border)]" />
-            </div>
-
-            <button
-              type="button"
-              className="w-full inline-flex items-center justify-center gap-3 rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] py-2.5 text-sm font-semibold text-[var(--iris-text)] shadow-sm transition-colors hover:border-[#D1D5DB]"
-            >
-              <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21.6 12.2273C21.6 11.5182 21.5364 10.8364 21.4182 10.1818H12V14.05H17.4182C17.1864 15.3 16.4909 16.3364 15.4455 17.0273V19.5909H18.5455C20.5091 17.7818 21.6 15.2727 21.6 12.2273Z" fill="#4285F4" />
-                <path d="M12 22C14.7 22 16.9636 21.1045 18.5455 19.5909L15.4455 17.0273C14.5818 17.6091 13.4182 17.95 12 17.95C9.38182 17.95 7.16364 16.1273 6.37273 13.7727H3.18182V16.4091C4.75455 19.6727 8.10909 22 12 22Z" fill="#34A853" />
-                <path d="M6.37273 13.7727C6.16364 13.1909 6.04545 12.5682 6.04545 11.9091C6.04545 11.25 6.16364 10.6273 6.37273 10.0455V7.40909H3.18182C2.42727 8.82727 2 10.3636 2 11.9091C2 13.4545 2.42727 14.9909 3.18182 16.4091L6.37273 13.7727Z" fill="#FBBC05" />
-                <path d="M12 5.86818C13.5455 5.86818 14.9364 6.4 16.0364 7.44545L18.6182 4.86364C16.9636 3.31818 14.7 2.4 12 2.4C8.10909 2.4 4.75455 4.72727 3.18182 7.99091L6.37273 10.6273C7.16364 8.27273 9.38182 6.45 12 6.45V5.86818Z" fill="#EA4335" />
-              </svg>
-              Sign up with Google
-            </button>
-
-            <p className="text-center text-xs text-[var(--iris-text-subtle)]">
-              By creating an account, you agree to our
-              <button type="button" onClick={() => openLegalDoc("terms")} className="mx-1 font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">
-                Terms of Service
               </button>
-              and acknowledge our
-              <button type="button" onClick={() => openLegalDoc("privacy")} className="ml-1 font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">
-                Privacy Policy
-              </button>
-              .
-            </p>
-          </form>
+            </form>
 
             <p className="text-center text-sm text-[var(--iris-text-subtle)]">
               Already have an account?{" "}
               <Link href="/login" className="font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">
-                Sign in instead.
+                Sign in.
               </Link>
             </p>
           </div>  
@@ -633,6 +827,7 @@ export default function SignupPage() {
                   type="button"
                   onClick={() => {
                     if (legalDoc === "terms") setTermsAccepted(true);
+                    if (legalDoc === "privacy") setPrivacyAccepted(true);
                     setLegalDoc(null);
                   }}
                   disabled={!legalAccepted || (legalDoc === "terms" && !legalScrolledToEnd)}
