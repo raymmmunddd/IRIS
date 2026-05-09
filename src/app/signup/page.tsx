@@ -174,7 +174,8 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [street, setStreet] = useState("");
   const [contact, setContact] = useState("");
-  const [gender, setGender] = useState<"MALE" | "FEMALE">("MALE");
+  const [gender, setGender] = useState<"" | "MALE" | "FEMALE">("")
+  const [genderOpen, setGenderOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const role: UserRole = "resident";
   const [legalDoc, setLegalDoc] = useState<"terms" | "privacy" | null>(null);
@@ -411,15 +412,32 @@ export default function SignupPage() {
         <div className="absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-[var(--secondary)]/20 blur-3xl" />
         <div className="relative z-10 flex h-full w-full max-w-xl flex-col justify-between text-white">
           <div className="space-y-7">
+            <div className="flex items-center justify-between gap-3">
+            {/* Barangay Logo */}
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/30 bg-white/10 text-base font-semibold">
-                I
-              </div>
+              <img
+                src="/EastTapinac.png"
+                alt="Barangay East Tapinac"
+                className="h-14 w-14"
+              />
+
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-white/70">IRIS Access</p>
-                <p className="text-sm font-semibold text-white">Barangay East Tapinac</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-white/70">
+                  IRIS Access
+                </p>
+                <p className="text-sm font-semibold text-white">
+                  Barangay East Tapinac
+                </p>
               </div>
             </div>
+
+            {/* Company Logo (RISE Innovations) */}
+            <img
+              src="/RISEinnovations.png"
+              alt="RISE Innovations"
+              className="h-10 w-auto object-contain"
+            />
+          </div>
             <div className="space-y-4">
               <p className="inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/90">
                 Create account
@@ -472,7 +490,7 @@ export default function SignupPage() {
                     id="firstName"
                     type="text"
                     autoComplete="given-name"
-                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="First Name"
@@ -487,7 +505,7 @@ export default function SignupPage() {
                     id="lastName"
                     type="text"
                     autoComplete="family-name"
-                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="Last Name"
@@ -504,7 +522,7 @@ export default function SignupPage() {
                     id="middleName"
                     type="text"
                     autoComplete="additional-name"
-                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                     value={middleName}
                     onChange={(e) => setMiddleName(e.target.value)}
                     placeholder="Middle Name"
@@ -519,7 +537,7 @@ export default function SignupPage() {
                     id="suffix"
                     type="text"
                     autoComplete="honorific-suffix"
-                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                     value={suffixEnabled ? suffix : ""}
                     onChange={(e) => setSuffix(e.target.value)}
                     placeholder="Suffix"
@@ -549,7 +567,7 @@ export default function SignupPage() {
                   id="email"
                   type="email"
                   autoComplete="email"
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Email"
@@ -566,29 +584,72 @@ export default function SignupPage() {
                     type="tel"
                     autoComplete="tel"
                     inputMode="tel"
-                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                     value={contact}
                     onChange={(e) => setContact(formatPhilippinesContact(e.target.value))}
-                    placeholder="0999-999-9999"
+                    placeholder="Phone Number"
                     disabled={isLoading}
                   />
                 </div>
 
-                <div className="relative">
-                  <UserCheck className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                  <label htmlFor="gender" className="sr-only">Gender</label>
-                  <select
-                    id="gender"
-                    className="h-12 w-full appearance-none rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                    value={gender}
-                    onChange={(e) => setGender(e.target.value as "MALE" | "FEMALE")}
-                    disabled={isLoading}
-                  >
-                    <option value="MALE">Male</option>
-                    <option value="FEMALE">Female</option>
-                  </select>
-                </div>
-              </div>
+<div className="relative">
+  <UserCheck className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+
+  <button
+    type="button"
+    onClick={() => setGenderOpen((prev) => !prev)}
+    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-left text-sm text-[var(--iris-text)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+    disabled={isLoading}
+  >
+    {gender === "" ? "Select Gender" : gender === "MALE" ? "Male" : "Female"}
+  </button>
+
+  {/* dropdown arrow */}
+  <svg
+    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
+  </svg>
+
+  {genderOpen && (
+    <div
+      role="listbox"
+      className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-[var(--iris-border)] bg-white shadow-[0_14px_40px_rgba(15,23,42,0.15)]"
+    >
+      <button
+        type="button"
+        role="option"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => {
+          setGender("MALE");
+          setGenderOpen(false);
+        }}
+        className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
+      >
+        Male
+      </button>
+
+      <button
+        type="button"
+        role="option"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => {
+          setGender("FEMALE");
+          setGenderOpen(false);
+        }}
+        className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
+      >
+        Female
+      </button>
+    </div>
+  )}
+</div>
+</div>
 
               <div className="relative">
                 <MapPin className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
@@ -600,7 +661,7 @@ export default function SignupPage() {
                   aria-autocomplete="list"
                   aria-expanded={showStreetSuggestions}
                   aria-controls="street-suggestions"
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                   value={street}
                   onChange={(e) => setStreet(e.target.value)}
                   onFocus={() => setStreetFocused(true)}
@@ -645,7 +706,7 @@ export default function SignupPage() {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password"
@@ -671,7 +732,7 @@ export default function SignupPage() {
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
                   autoComplete="new-password"
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm Password"
@@ -864,7 +925,7 @@ export default function SignupPage() {
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 placeholder="000000"
-                className="w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-4 py-3 text-center text-2xl font-bold tracking-[0.45em] text-[var(--iris-text)] focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)]"
+                className="w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-4 py-3 text-center text-2xl font-bold tracking-[0.45em] text-[var(--iris-text)] focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)]"
               />
 
               <button

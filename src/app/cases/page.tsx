@@ -4,7 +4,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { isAuthenticated } from "@/lib/auth"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
-import { DashboardHeader } from "@/components/dashboard/header"
+import { CasesHeaderBanner } from "@/components/cases/cases-header-banner"
 import { CasesTable } from "@/components/cases/cases-table"
 
 export default function CasesPage() {
@@ -23,10 +23,7 @@ export default function CasesPage() {
       </div>
 
       <main className="relative min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-        <DashboardHeader 
-          title="Cases Management" 
-          description="Manage and track all reported incidents"
-        />
+        <CasesHeaderBanner />
         <CasesTable />
       </main>
     </div>

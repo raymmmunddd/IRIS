@@ -134,15 +134,32 @@ export default function LoginPage() {
         <div className="absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-[var(--secondary)]/20 blur-3xl" />
         <div className="relative z-10 flex h-full w-full max-w-xl flex-col justify-between text-white">
           <div className="space-y-7">
+           <div className="flex items-center justify-between gap-3">
+            {/* Barangay Logo */}
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/30 bg-white/10 text-base font-semibold">
-                I
-              </div>
+              <img
+                src="/EastTapinac.png"
+                alt="Barangay East Tapinac"
+                className="h-14 w-14"
+              />
+
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-white/70">IRIS Access</p>
-                <p className="text-sm font-semibold text-white">Barangay East Tapinac</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-white/70">
+                  IRIS Access
+                </p>
+                <p className="text-sm font-semibold text-white">
+                  Barangay East Tapinac
+                </p>
               </div>
             </div>
+
+            {/* Company Logo (RISE Innovations) */}
+            <img
+              src="/RISEinnovations.png"
+              alt="RISE Innovations"
+              className="h-10 w-auto object-contain"
+            />
+          </div>
             <div className="space-y-4">
               <p className="inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/90">
                 Secure sign in
@@ -191,7 +208,7 @@ export default function LoginPage() {
                   id="email"
                   type="email"
                   autoComplete="email"
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Email"
@@ -206,7 +223,7 @@ export default function LoginPage() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
-                className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-11 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-11 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"

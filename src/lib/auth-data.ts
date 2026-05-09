@@ -64,15 +64,16 @@ export function validateSignupInput(input: SignupInput) {
   return null
 }
 
-export async function loginUserData(input: { email: string; password: string; role: UserRole }) {
+export async function loginUserData(input: { email: string; password: string; role?: UserRole }) {
   if (!input.email || !input.password) return null
 
+  const roleFilter = input.role ? { role: toDbRole(input.role) } : {}
   const user = await prisma.user.findFirst({
     where: {
       email: input.email.trim().toLowerCase(),
-      role: toDbRole(input.role),
       status: UserStatus.ACTIVE,
       isArchived: false,
+      ...roleFilter,
     },
   })
 
