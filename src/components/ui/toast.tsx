@@ -3,7 +3,7 @@
 import * as React from 'react'
 import * as ToastPrimitives from '@radix-ui/react-toast'
 import { cva, type VariantProps } from 'class-variance-authority'
-import { X, CheckCircle, AlertTriangle, AlertCircle, HelpCircle } from 'lucide-react'
+import { CheckCircle, AlertTriangle, AlertCircle, HelpCircle, X } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
@@ -17,7 +17,7 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
-      'fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]',
+      'fixed right-4 top-4 z-[100] flex max-h-screen w-[calc(100%-2rem)] flex-col gap-3 md:max-w-[420px]',
       className,
     )}
     {...props}
@@ -26,17 +26,16 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName
 
 const toastVariants = cva(
-  'group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-4 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full',
+  'group pointer-events-auto relative flex w-full items-center gap-4 overflow-hidden rounded-2xl border bg-white p-4 pr-12 shadow-[0_18px_40px_rgba(15,23,42,0.18)] transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-right-full',
   {
     variants: {
       variant: {
-        default: 'border bg-background text-foreground',
-        success: 'bg-white border-l-4 border-l-green-500 text-slate-800',
-        warning: 'bg-white border-l-4 border-l-orange-500 text-slate-800',
-        error: 'bg-white border-l-4 border-l-red-500 text-slate-800',
-        help: 'bg-white border-l-4 border-l-blue-500 text-slate-800',
-        destructive:
-          'destructive group border-destructive bg-destructive text-destructive-foreground',
+        default: 'default border border-slate-200 bg-white text-slate-900',
+        success: 'success border-[#36C463] bg-[#F1FBF4] text-slate-900',
+        warning: 'warning border-[#F3B63C] bg-[#FFF7E8] text-slate-900',
+        error: 'error border-[#F35B5B] bg-[#FFF1F1] text-slate-900',
+        help: 'help border-[#4A8BF7] bg-[#F1F6FF] text-slate-900',
+        destructive: 'destructive border-[#F35B5B] bg-[#FFF1F1] text-slate-900',
       },
     },
     defaultVariants: {
@@ -82,18 +81,43 @@ const ToastClose = React.forwardRef<
   <ToastPrimitives.Close
     ref={ref}
     className={cn(
-      'absolute right-2 top-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100',
-      'group-[.destructive]:text-red-300 group-[.destructive]:hover:text-red-50 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600',
-      'group-[.success]:text-green-600 group-[.success]:hover:bg-green-50',
-      'group-[.warning]:text-orange-600 group-[.warning]:hover:bg-orange-50',
-      'group-[.error]:text-red-600 group-[.error]:hover:bg-red-50',
-      'group-[.help]:text-blue-600 group-[.help]:hover:bg-blue-50',
+      'absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-1 text-slate-500 shadow-sm transition-colors hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[var(--iris-primary)]/40',
+      'group-[.destructive]:text-[#E04F4F] group-[.destructive]:hover:text-[#D64646] group-[.destructive]:focus:ring-[#E04F4F]/40 group-[.destructive]:focus:ring-offset-white',
+      'group-[.success]:text-[#2EAF57] group-[.success]:hover:text-[#25984A]',
+      'group-[.warning]:text-[#D28B1E] group-[.warning]:hover:text-[#BF7C16]',
+      'group-[.error]:text-[#E04F4F] group-[.error]:hover:text-[#D64646]',
+      'group-[.help]:text-[#377DFF] group-[.help]:hover:text-[#2F6FE6]',
       className,
     )}
     toast-close=""
     {...props}
   >
-    <X className="h-4 w-4" />
+    <span className="sr-only">Dismiss</span>
+    <span className="relative flex h-7 w-7 items-center justify-center">
+      <X className="h-3.5 w-3.5" />
+      <svg viewBox="0 0 24 24" className="absolute inset-0 h-full w-full" aria-hidden="true">
+        <circle
+          cx="12"
+          cy="12"
+          r="9"
+          pathLength="100"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="opacity-20"
+        />
+        <circle
+          cx="12"
+          cy="12"
+          r="9"
+          pathLength="100"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="toast-progress"
+        />
+      </svg>
+    </span>
   </ToastPrimitives.Close>
 ))
 ToastClose.displayName = ToastPrimitives.Close.displayName
@@ -132,27 +156,33 @@ function Toaster() {
   return (
     <ToastProvider>
       {toasts.map(function ({ id, title, description, action, variant, ...props }) {
+        const { style: styleProp, duration: durationProp, ...rest } = props
+        const duration = typeof durationProp === 'number' ? durationProp : 5000
+        const style = {
+          ...styleProp,
+          '--toast-duration': `${duration}ms`,
+        } as React.CSSProperties
         return (
-          <Toast key={id} variant={variant} {...props}>
+          <Toast key={id} variant={variant} duration={duration} style={style} {...rest}>
             <div className="flex w-full gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-opacity-20 pointer-events-none">
                 {variant === 'success' && (
-                  <div className="rounded-full bg-green-100 p-2 text-green-600">
+                  <div className="rounded-full bg-[#DFF6E8] p-2 text-[#2EAF57]">
                     <CheckCircle className="h-5 w-5" />
                   </div>
                 )}
                 {variant === 'warning' && (
-                  <div className="rounded-full bg-orange-100 p-2 text-orange-500">
+                  <div className="rounded-full bg-[#FFEFCB] p-2 text-[#D28B1E]">
                     <AlertTriangle className="h-5 w-5" />
                   </div>
                 )}
                 {(variant === 'destructive' || variant === 'error') && (
-                  <div className="rounded-full bg-red-100 p-2 text-red-600">
+                  <div className="rounded-full bg-[#FFE0E0] p-2 text-[#E04F4F]">
                     <AlertCircle className="h-5 w-5" />
                   </div>
                 )}
                 {variant === 'help' && (
-                  <div className="rounded-full bg-blue-100 p-2 text-blue-600">
+                  <div className="rounded-full bg-[#E1ECFF] p-2 text-[#377DFF]">
                     <HelpCircle className="h-5 w-5" />
                   </div>
                 )}
@@ -164,14 +194,9 @@ function Toaster() {
               </div>
 
               <div className="grid gap-1 py-1">
-                {title && <ToastTitle className={cn(
-                  variant === 'success' && "text-green-700",
-                  variant === 'warning' && "text-orange-700",
-                  (variant === 'destructive' || variant === 'error') && "text-red-700",
-                  variant === 'help' && "text-blue-700",
-                )}>{title}</ToastTitle>}
+                {title && <ToastTitle className="text-slate-900">{title}</ToastTitle>}
                 {description && (
-                  <ToastDescription className="text-slate-600 font-normal">{description}</ToastDescription>
+                  <ToastDescription className="font-normal text-slate-600">{description}</ToastDescription>
                 )}
               </div>
             </div>

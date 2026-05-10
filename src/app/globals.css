@@ -176,3 +176,24 @@ code, kbd, samp, pre {
     linear-gradient(120deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 35%, rgba(255, 255, 255, 0) 50%),
     linear-gradient(210deg, rgba(255, 255, 255, 0.05) 10%, rgba(255, 255, 255, 0.02) 48%, rgba(255, 255, 255, 0) 72%);
 }
+
+@keyframes toast-countdown {
+  to {
+    stroke-dashoffset: 100;
+  }
+}
+
+.toast-progress {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  stroke-linecap: round;
+  animation: toast-countdown var(--toast-duration, 5000ms) linear forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-progress {
+    animation: none;
+  }
+}
