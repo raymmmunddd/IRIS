@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
-import { ReportsHeader } from "@/components/reports/header"
+import { PageHeader } from "@/components/ui/page-header"
 import { ReportStats } from "@/components/reports/stats"
 import { MonthlyTrendChart } from "@/components/dashboard/bar-chart-section" 
 import { CategoryBreakdown } from "@/components/reports/category-breakdown"
@@ -11,6 +11,7 @@ import { StreetMap } from "@/components/reports/street-map"
 import { ResolutionStatusOverview } from "@/components/reports/resolution-overview"
 import { KeyInsights } from "@/components/reports/key-insights"
 import { OfficerResponseAnalysis } from "@/components/reports/officer-performance"
+import { FileText } from "lucide-react"
 
 export default function ReportsPage() {
   const [reportsData, setReportsData] = useState<any>(null)
@@ -36,8 +37,12 @@ export default function ReportsPage() {
       </div>
 
       <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-        <ReportsHeader />
-        
+        <PageHeader
+          title="Reports & Analytics"
+          description="View key insights on incident trends, resolutions, and operational performance."
+          icon={<FileText className="h-5 w-5 text-white" />}
+        />
+
         <div className="mt-4 sm:mt-6">
            <ReportStats data={reportsData?.reportStats} />
         </div>

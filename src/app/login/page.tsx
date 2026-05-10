@@ -53,8 +53,8 @@ export default function LoginPage() {
 
       saveAuthUser(result.data);
       toast({
-        title: "Login successful",
-        description: "Welcome back!",
+        title: "Welcome back!",
+        description: "You have successfully logged in.",
         variant: "success",
       });
       router.push(getRoleLandingPath(result.data.role));
@@ -153,12 +153,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Company Logo (RISE Innovations) */}
-            <img
-              src="/RISEinnovations.png"
-              alt="RISE Innovations"
-              className="h-10 w-auto object-contain"
-            />
           </div>
             <div className="space-y-4">
               <p className="inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/90">

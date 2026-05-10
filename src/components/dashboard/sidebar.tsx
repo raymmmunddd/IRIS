@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  LayoutDashboard,
+  BarChart3,
   Briefcase,
   FileText,
   ShieldCheck,
@@ -15,7 +15,9 @@ import {
   X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-
+import { LogOut } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
 interface NavItem {
   label: string
   href: string
@@ -23,7 +25,7 @@ interface NavItem {
 }
 
 const mainNavItems: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="h-5 w-5" /> },
+  { label: "Dashboard", href: "/dashboard", icon: <BarChart3 className="h-5 w-5" /> },
   { label: "Cases", href: "/cases", icon: <Briefcase className="h-5 w-5" /> },
   { label: "Operations", href: "/operations", icon: <Users className="h-5 w-5" /> },
   { label: "Reports", href: "/reports", icon: <FileText className="h-5 w-5" /> },
@@ -34,6 +36,23 @@ export function DashboardSidebar() {
   const pathname = usePathname()
   const [isMinimized, setIsMinimized] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const { toast } = useToast()
+  const router = useRouter()
+
+  function handleLogout() {
+    localStorage.removeItem("token")
+    sessionStorage.clear()
+
+    toast({
+      title: "Goodbye!",
+      description: "You have been successfully logged out.",
+      variant: "success",
+    })
+
+    setTimeout(() => {
+      router.push("/login")
+    }, 600)
+  }
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -66,9 +85,11 @@ export function DashboardSidebar() {
             </button>
           ) : (
             <>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-[var(--sidebar-icon)] bg-[var(--sidebar-bg)] font-sans text-lg font-bold text-[var(--sidebar-icon)]">
-                I
-              </div>
+              <img
+                src="/EastTapinac.png"
+                alt="Barangay East Tapinac"
+                className="h-12 w-12 rounded-md"
+              />
               <div className="flex flex-col">
                 <span className="text-lg font-bold tracking-wide text-[var(--sidebar-icon)]">
                   IRIS
@@ -126,8 +147,23 @@ export function DashboardSidebar() {
         </ul>
       </nav>
 
-      {/* Bottom Navigation */}
-      <div className="px-4 pb-6" />
+      {/* FOOTER */}
+      <div className="mt-auto px-3 sm:px-4 pb-5">
+        {!isMinimized && (
+          <div className="rounded-xl border border-[var(--sidebar-nav-hover-bg)] bg-[var(--sidebar-bg)]/60 p-2">
+            <button
+              onClick={handleLogout}
+              className={cn(
+                "flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
+                "bg-red-500/90 text-white transition hover:bg-red-600"
+              )}
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </button>
+          </div>
+        )}
+      </div>
     </>
   )
 

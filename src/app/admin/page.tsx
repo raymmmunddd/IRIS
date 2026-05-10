@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
-import { DashboardHeader } from "@/components/dashboard/header";
+import { PageHeader } from "@/components/ui/page-header"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UsersTab } from "@/components/admin/users-tab";
 import { AnnouncementsTab } from "@/components/admin/announcements-tab";
 import { PublicDataTab } from "@/components/admin/public-data-tab";
 import { AuditLogsTab } from "@/components/admin/audit-logs-tab";
 import { SettingsTab } from "@/components/admin/settings-tab";
-import { Users, Megaphone, Eye, FileText, Settings } from "lucide-react";
+import { Users, Megaphone, Eye, FileText, Settings, ShieldCheck } from "lucide-react";
 
 export default function AdminPage() {
   const [adminData, setAdminData] = useState<{
@@ -39,9 +39,10 @@ export default function AdminPage() {
       </div>
 
       <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-        <DashboardHeader
+        <PageHeader
           title="Administration"
-          description="System control and governance settings"
+          description="Manage system users, settings, and overall barangay system control."
+          icon={<ShieldCheck className="h-5 w-5 text-white" />}
         />
 
         <Tabs defaultValue="users" className="space-y-4 sm:space-y-6">

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Users, Calendar } from "lucide-react"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { DashboardHeader } from "@/components/dashboard/header"
+import { PageHeader } from "@/components/ui/page-header"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 
 import { OfficersTab } from "@/components/operations/officers-tab"
@@ -42,9 +42,10 @@ export default function OperationsPage() {
         <DashboardSidebar />
       </div>
       <main className="relative min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-        <DashboardHeader
+        <PageHeader
           title="Operations"
-          description="Manage officers and mediation sessions"
+          description="Assign cases to officers and manage field response activities."
+          icon={<Users className="h-5 w-5 text-white" />}
         />
 
         <div className="mt-4 sm:mt-6">

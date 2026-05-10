@@ -1,91 +1,57 @@
-import { Clock, Timer, Users, TrendingUp, TrendingDown } from "lucide-react"
+"use client"
+
+import { Clock, Timer, Users, Activity, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-interface SideStatCardProps {
-  title: string
-  value: string
-  subtitle: string
-  period: string
-  change: number
-  trending: "up" | "down"
-  icon: React.ReactNode
-  iconColor: string
-}
-
-function SideStatCard({ title, value, subtitle, period, change, trending, icon, iconColor }: SideStatCardProps) {
-  const isUp = trending === "up"
-
+function PulseRow({ title, value, note, status }: any) {
   return (
-    <div className="flex items-center gap-3 sm:gap-4 rounded-xl border border-border bg-card px-3 sm:px-4 py-3 sm:py-3.5">
-      <div className={`flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg text-xs sm:text-sm ${iconColor}`}>
-        {icon}
+    <div className="flex items-center justify-between py-3 border-b border-slate-100 last:border-none">
+      <div>
+        <p className="text-xs font-medium text-slate-500">{title}</p>
+        <p className="text-sm font-semibold text-slate-900">{value}</p>
+        <p className="text-[11px] text-slate-400">{note}</p>
       </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="truncate text-[11px] sm:text-xs font-semibold text-[var(--foreground)]/80">{title}</p>
-        <p className="text-lg sm:text-xl font-bold leading-tight text-[var(--foreground)]">{value}</p>
-        {subtitle && (
-          <p className="text-[10px] sm:text-[11px] text-[var(--foreground)]/70 line-clamp-1">{subtitle}</p>
+
+      <div
+        className={cn(
+          "h-2.5 w-2.5 rounded-full",
+          status === "good" && "bg-emerald-500",
+          status === "warn" && "bg-amber-500",
+          status === "bad" && "bg-red-500"
         )}
-        <div className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-[11px]">
-          <span className="text-[var(--foreground)]/70 truncate">{period}</span>
-          <span className={cn("flex items-center gap-0.5 font-semibold shrink-0", isUp ? "text-[var(--chart-accent)]" : "text-[var(--tertiary)]")}>
-            {isUp ? <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> : <TrendingDown className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
-            {change}%
-          </span>
-        </div>
-      </div>
+      />
     </div>
   )
 }
 
-interface SideStatCardsProps {
-  data?: {
-    pending: number
-    underReview: number
-    officers: number
-    users: number
-  }
-}
-
-export function SideStatCards({ data }: SideStatCardsProps) {
-  const stats: SideStatCardProps[] = [
-    {
-      title: "Pending Cases",
-      value: (data?.pending ?? 152).toString(),
-      subtitle: `${data?.underReview ?? 89} under review`,
-      period: "This Week",
-      change: 5.4,
-      trending: "down",
-      icon: <Clock className="h-4 w-4 text-white" />,
-      iconColor: "bg-[var(--chart-comparison)]",
-    },
-    {
-      title: "Average Response Time",
-      value: "4.2 hrs",
-      subtitle: "Target: 6 hrs | SLA compliance: 94%",
-      period: "This Week",
-      change: 18.7,
-      trending: "up",
-      icon: <Timer className="h-4 w-4 text-white" />,
-      iconColor: "bg-[var(--chart-accent)]",
-    },
-    {
-      title: "Officer Workload",
-      value: data?.officers ? ((data.pending + data.underReview) / data.officers).toFixed(1) : "12.4",
-      subtitle: `Avg active cases per officer | ${data?.officers ?? 35} active officers`,
-      period: "This Week",
-      change: 3.1,
-      trending: "up",
-      icon: <Users className="h-4 w-4 text-white" />,
-      iconColor: "bg-[var(--primary)]",
-    },
-  ]
-
+export function SideStatCards({ data }: any) {
   return (
-    <div className="grid grid-cols-1 gap-4">
-      {stats.map((stat) => (
-        <SideStatCard key={stat.title} {...stat} />
-      ))}
+    <div className="rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="flex items-center gap-2 mb-3">
+        <Activity className="w-4 h-4 text-slate-500" />
+        <p className="text-sm font-semibold text-slate-700">Operational Pulse</p>
+      </div>
+
+      <PulseRow
+        title="Pending Queue"
+        value="152 cases"
+        note="89 under review"
+        status="warn"
+      />
+
+      <PulseRow
+        title="Response Time"
+        value="4.2 hrs"
+        note="SLA target: 6 hrs"
+        status="good"
+      />
+
+      <PulseRow
+        title="Officer Load"
+        value="12.4 avg"
+        note="35 active officers"
+        status="warn"
+      />
     </div>
   )
 }

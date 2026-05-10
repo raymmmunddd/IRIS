@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   MapPin,
 } from "lucide-react";
+import Image from "next/image"
 
 const NAV_LINKS = [
   { label: "Features", href: "#features" },
@@ -149,8 +150,15 @@ export default function Home() {
     <div className="min-h-screen bg-white text-[#0F172A] font-sans">
       <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 py-4 bg-white/80 backdrop-blur-md border-b border-slate-100">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#1D4ED8] flex items-center justify-center">
-            <span className="text-white text-xs font-bold">I</span>
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-white">
+            <Image
+              src="/EastTapinac.png"
+              alt="Barangay East Tapinac Logo"
+              width={32}
+              height={32}
+              className="object-contain"
+              priority
+            />
           </div>
           <span className="font-bold text-[#0F172A] tracking-tight">IRIS</span>
           <span className="hidden sm:inline text-xs text-slate-400 ml-1">Barangay East Tapinac</span>

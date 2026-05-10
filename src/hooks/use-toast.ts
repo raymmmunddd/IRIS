@@ -7,7 +7,7 @@ import type { ToastActionElement, ToastProps } from '@/components/ui/toast'
 
 const TOAST_LIMIT = 1
 const TOAST_DURATION = 5000
-const TOAST_REMOVE_DELAY = 2000
+const TOAST_REMOVE_DELAY = 0
 
 type ToasterToast = ToastProps & {
   id: string
@@ -91,10 +91,9 @@ export const reducer = (state: State, action: Action): State => {
     case 'DISMISS_TOAST': {
       const { toastId } = action
 
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
       // but I'll keep it here for simplicity
       if (toastId) {
-        addToRemoveQueue(toastId)
+        dispatch({ type: 'REMOVE_TOAST', toastId })
       } else {
         state.toasts.forEach((toast) => {
           addToRemoveQueue(toast.id)
@@ -144,13 +143,6 @@ function toast({ ...props }: Toast) {
   const id = genId()
   const duration = typeof props.duration === 'number' ? props.duration : TOAST_DURATION
 
-  const update = (props: ToasterToast) =>
-    dispatch({
-      type: 'UPDATE_TOAST',
-      toast: { ...props, id },
-    })
-  const dismiss = () => dispatch({ type: 'DISMISS_TOAST', toastId: id })
-
   dispatch({
     type: 'ADD_TOAST',
     toast: {
@@ -159,15 +151,18 @@ function toast({ ...props }: Toast) {
       id,
       open: true,
       onOpenChange: (open) => {
-        if (!open) dismiss()
+        if (!open) {
+          dispatch({ type: 'DISMISS_TOAST', toastId: id })
+        }
       },
     },
   })
 
   return {
-    id: id,
-    dismiss,
-    update,
+    id,
+    dismiss: () => dispatch({ type: 'DISMISS_TOAST', toastId: id }),
+    update: (props: ToasterToast) =>
+      dispatch({ type: 'UPDATE_TOAST', toast: { ...props, id } }),
   }
 }
 
@@ -176,13 +171,12 @@ function useToast() {
 
   React.useEffect(() => {
     listeners.push(setState)
+
     return () => {
       const index = listeners.indexOf(setState)
-      if (index > -1) {
-        listeners.splice(index, 1)
-      }
+      if (index > -1) listeners.splice(index, 1)
     }
-  }, [state])
+  }, [])
 
   return {
     ...state,

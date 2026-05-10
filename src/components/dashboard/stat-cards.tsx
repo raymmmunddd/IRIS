@@ -1,95 +1,84 @@
-import { FileText, Briefcase, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown } from "lucide-react"
+"use client"
+
+import { FileText, Briefcase, CheckCircle2, AlertTriangle, Activity, Flame } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export interface StatCardData {
-  title: string
+interface InsightCard {
+  label: string
   value: string
-  period: string
-  change: number
-  trending: "up" | "down"
+  context: string
+  state: "normal" | "warning" | "critical" | "positive"
 }
 
-interface StatCardProps extends StatCardData {
-  icon: React.ReactNode
-  iconBg: string
-  accentClass?: string
-}
+function InsightTile({ label, value, context, state }: InsightCard) {
+  const stateStyle = {
+    normal: "bg-slate-50 border-slate-200",
+    positive: "bg-emerald-50 border-emerald-200",
+    warning: "bg-amber-50 border-amber-200",
+    critical: "bg-red-50 border-red-200",
+  }[state]
 
-function StatCard({ title, value, period, change, trending, icon, iconBg, accentClass }: StatCardProps) {
-  const isUp = trending === "up"
+  const iconColor = {
+    normal: "text-slate-500",
+    positive: "text-emerald-600",
+    warning: "text-amber-600",
+    critical: "text-red-600",
+  }[state]
 
   return (
-    <div className={cn("flex items-center gap-3 sm:gap-4 rounded-xl border px-3 sm:px-4 py-3 sm:py-3.5", "border-border bg-card")}>
-      <div className={cn("flex h-8 sm:h-10 w-8 sm:w-10 shrink-0 items-center justify-center rounded-lg sm:rounded-xl text-xs sm:text-sm border border-white/20 shadow-sm", iconBg)}>
-        {icon}
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="truncate text-[11px] sm:text-xs font-semibold text-[var(--foreground)]/80">{title}</p>
-        <p className="text-lg sm:text-xl font-bold leading-tight text-[var(--foreground)]">{value}</p>
-        <div className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-[11px]">
-          <span className="text-[var(--foreground)]/70 truncate">{period}</span>
-          <span className={cn("flex items-center gap-0.5 font-semibold shrink-0", isUp ? "text-[var(--chart-accent)]" : "text-[var(--tertiary)]", accentClass)}>
-            {isUp ? <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> : <TrendingDown className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
-            {change}%
-          </span>
+    <div className={cn("rounded-2xl border p-4 relative overflow-hidden", stateStyle)}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs text-slate-500 font-medium">{label}</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{value}</p>
+          <p className="text-[11px] text-slate-500 mt-1">{context}</p>
         </div>
+
+        <div className={cn("p-2 rounded-xl bg-white/60", iconColor)}>
+          <Activity className="w-4 h-4" />
+        </div>
+      </div>
+
+      {/* subtle activity bar */}
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/5">
+        <div className="h-full w-2/3 bg-current opacity-20" />
       </div>
     </div>
   )
 }
 
-interface StatCardsProps {
-  data?: StatCardData[]
-}
-
-export function StatCards({ data }: StatCardsProps) {
-  const fallbackStats: StatCardData[] = [
+export function StatCards({ data }: any) {
+  const insights: InsightCard[] = [
     {
-      title: "Total Reports",
-      value: "2,847",
-      period: "This Week",
-      change: 12.5,
-      trending: "up",
+      label: "Case Load Pressure",
+      value: "High",
+      context: "438 active cases under processing flow",
+      state: "warning",
     },
     {
-      title: "Active Cases",
-      value: "438",
-      period: "This Week",
-      change: 8.2,
-      trending: "up",
+      label: "Resolution Momentum",
+      value: "+18%",
+      context: "Faster closures compared to last week",
+      state: "positive",
     },
     {
-      title: "Resolved Cases",
-      value: "1,923",
-      period: "This Week",
-      change: 23.1,
-      trending: "up",
+      label: "Incident Intake",
+      value: "Stable",
+      context: "No abnormal spike in reports",
+      state: "normal",
     },
     {
-      title: "Urgent Cases",
+      label: "Critical Queue",
       value: "76",
-      period: "This Week",
-      change: 4.3,
-      trending: "down",
+      context: "Requires immediate attention",
+      state: "critical",
     },
   ]
-
-  const icons = [
-    { icon: <FileText className="h-4 w-4" />, iconBg: "bg-[var(--primary)] text-white" },
-    { icon: <Briefcase className="h-4 w-4" />, iconBg: "bg-[var(--secondary)] text-white" },
-    { icon: <CheckCircle2 className="h-4 w-4" />, iconBg: "bg-[var(--chart-accent)] text-white" },
-    { icon: <AlertTriangle className="h-4 w-4" />, iconBg: "bg-[var(--tertiary)] text-white", accentClass: "text-[var(--tertiary)]" },
-  ]
-
-  const stats = (data?.length ? data : fallbackStats).map((stat, index) => ({
-    ...stat,
-    ...icons[index],
-  }))
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {stats.map((stat) => (
-        <StatCard key={stat.title} {...stat} />
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      {insights.map((i) => (
+        <InsightTile key={i.label} {...i} />
       ))}
     </div>
   )

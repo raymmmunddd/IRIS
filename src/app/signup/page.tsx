@@ -404,7 +404,7 @@ export default function SignupPage() {
   } as const;
 
   return (
-    <div className="min-h-screen lg:h-screen overflow-hidden bg-[var(--iris-bg)] text-[var(--iris-text)] lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+    <div className="min-h-screen lg:h-screen lg:grid lg:grid-cols-[1.1fr_0.9fr] bg-[var(--iris-bg)] text-[var(--iris-text)]">
       <section className="relative hidden lg:flex items-center justify-center overflow-hidden bg-[radial-gradient(120%_120%_at_0%_0%,rgba(255,255,255,0.2)_0%,rgba(255,255,255,0)_45%),linear-gradient(135deg,#1E4FA3,#173E82,#0B1A3A)] p-10 xl:p-14">
         <div className="auth-hero-radial absolute inset-0 opacity-40" />
         <div className="auth-hero-linear absolute inset-0 opacity-80" />
@@ -431,12 +431,6 @@ export default function SignupPage() {
               </div>
             </div>
 
-            {/* Company Logo (RISE Innovations) */}
-            <img
-              src="/RISEinnovations.png"
-              alt="RISE Innovations"
-              className="h-10 w-auto object-contain"
-            />
           </div>
             <div className="space-y-4">
               <p className="inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/90">
@@ -468,7 +462,7 @@ export default function SignupPage() {
           <div className="text-sm">
             <Link href="/" className="inline-flex items-center gap-2 font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">
               <ArrowLeft className="h-4 w-4" />
-              Go back
+              Go Back to Homepage
             </Link>
           </div>
 
