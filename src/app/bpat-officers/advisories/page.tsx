@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { BpatSidebar } from "@/components/bpat/sidebar";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   ArrowLeft,
   Calendar,
@@ -178,78 +180,110 @@ export default function OfficerAdvisoriesPage() {
   const rest = filtered.filter((a) => !a.pinned);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-20 border-b border-border bg-[var(--sidebar-bg)] px-4 pb-5 pt-4 text-[var(--sidebar-foreground)] shadow-sm">
-        <div className="mx-auto w-full max-w-md">
-          <Link
-            href="/bpat-officers"
-            className="mb-3 inline-flex items-center gap-1.5 text-xs text-[var(--sidebar-muted)] hover:text-[var(--sidebar-foreground)] transition-colors"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to Field Ops
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--sidebar-muted)]">BPAT Mobile Desk</p>
-              <h1 className="mt-1 text-xl font-bold">Community Advisories</h1>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 backdrop-blur">
-              <Megaphone className="h-5 w-5" />
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
+      <div className="hidden lg:flex h-screen shrink-0">
+        <BpatSidebar />
+      </div>
 
-      <main className="mx-auto w-full max-w-md space-y-4 px-4 pb-8 pt-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search advisories..."
-            className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
-          />
-        </div>
-
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {ALL_TAGS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTag(t)}
-              className={`flex-shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                tag === t
-                  ? "border-[var(--primary)] bg-[var(--primary)] text-white"
-                  : "border-border bg-card text-muted-foreground hover:border-[var(--primary)]/40"
-              }`}
+      <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden">
+        <header className="sticky top-0 z-20 border-b border-border bg-[var(--sidebar-bg)] px-4 pb-5 pt-4 text-[var(--sidebar-foreground)] shadow-sm lg:hidden">
+          <div className="mx-auto w-full max-w-md">
+            <Link
+              href="/bpat-officers"
+              className="mb-3 inline-flex items-center gap-1.5 text-xs text-[var(--sidebar-muted)] hover:text-[var(--sidebar-foreground)] transition-colors"
             >
-              {t}
-            </button>
-          ))}
-        </div>
-
-        {filtered.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-card p-8 text-center">
-            <Megaphone className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
-            <p className="text-sm font-semibold text-muted-foreground">No advisories found</p>
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to Field Ops
+            </Link>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-[var(--sidebar-muted)]">BPAT Mobile Desk</p>
+                <h1 className="mt-1 text-xl font-bold">Community Advisories</h1>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 backdrop-blur">
+                <Megaphone className="h-5 w-5" />
+              </div>
+            </div>
           </div>
-        ) : (
-          <>
-            {pinned.length > 0 && (
-              <div className="space-y-3">
-                {pinned.map((a) => <AdvisoryCard key={a.id} item={a} />)}
-              </div>
-            )}
-            {rest.length > 0 && (
-              <div className="space-y-3">
-                {pinned.length > 0 && (
-                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">All Advisories</p>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <div className="hidden lg:block">
+            <PageHeader
+              title="Community Advisories"
+              description="Broadcast updates and track pinned notices for BPAT and residents."
+              icon={<Megaphone className="h-5 w-5 text-white" />}
+            />
+          </div>
+
+          <div className="mx-auto w-full max-w-md space-y-4 lg:max-w-6xl lg:space-y-6">
+            <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+              <section className="order-2 space-y-4 lg:order-1">
+                {filtered.length === 0 ? (
+                  <div className="rounded-2xl border border-border bg-card p-8 text-center">
+                    <Megaphone className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
+                    <p className="text-sm font-semibold text-muted-foreground">No advisories found</p>
+                  </div>
+                ) : (
+                  <>
+                    {pinned.length > 0 && (
+                      <div className="space-y-3">
+                        {pinned.map((a) => (
+                          <AdvisoryCard key={a.id} item={a} />
+                        ))}
+                      </div>
+                    )}
+                    {rest.length > 0 && (
+                      <div className="space-y-3">
+                        {pinned.length > 0 && (
+                          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">All Advisories</p>
+                        )}
+                        {rest.map((a) => (
+                          <AdvisoryCard key={a.id} item={a} />
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
-                {rest.map((a) => <AdvisoryCard key={a.id} item={a} />)}
-              </div>
-            )}
-          </>
-        )}
-      </main>
+              </section>
+
+              <aside className="order-1 space-y-4 lg:order-2">
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                  <p className="mb-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">Search Advisories</p>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search advisories..."
+                      className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                  <p className="mb-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">Filter Tags</p>
+                  <div className="flex flex-wrap gap-2">
+                    {ALL_TAGS.map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setTag(t)}
+                        className={`flex-shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          tag === t
+                            ? "border-[var(--primary)] bg-[var(--primary)] text-white"
+                            : "border-border bg-card text-muted-foreground hover:border-[var(--primary)]/40"
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </aside>
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
