@@ -104,13 +104,6 @@ const SUFFIX_OPTIONS = ["Jr.", "Sr.", "II", "III", "IV", "V"] as const;
 const normalizeStreetQuery = (value: string) =>
   value.split(",")[0]?.trim().toLowerCase() ?? "";
 
-const formatStreetWithBarangay = (value: string) => {
-  const cleaned = value.trim().replace(/\s+/g, " ");
-  if (!cleaned) return "";
-  if (/east tapinac/i.test(cleaned)) return cleaned;
-  return `${cleaned}, ${EAST_TAPINAC_BARANGAY}`;
-};
-
 const findStreetMatch = (value: string) => {
   const query = normalizeStreetQuery(value);
 
@@ -355,7 +348,7 @@ export default function SignupPage() {
   const streetQuery = normalizeStreetQuery(street).toLowerCase();
 
   const handleStreetSelect = (streetName: string) => {
-    setStreet(formatStreetWithBarangay(streetName));
+    setStreet(streetName);
     setStreetFocused(false);
   };
 
@@ -700,9 +693,9 @@ export default function SignupPage() {
                   onBlur={() => {
                     setTimeout(() => {
                       const match = findStreetMatch(street);
-                      if (match) {
-                        setStreet(formatStreetWithBarangay(match.name));
-                      }
+                        if (match) {
+                          setStreet(match.name);
+                        }
                       setStreetFocused(false);
                     }, 120);
                   }}
