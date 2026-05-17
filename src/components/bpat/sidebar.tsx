@@ -1,78 +1,81 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
-  BarChart3,
-  Briefcase,
-  FileText,
-  ShieldCheck,
+  ClipboardList,
+  Compass,
+  Home,
+  LogOut,
+  MapPin,
+  Megaphone,
+  Menu,
+  MessageSquare,
   PanelRightClose,
   PanelRightOpen,
-  Users,
-  Menu,
   X,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
-import { LogOut } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast"
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { logout } from "@/lib/auth";
+
 interface NavItem {
-  label: string
-  href: string
-  icon: React.ReactNode
+  label: string;
+  href: string;
+  icon: React.ReactNode;
 }
 
 const mainNavItems: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: <BarChart3 className="h-5 w-5" /> },
-  { label: "Cases", href: "/cases", icon: <Briefcase className="h-5 w-5" /> },
-  { label: "Operations", href: "/operations", icon: <Users className="h-5 w-5" /> },
-  { label: "Reports", href: "/reports", icon: <FileText className="h-5 w-5" /> },
-  { label: "Administration", href: "/admin", icon: <ShieldCheck className="h-5 w-5" /> },
-]
+  { label: "Field Ops", href: "/bpat-officers", icon: <Home className="h-5 w-5" /> },
+  { label: "Dispatch Board", href: "/bpat-officers/dispatch", icon: <Compass className="h-5 w-5" /> },
+  { label: "Open Cases", href: "/bpat-officers/cases", icon: <ClipboardList className="h-5 w-5" /> },
+  { label: "Case Chat", href: "/bpat-officers/chat", icon: <MessageSquare className="h-5 w-5" /> },
+  { label: "Incident Map", href: "/bpat-officers/map", icon: <MapPin className="h-5 w-5" /> },
+  { label: "Advisories", href: "/bpat-officers/advisories", icon: <Megaphone className="h-5 w-5" /> },
+];
 
-export function DashboardSidebar() {
-  const pathname = usePathname()
-  const [isMinimized, setIsMinimized] = useState(false)
-  const [isMobileOpen, setIsMobileOpen] = useState(false)
-  const { toast } = useToast()
-  const router = useRouter()
+export function BpatSidebar() {
+  const pathname = usePathname();
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { toast } = useToast();
+  const router = useRouter();
 
   function handleLogout() {
-    localStorage.removeItem("token")
-    sessionStorage.clear()
+    logout();
+    localStorage.removeItem("token");
+    sessionStorage.clear();
 
     toast({
       title: "Goodbye!",
       description: "You have been successfully logged out.",
       variant: "success",
-    })
+    });
 
     setTimeout(() => {
-      router.push("/login")
-    }, 600)
+      router.push("/login?role=bpat");
+    }, 600);
   }
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement
+      const target = e.target as HTMLElement;
       if (isMobileOpen && !target.closest("aside") && !target.closest("[data-mobile-menu-trigger]")) {
-        setIsMobileOpen(false)
+        setIsMobileOpen(false);
       }
-    }
-    document.addEventListener("click", handleClickOutside)
-    return () => document.removeEventListener("click", handleClickOutside)
-  }, [isMobileOpen])
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [isMobileOpen]);
 
   function isActive(href: string) {
-    if (href === "/") return pathname === "/"
-    return pathname.startsWith(href)
+    if (href === "/bpat-officers") return pathname === "/bpat-officers";
+    return pathname.startsWith(href);
   }
 
   const SidebarContent = () => (
     <>
-      {/* Logo with Menu Button */}
       <div className="flex items-center justify-between px-4 sm:px-6 pb-6 pt-4 sm:pt-6 lg:pt-8">
         <div className="flex items-center gap-2">
           {isMinimized ? (
@@ -95,7 +98,7 @@ export function DashboardSidebar() {
                   IRIS
                 </span>
                 <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--sidebar-icon)]/80">
-                  Admin Portal
+                  BPAT Desk
                 </span>
               </div>
             </>
@@ -121,7 +124,6 @@ export function DashboardSidebar() {
         )}
       </div>
 
-      {/* Main Navigation */}
       <nav className="flex-1 px-3 sm:px-4">
         <ul className="flex flex-col gap-1">
           {mainNavItems.map((item) => (
@@ -137,9 +139,7 @@ export function DashboardSidebar() {
                     : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-nav-hover-bg)] hover:text-[var(--sidebar-nav-hover-foreground)]"
                 )}
               >
-                <span className="text-current">
-                  {item.icon}
-                </span>
+                <span className="text-current">{item.icon}</span>
                 {!isMinimized && <span>{item.label}</span>}
               </Link>
             </li>
@@ -147,22 +147,14 @@ export function DashboardSidebar() {
         </ul>
       </nav>
 
-      {/* FOOTER */}
       <div className="mt-auto px-3 sm:px-4 pb-5">
         {!isMinimized && (
           <div className="rounded-xl border border-[var(--sidebar-nav-hover-bg)] bg-[var(--sidebar-bg)]/60 p-2">
             <button
               onClick={handleLogout}
               className={cn(
-                "flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5",
-                "text-sm font-semibold transition-all duration-200",
-
-                // red danger style
-                "bg-red-700 hover:bg-red-800",
-                "shadow-sm hover:shadow-md",
-
-                // focus accessibility
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                "flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
+                "bg-red-500/90 text-white transition hover:bg-red-600"
               )}
             >
               <LogOut className="h-4 w-4" />
@@ -172,11 +164,10 @@ export function DashboardSidebar() {
         )}
       </div>
     </>
-  )
+  );
 
   return (
     <>
-      {/* Mobile Header with Menu Button */}
       <div className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between bg-[var(--sidebar-bg)] px-4 py-3 lg:hidden">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-[var(--sidebar-icon)] bg-[var(--sidebar-bg)] font-sans text-sm font-bold text-[var(--sidebar-icon)]">
@@ -200,16 +191,14 @@ export function DashboardSidebar() {
         </button>
       </div>
 
-      {/* Mobile Overlay */}
       {isMobileOpen && (
         <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setIsMobileOpen(false)} />
       )}
 
-      {/* Sidebar - Hidden on mobile, visible on lg */}
       <aside
         className={cn(
           "fixed left-0 top-0 bottom-0 z-40 flex h-screen shrink-0 flex-col transition-all duration-300",
-          "max-h-screen overflow-y-auto lg:sticky lg:top-0",
+          "lg:sticky lg:top-0",
           isMobileOpen ? "w-64" : "-translate-x-full lg:translate-x-0",
           isMinimized ? "lg:w-20" : "lg:w-64",
           "bg-[var(--sidebar-bg)] text-[var(--sidebar-foreground)]",
@@ -219,7 +208,6 @@ export function DashboardSidebar() {
         <SidebarContent />
       </aside>
 
-      {/* Mobile Sidebar */}
       <aside
         className={cn(
           "fixed left-0 top-0 bottom-0 z-40 flex w-64 shrink-0 flex-col transition-all duration-300",
@@ -231,5 +219,5 @@ export function DashboardSidebar() {
         <SidebarContent />
       </aside>
     </>
-  )
+  );
 }

@@ -3,116 +3,106 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { UserPlus, User, Mail, Lock, X, CheckCircle2, Circle, Eye, EyeOff, ShieldCheck, ClipboardCheck, Database, UserCheck, ArrowLeft, Phone, MapPin } from "lucide-react";
+import { UserPlus, User, Mail, Lock, X, CheckCircle2, Eye, EyeOff, ShieldCheck, ClipboardCheck, Database, UserCheck, ArrowLeft, Phone, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getRoleLandingPath, saveAuthUser, type AuthUser, type UserRole } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 
-const EAST_TAPINAC_BARANGAY = "Barangay East Tapinac";
+export const EAST_TAPINAC_BARANGAY = "Barangay East Tapinac" as const;
 
-const EAST_TAPINAC_STREETS = [
-  "10th Street",
-  "14th Street",
-  "16th Street",
-  "17th Street",
-  "18th Street",
-  "20th Street",
-  "23rd Street",
-  "24th Street",
-  "6th Street",
-  "Acayan Street",
-  "Afable Street",
-  "Aguinaldo Street",
-  "Aim High Avenue",
-  "Anonas Street",
-  "Apo Rotonda",
-  "Ardoin Street",
-  "Argonaut Highway",
-  "Arthur Street",
-  "Baretto Street",
-  "Bonifacio Street",
-  "Braveheart Road",
-  "Brill Street",
-  "Burgos Street",
-  "Canal Road",
-  "Canda Street",
-  "Caron Street",
-  "Causeway Road",
-  "Coll Street",
-  "Commitment Street",
-  "Dahl Street",
-  "Davidson Street",
-  "Dela Cruz Drive",
-  "Dewey Avenue",
-  "E 21st Street",
-  "E 8th Street",
-  "East 12th Street",
-  "East 13th Street",
-  "East 16th Street",
-  "East 18th Street",
-  "East 1st Street",
-  "Efficiency Avenue",
-  "Elicaño Street",
-  "Espiritu Street",
-  "Faith Street",
-  "Fontaine Street",
-  "Gallagher Street",
-  "Gatbunton Street",
-  "Golden Fortune Street",
-  "Gordon Avenue",
-  "Graham Street",
-  "Hansen Street",
-  "Harris Street",
-  "Ibarra Street",
-  "Indiana Street",
-  "Innovative Street",
-  "Irving Street",
-  "Johnson Street",
-  "Johnson Street Extension",
-  "Jones Street",
-  "Joyful Street",
-  "Katipunan Street",
-  "Kentucky Street",
-  "Kessing Street",
-  "Labitan Street",
-  "Lake Walkway",
-  "Magsaysay Avenue",
-  "Magsaysay Bridge",
-  "Magsaysay Drive",
-  "Maine Street",
-  "Mc Kinley Street",
-  "Murphy Street",
-  "Natividad Street",
-  "Norton Street",
-  "Ohio Street",
-  "Old Hospital Road",
-  "Old Walk way",
-  "Olongapo - Bugallon Road",
-  "Oregon Street",
-  "Palm Street",
-  "Perimeter Road",
-  "Quezon Street",
-  "Ramos Street",
-  "Raymundo Street",
-  "Rizal Avenue",
-  "Rizal Highway",
-  "Rodriguez Street",
-  "Saint Columban Street",
-  "Sampson Road",
-  "Santa Rita Road",
-  "Security Road",
-  "Sunset Street",
-  "Texas Street",
-  "Washington Street",
-  "West 20th Place",
-  "West 20th Street",
-  "West 21st Place",
-  "West 21st Street",
-  "West 22nd Place",
-  "West 22nd Street",
-  "West 23rd Street",
-] as const;
+export const EAST_TAPINAC_STREETS: StreetRecord[] = [
+  // Purok 1
+  { name: "Gallagher Street", purok: 1, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Hansen Street", purok: 1, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Irving Street", purok: 1, barangay: EAST_TAPINAC_BARANGAY },
 
-const normalizeStreetQuery = (value: string) => value.split(",")[0]?.trim() ?? "";
+  // Purok 2
+  { name: "Labrador Street", purok: 2, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Rizal Street", purok: 2, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Fontaine Extension", purok: 2, barangay: EAST_TAPINAC_BARANGAY },
+
+  // Purok 3
+  { name: "Hospital Road", purok: 3, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Dela Cruz Drive", purok: 3, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Fontaine Bridge", purok: 3, barangay: EAST_TAPINAC_BARANGAY },
+
+  // Purok 4
+  { name: "Apelado Street", purok: 4, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "East 14th Street", purok: 4, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Fontaine Extension", purok: 4, barangay: EAST_TAPINAC_BARANGAY },
+
+  // Purok 5
+  { name: "East 14th Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "East 13th Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "11th Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Veterano Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Bacon Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "East 9th Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Rizal Avenue", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
+
+  // Purok 6
+  { name: "Donor Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Llanos Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "East 12th Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Fendler Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "East 14th Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "East 13th Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
+
+  // Purok 7
+  { name: "Fendler Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Gallagher Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Hansen Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Irving Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "East 14th Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "East 12th Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
+
+  // Purok 8
+  { name: "Bacon Street", purok: 8, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Fendler Street", purok: 8, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "East 9th Street", purok: 8, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Magsaysay Drive", purok: 8, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Rizal Avenue", purok: 8, barangay: EAST_TAPINAC_BARANGAY },
+
+  // Purok 9
+  { name: "Fendler Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Gallagher Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Hansen Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Irving Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "East 12th Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "East 10th Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
+
+  // Purok 10
+  { name: "Fendler Street", purok: 10, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "East 10th Street", purok: 10, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "East 8th Street", purok: 10, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "East 6th Street", purok: 10, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Magsaysay Drive", purok: 10, barangay: EAST_TAPINAC_BARANGAY },
+
+  // Purok 11
+  { name: "5th Street", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "3rd Street", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Alba Street", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Fendler Street", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Lindayag Street", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Rizal Extension", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
+];
+
+type StreetRecord = {
+  name: string;
+  purok: number;
+  barangay: string;
+};
+
+const groupedByPurok = EAST_TAPINAC_STREETS.reduce((acc, street) => {
+  (acc[street.purok] ??= []).push(street);
+  return acc;
+}, {} as Record<number, StreetRecord[]>);
+
+
+const SUFFIX_OPTIONS = ["Jr.", "Sr.", "II", "III", "IV", "V"] as const;
+
+const normalizeStreetQuery = (value: string) =>
+  value.split(",")[0]?.trim().toLowerCase() ?? "";
 
 const formatStreetWithBarangay = (value: string) => {
   const cleaned = value.trim().replace(/\s+/g, " ");
@@ -122,17 +112,30 @@ const formatStreetWithBarangay = (value: string) => {
 };
 
 const findStreetMatch = (value: string) => {
-  const query = normalizeStreetQuery(value).toLowerCase();
+  const query = normalizeStreetQuery(value);
+
   if (!query) return null;
-  return EAST_TAPINAC_STREETS.find((streetName) => streetName.toLowerCase() === query) ?? null;
+
+  return EAST_TAPINAC_STREETS.find(
+    (street) => street.name.toLowerCase() === query
+  ) ?? null;
 };
 
 const getStreetSuggestions = (value: string) => {
-  const query = normalizeStreetQuery(value).toLowerCase();
-  const matches = EAST_TAPINAC_STREETS.filter((streetName) =>
-    query ? streetName.toLowerCase().includes(query) : true,
-  );
-  return matches.slice(0, 8);
+  const query = normalizeStreetQuery(value);
+  const seen = new Set<string>();
+
+  return EAST_TAPINAC_STREETS
+    .filter((street) =>
+      query ? street.name.toLowerCase().includes(query) : true
+    )
+    .filter((street) => {
+      if (seen.has(street.name)) return false;
+      seen.add(street.name);
+      return true;
+    })
+    .slice(0, 8)
+    .map((s) => s.name);
 };
 
 const formatPhilippinesContact = (value: string) => {
@@ -140,25 +143,21 @@ const formatPhilippinesContact = (value: string) => {
   if (!trimmed) return "";
 
   const digits = trimmed.replace(/\D/g, "");
-  const isInternational = trimmed.startsWith("+") || digits.startsWith("63");
+  if (!digits) return trimmed.startsWith("+") ? "+63" : "";
+  if (digits === "63") return "+63";
 
-  if (isInternational) {
-    let rest = digits;
-    if (rest.startsWith("63")) {
-      rest = rest.slice(2);
-    }
-    rest = rest.slice(0, 10);
-    const part1 = rest.slice(0, 3);
-    const part2 = rest.slice(3, 6);
-    const part3 = rest.slice(6, 10);
-    return `+63${part1 ? ` ${part1}` : ""}${part2 ? ` ${part2}` : ""}${part3 ? ` ${part3}` : ""}`;
+  let rest = digits;
+  if (rest.startsWith("63")) {
+    rest = rest.slice(2);
+  } else if (rest.startsWith("0")) {
+    rest = rest.slice(1);
   }
 
-  const local = digits.slice(0, 11);
-  const part1 = local.slice(0, 4);
-  const part2 = local.slice(4, 7);
-  const part3 = local.slice(7, 11);
-  return `${part1}${part2 ? `-${part2}` : ""}${part3 ? `-${part3}` : ""}`;
+  rest = rest.slice(0, 10);
+  const part1 = rest.slice(0, 3);
+  const part2 = rest.slice(3, 6);
+  const part3 = rest.slice(6, 10);
+  return `+63${part1 ? ` ${part1}` : ""}${part2 ? ` ${part2}` : ""}${part3 ? ` ${part3}` : ""}`;
 };
 
 export default function SignupPage() {
@@ -168,7 +167,7 @@ export default function SignupPage() {
   const [lastName, setLastName] = useState("");
   const [middleName, setMiddleName] = useState("");
   const [suffix, setSuffix] = useState("");
-  const [suffixEnabled, setSuffixEnabled] = useState(false);
+  const [suffixOpen, setSuffixOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -190,9 +189,10 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [streetFocused, setStreetFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
 
   const buildFullName = () => {
-    const parts = [firstName, middleName, lastName, suffixEnabled ? suffix : ""]
+    const parts = [firstName, middleName, lastName, suffix]
       .map((part) => part.trim())
       .filter(Boolean);
     return parts.join(" ");
@@ -217,7 +217,8 @@ export default function SignupPage() {
     event.preventDefault();
     const fullName = buildFullName();
 
-    if (!firstName.trim() || !lastName.trim() || !fullName || !email || !password || !confirmPassword || !street || !contact || !gender) {
+    const normalizedContact = contact.trim();
+    if (!firstName.trim() || !lastName.trim() || !fullName || !email || !password || !confirmPassword || !street || !normalizedContact || normalizedContact === "+63" || !gender) {
       toast({
         title: "Missing fields",
         description: "Please fill in all required fields.",
@@ -321,7 +322,7 @@ export default function SignupPage() {
 
   const roleCopy = {
     resident: {
-      title: "Hello, Resident! 👋",
+      title: "Join Us!",
       body: "Report incidents, track status updates, and stay informed with IRIS. Your community updates are just a click away.",
     },
     official: {
@@ -337,9 +338,17 @@ export default function SignupPage() {
   const checks = {
     length: password.length >= 8,
     uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
     number: /\d/.test(password),
+    special: /[^A-Za-z0-9]/.test(password),
   };
-  const isPasswordValid = checks.length && checks.uppercase && checks.number;
+
+  const isPasswordValid =
+    checks.length &&
+    checks.uppercase &&
+    checks.lowercase &&
+    checks.number &&
+    checks.special;
 
   const streetSuggestions = useMemo(() => getStreetSuggestions(street), [street]);
   const showStreetSuggestions = streetFocused && streetSuggestions.length > 0;
@@ -404,13 +413,13 @@ export default function SignupPage() {
   } as const;
 
   return (
-    <div className="min-h-screen lg:h-screen lg:grid lg:grid-cols-[1.1fr_0.9fr] bg-[var(--iris-bg)] text-[var(--iris-text)]">
-      <section className="relative hidden lg:flex items-center justify-center overflow-hidden bg-[radial-gradient(120%_120%_at_0%_0%,rgba(255,255,255,0.2)_0%,rgba(255,255,255,0)_45%),linear-gradient(135deg,#1E4FA3,#173E82,#0B1A3A)] p-10 xl:p-14">
+    <div className="min-h-screen lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] bg-[var(--iris-bg)] text-[var(--iris-text)] auth-page-enter">
+      <section className="auth-hero-enter relative hidden lg:flex items-center justify-center overflow-hidden bg-[radial-gradient(120%_120%_at_0%_0%,rgba(255,255,255,0.2)_0%,rgba(255,255,255,0)_45%),linear-gradient(135deg,#1E4FA3,#173E82,#0B1A3A)] p-10 xl:p-14">
         <div className="auth-hero-radial absolute inset-0 opacity-40" />
         <div className="auth-hero-linear absolute inset-0 opacity-80" />
         <div className="absolute -left-24 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-[var(--secondary)]/20 blur-3xl" />
-        <div className="relative z-10 flex h-full w-full max-w-xl flex-col justify-between text-white">
+        <div className="relative z-10 flex h-full w-full max-w-2xl flex-col justify-between text-white">
           <div className="space-y-7">
             <div className="flex items-center justify-between gap-3">
             {/* Barangay Logo */}
@@ -457,8 +466,8 @@ export default function SignupPage() {
         </div>
       </section>
 
-      <section className="flex min-h-screen items-center justify-center overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 lg:min-h-0 lg:h-screen lg:px-10 lg:py-6">
-        <div className="w-full max-w-md space-y-3">
+      <section className="auth-panel-enter flex min-h-screen items-start justify-center px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+        <div className="w-full max-w-xl space-y-3 md:max-w-2xl">
           <div className="text-sm">
             <Link href="/" className="inline-flex items-center gap-2 font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">
               <ArrowLeft className="h-4 w-4" />
@@ -466,7 +475,7 @@ export default function SignupPage() {
             </Link>
           </div>
 
-          <div className="space-y-4 rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)]/95 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.12)] backdrop-blur">
+          <div className="space-y-4 rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)]/95 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.12)] backdrop-blur sm:p-6">
             <div className="space-y-2 text-center">
               <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--iris-primary-light)] text-[var(--iris-primary)]">
                 <UserPlus className="h-5 w-5" />
@@ -475,83 +484,109 @@ export default function SignupPage() {
               <p className="text-sm text-[var(--iris-text-subtle)]">Access your account to report or monitor incidents.</p>
             </div>
 
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="relative">
-                  <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                  <label htmlFor="firstName" className="sr-only">First name</label>
-                  <input
-                    id="firstName"
-                    type="text"
-                    autoComplete="given-name"
-                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="First Name"
-                    disabled={isLoading}
-                  />
-                </div>
-
-                <div className="relative">
-                  <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                  <label htmlFor="lastName" className="sr-only">Last name</label>
-                  <input
-                    id="lastName"
-                    type="text"
-                    autoComplete="family-name"
-                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Last Name"
-                    disabled={isLoading}
-                  />
-                </div>
+            <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+              <div className="relative">
+                <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                <label htmlFor="firstName" className="sr-only">First name</label>
+                <input
+                  id="firstName"
+                  type="text"
+                  autoComplete="given-name"
+                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="First Name"
+                  disabled={isLoading}
+                />
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="relative">
-                  <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                  <label htmlFor="middleName" className="sr-only">Middle name</label>
-                  <input
-                    id="middleName"
-                    type="text"
-                    autoComplete="additional-name"
-                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                    value={middleName}
-                    onChange={(e) => setMiddleName(e.target.value)}
-                    placeholder="Middle Name"
-                    disabled={isLoading}
-                  />
-                </div>
+              <div className="relative">
+                <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                <label htmlFor="lastName" className="sr-only">Last name</label>
+                <input
+                  id="lastName"
+                  type="text"
+                  autoComplete="family-name"
+                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Last Name"
+                  disabled={isLoading}
+                />
+              </div>
 
-                <div className="relative">
-                  <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                  <label htmlFor="suffix" className="sr-only">Suffix</label>
-                  <input
-                    id="suffix"
-                    type="text"
-                    autoComplete="honorific-suffix"
-                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                    value={suffixEnabled ? suffix : ""}
-                    onChange={(e) => setSuffix(e.target.value)}
-                    placeholder="Suffix"
-                    disabled={isLoading || !suffixEnabled}
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSuffixEnabled((prev) => {
-                        const next = !prev;
-                        if (!next) setSuffix("");
-                        return next;
-                      })
-                    }
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--iris-text-subtle)] hover:text-[var(--iris-primary)]"
-                    aria-label={suffixEnabled ? "Disable suffix" : "Enable suffix"}
+              <div className="relative">
+                <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                <label htmlFor="middleName" className="sr-only">Middle name</label>
+                <input
+                  id="middleName"
+                  type="text"
+                  autoComplete="additional-name"
+                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  value={middleName}
+                  onChange={(e) => setMiddleName(e.target.value)}
+                  placeholder="Middle Name"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="relative">
+                <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+
+                <button
+                  type="button"
+                  onClick={() => setSuffixOpen((prev) => !prev)}
+                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-left text-sm text-[var(--iris-text)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  disabled={isLoading}
+                >
+                  {suffix || "No suffix"}
+                </button>
+
+                <svg
+                  className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
+                </svg>
+
+                {suffixOpen && (
+                  <div
+                    role="listbox"
+                    className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-[var(--iris-border)] bg-white shadow-[0_14px_40px_rgba(15,23,42,0.15)]"
                   >
-                    {suffixEnabled ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
-                  </button>
-                </div>
+                    <button
+                      type="button"
+                      role="option"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setSuffix("");
+                        setSuffixOpen(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
+                    >
+                      No suffix
+                    </button>
+                    {SUFFIX_OPTIONS.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        role="option"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setSuffix(option);
+                          setSuffixOpen(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="relative">
@@ -569,81 +604,84 @@ export default function SignupPage() {
                 />
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="relative">
-                  <Phone className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                  <label htmlFor="contact" className="sr-only">Contact</label>
-                  <input
-                    id="contact"
-                    type="tel"
-                    autoComplete="tel"
-                    inputMode="tel"
-                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                    value={contact}
-                    onChange={(e) => setContact(formatPhilippinesContact(e.target.value))}
-                    placeholder="Phone Number"
-                    disabled={isLoading}
-                  />
-                </div>
+              <div className="relative">
+                <Phone className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                <label htmlFor="contact" className="sr-only">Contact</label>
+                <input
+                  id="contact"
+                  type="tel"
+                  autoComplete="tel"
+                  inputMode="tel"
+                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  value={contact}
+                  onChange={(e) => setContact(formatPhilippinesContact(e.target.value))}
+                  onFocus={() => {
+                    if (!contact.trim()) setContact("+63");
+                  }}
+                  onBlur={() => {
+                    if (contact.trim() === "+63") setContact("");
+                  }}
+                  placeholder="Phone Number"
+                  disabled={isLoading}
+                />
+              </div>
 
-<div className="relative">
-  <UserCheck className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+              <div className="relative">
+                <UserCheck className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
 
-  <button
-    type="button"
-    onClick={() => setGenderOpen((prev) => !prev)}
-    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-left text-sm text-[var(--iris-text)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-    disabled={isLoading}
-  >
-    {gender === "" ? "Select Gender" : gender === "MALE" ? "Male" : "Female"}
-  </button>
+                <button
+                  type="button"
+                  onClick={() => setGenderOpen((prev) => !prev)}
+                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-left text-sm text-[var(--iris-text)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  disabled={isLoading}
+                >
+                  {gender === "" ? "Select Gender" : gender === "MALE" ? "Male" : "Female"}
+                </button>
 
-  {/* dropdown arrow */}
-  <svg
-    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]"
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={2}
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
-  </svg>
+                <svg
+                  className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
+                </svg>
 
-  {genderOpen && (
-    <div
-      role="listbox"
-      className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-[var(--iris-border)] bg-white shadow-[0_14px_40px_rgba(15,23,42,0.15)]"
-    >
-      <button
-        type="button"
-        role="option"
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() => {
-          setGender("MALE");
-          setGenderOpen(false);
-        }}
-        className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
-      >
-        Male
-      </button>
+                {genderOpen && (
+                  <div
+                    role="listbox"
+                    className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-[var(--iris-border)] bg-white shadow-[0_14px_40px_rgba(15,23,42,0.15)]"
+                  >
+                    <button
+                      type="button"
+                      role="option"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setGender("MALE");
+                        setGenderOpen(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
+                    >
+                      Male
+                    </button>
 
-      <button
-        type="button"
-        role="option"
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() => {
-          setGender("FEMALE");
-          setGenderOpen(false);
-        }}
-        className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
-      >
-        Female
-      </button>
-    </div>
-  )}
-</div>
-</div>
+                    <button
+                      type="button"
+                      role="option"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setGender("FEMALE");
+                        setGenderOpen(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
+                    >
+                      Female
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <div className="relative">
                 <MapPin className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
@@ -659,12 +697,14 @@ export default function SignupPage() {
                   value={street}
                   onChange={(e) => setStreet(e.target.value)}
                   onFocus={() => setStreetFocused(true)}
-                  onBlur={(event) => {
-                    const match = findStreetMatch(event.currentTarget.value);
-                    if (match) {
-                      setStreet(formatStreetWithBarangay(match));
-                    }
-                    setStreetFocused(false);
+                  onBlur={() => {
+                    setTimeout(() => {
+                      const match = findStreetMatch(street);
+                      if (match) {
+                        setStreet(formatStreetWithBarangay(match.name));
+                      }
+                      setStreetFocused(false);
+                    }, 120);
                   }}
                   placeholder="Street"
                   disabled={isLoading}
@@ -695,7 +735,11 @@ export default function SignupPage() {
 
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                <label htmlFor="password" className="sr-only">Password</label>
+                
+                <label htmlFor="password" className="sr-only">
+                  Password
+                </label>
+
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -703,20 +747,58 @@ export default function SignupPage() {
                   className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
                   placeholder="Password"
                   disabled={isLoading}
                 />
+
                 {password.length > 0 && isPasswordValid ? (
                   <CheckCircle2 className="pointer-events-none absolute right-10 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
                 ) : null}
+
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--iris-text-subtle)] hover:text-[var(--iris-primary)]"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
+
+                {passwordFocused && password.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] shadow-[0_20px_60px_rgba(15,23,42,0.15)] p-3">
+                    <p className="mb-2 text-xs font-semibold text-[var(--iris-text)]">
+                      Password must contain:
+                    </p>
+
+                    <div className="space-y-1 text-xs">
+                      <div className={checks.length ? "text-emerald-600" : "text-[var(--iris-text-subtle)]"}>
+                        • At least 8 characters
+                      </div>
+
+                      <div className={checks.uppercase ? "text-emerald-600" : "text-[var(--iris-text-subtle)]"}>
+                        • One uppercase letter
+                      </div>
+
+                      <div className={checks.lowercase ? "text-emerald-600" : "text-[var(--iris-text-subtle)]"}>
+                        • One lowercase letter
+                      </div>
+
+                      <div className={checks.number ? "text-emerald-600" : "text-[var(--iris-text-subtle)]"}>
+                        • One number
+                      </div>
+
+                      <div className={checks.special ? "text-emerald-600" : "text-[var(--iris-text-subtle)]"}>
+                        • One special character
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="relative">
@@ -745,7 +827,7 @@ export default function SignupPage() {
                 </button>
               </div>
 
-              <div className="rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-primary-light)]/15 p-3">
+              <div className="rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-primary-light)]/15 p-3 md:col-span-2">
                 <div className="space-y-2 text-sm text-[var(--iris-text)]">
                   <label className="flex items-start gap-2">
                     <input
@@ -791,7 +873,7 @@ export default function SignupPage() {
               <button
                 type="submit"
                 disabled={isLoading || !termsAccepted || !privacyAccepted}
-                className="w-full rounded-xl bg-[var(--iris-primary)] py-2.5 text-white font-semibold shadow-[0_12px_30px_rgba(30,79,163,0.3)] transition-all duration-200 hover:bg-[var(--iris-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70"
+                className="w-full rounded-xl bg-[var(--iris-primary)] py-2.5 font-semibold text-white shadow-[0_12px_30px_rgba(30,79,163,0.3)] transition-all duration-200 hover:bg-[var(--iris-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70 md:col-span-2"
               >
                 {isLoading ? (
                   <span className="inline-flex items-center justify-center gap-2">
@@ -806,7 +888,10 @@ export default function SignupPage() {
 
             <p className="text-center text-sm text-[var(--iris-text-subtle)]">
               Already have an account?{" "}
-              <Link href="/login" className="font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">
+              <Link
+                href="/login"
+                className="auth-link-underline inline font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iris-primary)] focus-visible:ring-offset-2"
+              >
                 Sign in.
               </Link>
             </p>
@@ -898,7 +983,7 @@ export default function SignupPage() {
 
       {verificationOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] p-5 shadow-2xl">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] p-5 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="space-y-2 text-center">
               <div className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--iris-primary-light)] text-[var(--iris-primary)]">
                 <Mail className="h-5 w-5" />

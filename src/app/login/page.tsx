@@ -70,7 +70,7 @@ export default function LoginPage() {
 
   const roleCopy = {
     resident: {
-      title: "Welcome, Resident! 👋",
+      title: "Welcome to IRIS!",
       body: "Report incidents, track case updates, and stay informed in your community.",
       highlights: [
         {
@@ -88,8 +88,8 @@ export default function LoginPage() {
       ],
     },
     official: {
-      title: "Welcome, Admin! 👋",
-      body: "Manage cases, assign tasks, and monitor barangay operations efficiently with IRIS.",
+      title: "Welcome to IRIS!",
+      body: "Report incidents, track case updates, and stay informed in your community.",
       highlights: [
         {
           heading: "Case Verification",
@@ -106,8 +106,8 @@ export default function LoginPage() {
       ],
     },
     bpat: {
-      title: "Welcome, Officer! 👋",
-      body: "Log mediation updates, manage field cases, and respond to assigned incidents in real time.",
+      title: "Welcome to IRIS!",
+      body: "Report incidents, track case updates, and stay informed in your community.",
       highlights: [
         {
           heading: "Field Case Updates",
@@ -126,13 +126,13 @@ export default function LoginPage() {
   } as const;
 
   return (
-    <div className="min-h-screen lg:h-screen overflow-hidden bg-[var(--iris-bg)] text-[var(--iris-text)] lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-      <section className="relative hidden lg:flex items-center justify-center overflow-hidden bg-[radial-gradient(120%_120%_at_0%_0%,rgba(255,255,255,0.2)_0%,rgba(255,255,255,0)_45%),linear-gradient(135deg,#1E4FA3,#173E82,#0B1A3A)] p-10 xl:p-14">
+    <div className="min-h-screen lg:h-screen overflow-hidden bg-[var(--iris-bg)] text-[var(--iris-text)] lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] auth-page-enter">
+      <section className="auth-hero-enter relative hidden lg:flex items-center justify-center overflow-hidden bg-[radial-gradient(120%_120%_at_0%_0%,rgba(255,255,255,0.2)_0%,rgba(255,255,255,0)_45%),linear-gradient(135deg,#1E4FA3,#173E82,#0B1A3A)] p-10 xl:p-14">
         <div className="auth-hero-radial absolute inset-0 opacity-40" />
         <div className="auth-hero-linear absolute inset-0 opacity-80" />
         <div className="absolute -left-24 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-[var(--secondary)]/20 blur-3xl" />
-        <div className="relative z-10 flex h-full w-full max-w-xl flex-col justify-between text-white">
+        <div className="relative z-10 flex h-full w-full max-w-2xl flex-col justify-between text-white">
           <div className="space-y-7">
            <div className="flex items-center justify-between gap-3">
             {/* Barangay Logo */}
@@ -176,7 +176,7 @@ export default function LoginPage() {
         </div>
       </section>
 
-      <section className="flex min-h-screen items-center justify-center px-4 py-4 sm:px-6 sm:py-5 lg:min-h-0 lg:h-screen lg:px-10 lg:py-0">
+      <section className="auth-panel-enter flex min-h-screen items-center justify-center px-4 py-4 sm:px-6 sm:py-5 lg:min-h-0 lg:h-screen lg:px-10 lg:py-0">
         <div className="w-full max-w-md space-y-3">
           <div className="text-sm">
             <Link href="/" className="inline-flex items-center gap-2 font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">
@@ -265,7 +265,10 @@ export default function LoginPage() {
 
             <p className="text-center text-sm text-[var(--iris-text-subtle)]">
               Don&apos;t have an account?{" "}
-              <Link href="/signup" className="font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">
+              <Link
+                href="/signup"
+                className="auth-link-underline inline font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iris-primary)] focus-visible:ring-offset-2"
+              >
                 Sign up.
               </Link>
             </p>

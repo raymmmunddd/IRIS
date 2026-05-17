@@ -1,84 +1,142 @@
 "use client"
 
-import { FileText, Briefcase, CheckCircle2, AlertTriangle, Activity, Flame } from "lucide-react"
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  TrendingUp,
+} from "lucide-react"
+
 import { cn } from "@/lib/utils"
 
 interface InsightCard {
-  label: string
+  title: string
   value: string
-  context: string
+  description: string
   state: "normal" | "warning" | "critical" | "positive"
+  icon: React.ReactNode
 }
 
-function InsightTile({ label, value, context, state }: InsightCard) {
-  const stateStyle = {
-    normal: "bg-slate-50 border-slate-200",
-    positive: "bg-emerald-50 border-emerald-200",
-    warning: "bg-amber-50 border-amber-200",
-    critical: "bg-red-50 border-red-200",
-  }[state]
+function InsightTile({
+  title,
+  value,
+  description,
+  state,
+  icon,
+}: InsightCard) {
+  const styles = {
+    normal: {
+      card: "border-slate-200 bg-white",
+      icon: "bg-slate-100 text-slate-700",
+      badge: "bg-slate-100 text-slate-700",
+    },
 
-  const iconColor = {
-    normal: "text-slate-500",
-    positive: "text-emerald-600",
-    warning: "text-amber-600",
-    critical: "text-red-600",
+    positive: {
+      card: "border-emerald-200 bg-emerald-50/40",
+      icon: "bg-emerald-100 text-emerald-700",
+      badge: "bg-emerald-100 text-emerald-700",
+    },
+
+    warning: {
+      card: "border-amber-200 bg-amber-50/50",
+      icon: "bg-amber-100 text-amber-700",
+      badge: "bg-amber-100 text-amber-700",
+    },
+
+    critical: {
+      card: "border-red-200 bg-red-50/50",
+      icon: "bg-red-100 text-red-700",
+      badge: "bg-red-100 text-red-700",
+    },
   }[state]
 
   return (
-    <div className={cn("rounded-2xl border p-4 relative overflow-hidden", stateStyle)}>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs text-slate-500 font-medium">{label}</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{value}</p>
-          <p className="text-[11px] text-slate-500 mt-1">{context}</p>
+    <div
+      className={cn(
+        "rounded-2xl border p-5 shadow-sm transition-all duration-200",
+        "hover:-translate-y-0.5 hover:shadow-md",
+        styles.card
+      )}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-2">
+          {/* TITLE */}
+          <p className="text-sm font-semibold tracking-wide text-slate-600">
+            {title}
+          </p>
+
+          {/* VALUE */}
+          <div className="flex items-center gap-3">
+            <div
+              className={cn(
+                "inline-flex rounded-xl px-3 py-1.5 text-lg font-bold",
+                styles.badge
+              )}
+            >
+              {value}
+            </div>
+          </div>
+
+          {/* DESCRIPTION */}
+          <p className="text-sm leading-relaxed text-slate-600">
+            {description}
+          </p>
         </div>
 
-        <div className={cn("p-2 rounded-xl bg-white/60", iconColor)}>
-          <Activity className="w-4 h-4" />
+        {/* ICON */}
+        <div
+          className={cn(
+            "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl",
+            styles.icon
+          )}
+        >
+          {icon}
         </div>
-      </div>
-
-      {/* subtle activity bar */}
-      <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/5">
-        <div className="h-full w-2/3 bg-current opacity-20" />
       </div>
     </div>
   )
 }
 
-export function StatCards({ data }: any) {
+export function StatCards() {
   const insights: InsightCard[] = [
-    {
-      label: "Case Load Pressure",
-      value: "High",
-      context: "438 active cases under processing flow",
-      state: "warning",
-    },
-    {
-      label: "Resolution Momentum",
-      value: "+18%",
-      context: "Faster closures compared to last week",
-      state: "positive",
-    },
-    {
-      label: "Incident Intake",
-      value: "Stable",
-      context: "No abnormal spike in reports",
-      state: "normal",
-    },
-    {
-      label: "Critical Queue",
-      value: "76",
-      context: "Requires immediate attention",
-      state: "critical",
-    },
+  {
+    title: "Cases Being Handled",
+    value: "438 Cases",
+    description: "Cases currently under review.",
+    state: "warning",
+    icon: <Clock3 className="h-6 w-6" />,
+  },
+
+  {
+    title: "Cases Resolved Faster",
+    value: "+18%",
+    description: "Cases finished this week.",
+    state: "positive",
+    icon: <TrendingUp className="h-6 w-6" />,
+  },
+
+  {
+    title: "New Incident Reports",
+    value: "Normal",
+    description: "New reports remain steady.",
+    state: "normal",
+    icon: <Activity className="h-6 w-6" />,
+  },
+
+  {
+    title: "Urgent Cases",
+    value: "76 Cases",
+    description: "Needs immediate attention.",
+    state: "critical",
+    icon: <AlertTriangle className="h-6 w-6" />,
+  },
   ]
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-      {insights.map((i) => (
-        <InsightTile key={i.label} {...i} />
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {insights.map((item) => (
+        <InsightTile key={item.title} {...item} />
       ))}
     </div>
   )

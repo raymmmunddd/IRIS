@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { ArrowUpDown, ArrowUp, ArrowDown, TriangleAlert } from "lucide-react"
 
 const allStatuses: ("All" | CaseStatus)[] = ["All", "Pending", "Under Review", "Mediation", "Resolved", "Closed"]
 const allCategories: ("All" | CaseCategory)[] = [
@@ -43,6 +44,24 @@ const priorityColors: Record<string, string> = {
   Low: "bg-green-100 text-green-700 border border-green-200",
 }
 
+const categoryMeta = [
+  { key: "violence", name: "Violence or Threats", shortName: "Violence/Threats", color: "#d64545" },
+  { key: "harassment", name: "Harassment & Abuse", shortName: "Harassment", color: "#d99e04" },
+  { key: "fraud", name: "Fraud & Scams", shortName: "Fraud/Scams", color: "#f2b705" },
+  { key: "disturbance", name: "Public Disturbance", shortName: "Public Disturb.", color: "#0ea5e9" },
+  { key: "property", name: "Property & Theft", shortName: "Property/Theft", color: "#1e4fa3" },
+  { key: "community", name: "Community Dispute", shortName: "Community Disp.", color: "#7c3aed" },
+  { key: "child", name: "Child & Vulnerable", shortName: "Child/Vulnerable", color: "#8b5cf6" },
+]
+
+const getCategoryMeta = (category: string) => {
+  return (
+    categoryMeta.find((c) =>
+      category.toLowerCase().includes(c.name.toLowerCase())
+    ) || categoryMeta[0]
+  )
+}
+
 const statusStyles: Record<string, string> = {
   Pending: "bg-yellow-100 text-yellow-700 border border-yellow-200",
   "Under Review": "bg-blue-100 text-blue-700 border border-blue-200",
@@ -55,6 +74,12 @@ const avatarColors: Record<string, string> = {
   high: "bg-[#1e3a5f] text-[#60a5fa]",
   medium: "bg-[#2d4a3d] text-[#4ade80]",
   low: "bg-[#3d2d2d] text-[#f87171]",
+}
+
+const priorityWeight: Record<string, number> = {
+  High: 3,
+  Medium: 2,
+  Low: 1,
 }
 
 type CaseAction = "verify" | "assign" | "mediation" | "resolve" | "close"
@@ -78,6 +103,7 @@ export function CasesTable() {
   const [openActionId, setOpenActionId] = useState<string | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [cases, setCases] = useState<CaseRecord[]>([])
+  const [sortBy, setSortBy] = useState<"Newest" | "Oldest" | "Priority">("Newest")
   const [officers, setOfficers] = useState<string[]>(["Unassigned"])
   const [pendingAction, setPendingAction] = useState<{ action: CaseAction; caseItem: CaseRecord } | null>(null)
   const [selectedOfficer, setSelectedOfficer] = useState("")
@@ -112,26 +138,25 @@ export function CasesTable() {
     return result.data as CaseRecord
   }
 
-  // Load cases from storage when filters change to keep in sync with persisted data
   const filtered = useMemo(() => {
     const sourceCases = cases.filter((caseItem) => {
       const archived =
-      caseItem.status === "Resolved" ||
-      caseItem.status === "Closed"
+        caseItem.status === "Resolved" ||
+        caseItem.status === "Closed"
 
-    const pending =
-      caseItem.status === "Pending"
+      const pending = caseItem.status === "Pending"
 
-    if (activeTab === "pending") return pending
-    if (activeTab === "archive") return archived
+      if (activeTab === "pending") return pending
+      if (activeTab === "archive") return archived
 
-    return !pending && !archived
+      return !pending && !archived
     })
 
-    return sourceCases.filter((c) => {
+    let result = sourceCases.filter((c) => {
       if (statusFilter !== "All" && c.status !== statusFilter) return false
       if (categoryFilter !== "All" && c.category !== categoryFilter) return false
       if (priorityFilter !== "All" && c.priority !== priorityFilter) return false
+
       if (searchQuery) {
         const q = searchQuery.toLowerCase()
         return (
@@ -141,9 +166,38 @@ export function CasesTable() {
           c.assignedOfficer.toLowerCase().includes(q)
         )
       }
+
       return true
     })
-  }, [cases, statusFilter, categoryFilter, priorityFilter, searchQuery, activeTab, refreshTrigger])
+
+    result = [...result].sort((a, b) => {
+      const dateA = new Date(a.date).getTime()
+      const dateB = new Date(b.date).getTime()
+
+      if (sortBy === "Newest") return dateB - dateA
+      if (sortBy === "Oldest") return dateA - dateB
+
+      if (sortBy === "Priority") {
+        return (
+          (priorityWeight[b.priority] ?? 0) -
+          (priorityWeight[a.priority] ?? 0)
+        )
+      }
+
+      return 0
+    })
+
+    return result
+  }, [
+    cases,
+    statusFilter,
+    categoryFilter,
+    priorityFilter,
+    searchQuery,
+    activeTab,
+    refreshTrigger,
+    sortBy
+  ])
 
   useEffect(() => {
     loadCases()
@@ -222,106 +276,132 @@ export function CasesTable() {
 
   return (
     <>
-      <div className="mt-3 mb-5 flex items-center gap-2 overflow-x-auto border-b border-border pb-3">
-  
-  {/* Pending */}
-  <button
-    onClick={() => {
-      setActiveTab("pending")
-      setStatusFilter("All")
-      setCategoryFilter("All")
-      setPriorityFilter("All")
-      setSearchQuery("")
-    }}
-    className={cn(
-      "group flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200",
-      activeTab === "pending"
-        ? "border-[#1e4fa3] bg-[#e8f0ff] text-[#1e4fa3] shadow-sm"
-        : "border-border bg-card text-muted-foreground hover:border-[#1e4fa3]/30 hover:bg-muted hover:text-foreground"
-    )}
-  >
-    <Clock3 className="h-4 w-4" />
+      <div className="mt-2 mb-2 flex items-center gap-2 overflow-x-auto border-b border-border pb-2">
 
-    <span>Pending</span>
+        {/* LEFT SIDE: Tabs */}
+        <div className="flex items-center gap-2">
+          
+          {/* Pending */}
+          <button
+            onClick={() => {
+              setActiveTab("pending")
+              setStatusFilter("All")
+              setCategoryFilter("All")
+              setPriorityFilter("All")
+              setSearchQuery("")
+            }}
+            className={cn(
+              "group flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200",
+              activeTab === "pending"
+                ? "border-[#1e4fa3] bg-[#e8f0ff] text-[#1e4fa3] shadow-sm"
+                : "border-border bg-card text-muted-foreground hover:border-[#1e4fa3]/30 hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <Clock3 className="h-4 w-4" />
+            <span>Pending</span>
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                activeTab === "pending"
+                  ? "bg-[#1e4fa3] text-white"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              {pendingCount}
+            </span>
+          </button>
 
-    <span
-      className={cn(
-        "rounded-full px-2 py-0.5 text-[11px] font-semibold",
-        activeTab === "pending"
-          ? "bg-[#1e4fa3] text-white"
-          : "bg-muted text-muted-foreground"
-      )}
-    >
-      {pendingCount}
-    </span>
-  </button>
+          {/* Active */}
+          <button
+            onClick={() => {
+              setActiveTab("active")
+              setStatusFilter("All")
+              setCategoryFilter("All")
+              setPriorityFilter("All")
+              setSearchQuery("")
+            }}
+            className={cn(
+              "group flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200",
+              activeTab === "active"
+                ? "border-[#1e4fa3] bg-[#e8f0ff] text-[#1e4fa3] shadow-sm"
+                : "border-border bg-card text-muted-foreground hover:border-[#1e4fa3]/30 hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <FolderOpen className="h-4 w-4" />
+            <span>Active</span>
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                activeTab === "active"
+                  ? "bg-[#1e4fa3] text-white"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              {activeCount}
+            </span>
+          </button>
 
-  {/* Active */}
-  <button
-    onClick={() => {
-      setActiveTab("active")
-      setStatusFilter("All")
-      setCategoryFilter("All")
-      setPriorityFilter("All")
-      setSearchQuery("")
-    }}
-    className={cn(
-      "group flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200",
-      activeTab === "active"
-        ? "border-[#1e4fa3] bg-[#e8f0ff] text-[#1e4fa3] shadow-sm"
-        : "border-border bg-card text-muted-foreground hover:border-[#1e4fa3]/30 hover:bg-muted hover:text-foreground"
-    )}
-  >
-    <FolderOpen className="h-4 w-4" />
+          {/* Archive */}
+          <button
+            onClick={() => {
+              setActiveTab("archive")
+              setStatusFilter("All")
+              setCategoryFilter("All")
+              setPriorityFilter("All")
+              setSearchQuery("")
+            }}
+            className={cn(
+              "group flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200",
+              activeTab === "archive"
+                ? "border-[#1e4fa3] bg-[#e8f0ff] text-[#1e4fa3] shadow-sm"
+                : "border-border bg-card text-muted-foreground hover:border-[#1e4fa3]/30 hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <Archive className="h-4 w-4" />
+            <span>Archive</span>
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                activeTab === "archive"
+                  ? "bg-[#1e4fa3] text-white"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              {archiveCount}
+            </span>
+          </button>
+        </div>
 
-    <span>Active</span>
+        {/* RIGHT SIDE: Sort */}
+        <div className="ml-auto flex items-center">
+          <button
+            onClick={() => {
+              setSortBy((prev) =>
+                prev === "Newest"
+                  ? "Oldest"
+                  : prev === "Oldest"
+                  ? "Priority"
+                  : "Newest"
+              )
+            }}
+            className={cn(
+              "group flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200",
+              "border-border bg-card text-muted-foreground hover:border-[#1e4fa3]/30 hover:bg-muted hover:text-foreground"
+            )}
+          >
+            {/* Icon */}
+            {sortBy === "Newest" && <ArrowUpDown className="h-4 w-4" />}
+            {sortBy === "Oldest" && <ArrowUpDown className="h-4 w-4" />}
+            {sortBy === "Priority" && <ArrowUpDown className="h-4 w-4" />}
 
-    <span
-      className={cn(
-        "rounded-full px-2 py-0.5 text-[11px] font-semibold",
-        activeTab === "active"
-          ? "bg-[#1e4fa3] text-white"
-          : "bg-muted text-muted-foreground"
-      )}
-    >
-      {activeCount}
-    </span>
-  </button>
+            {/* Label */}
+            <span>{sortBy}</span>
+          </button>
+        </div>
+      </div>
 
-  {/* Archive */}
-  <button
-    onClick={() => {
-      setActiveTab("archive")
-      setStatusFilter("All")
-      setCategoryFilter("All")
-      setPriorityFilter("All")
-      setSearchQuery("")
-    }}
-    className={cn(
-      "group flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200",
-      activeTab === "archive"
-        ? "border-[#1e4fa3] bg-[#e8f0ff] text-[#1e4fa3] shadow-sm"
-        : "border-border bg-card text-muted-foreground hover:border-[#1e4fa3]/30 hover:bg-muted hover:text-foreground"
-    )}
-  >
-    <Archive className="h-4 w-4" />
+      <div className="relative mb-2">
 
-    <span>Archive</span>
-
-    <span
-      className={cn(
-        "rounded-full px-2 py-0.5 text-[11px] font-semibold",
-        activeTab === "archive"
-          ? "bg-[#1e4fa3] text-white"
-          : "bg-muted text-muted-foreground"
-      )}
-    >
-      {archiveCount}
-    </span>
-  </button>
-</div>
-
-      <div className="relative mb-5">
         <Search className="absolute left-2 sm:left-3 top-1/2 h-3 w-3 sm:h-4 sm:w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           type="text"
@@ -334,7 +414,7 @@ export function CasesTable() {
 
       <div className="mb-5 flex items-center gap-2 overflow-x-auto border-b border-border pb-3">
         <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "All" | CaseStatus)}>
-          <SelectTrigger className="w-32 sm:w-[140px] rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium text-[var(--iris-text)] outline-none transition-colors duration-200 focus:ring-1 focus:ring-[#16a34a] shrink-0">
+          <SelectTrigger className="w-32 sm:w-[140px] rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium text-[var(--iris-text)] outline-none transition-colors duration-200 shrink-0">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent className="bg-[var(--iris-surface)] border-[var(--iris-border)]">
@@ -347,7 +427,7 @@ export function CasesTable() {
         </Select>
 
         <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value as "All" | CaseCategory)}>
-          <SelectTrigger className="w-36 sm:w-[160px] rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium text-[var(--iris-text)] outline-none transition-colors duration-200 focus:ring-1 focus:ring-[#16a34a] shrink-0">
+          <SelectTrigger className="w-36 sm:w-[160px] rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium text-[var(--iris-text)] outline-none transition-colors duration-200 shrink-0">
             <SelectValue placeholder="Category" />
           </SelectTrigger>
           <SelectContent className="bg-[var(--iris-surface)] border-[var(--iris-border)]">
@@ -360,7 +440,7 @@ export function CasesTable() {
         </Select>
 
         <Select value={priorityFilter} onValueChange={(value) => setPriorityFilter(value as "All" | CasePriority)}>
-          <SelectTrigger className="w-32 sm:w-[140px] rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium text-[var(--iris-text)] outline-none transition-colors duration-200 focus:ring-1 focus:ring-[#16a34a] shrink-0">
+          <SelectTrigger className="w-32 sm:w-[140px] rounded-lg border border-[var(--iris-border)] bg-[var(--iris-surface)] px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium text-[var(--iris-text)] outline-none transition-colors duration-200 shrink-0">
             <SelectValue placeholder="Priority" />
           </SelectTrigger>
           <SelectContent className="bg-[var(--iris-surface)] border-[var(--iris-border)]">
@@ -373,108 +453,108 @@ export function CasesTable() {
         </Select>
       </div>
 
-<div className="mt-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-  {filtered.map((caseItem) => (
-    <div
-      key={caseItem.id}
-      onClick={() =>
-        router.push(`/cases/case-details/${encodeURIComponent(caseItem.id)}`)
-      }
-      className={cn(
-        "group relative cursor-pointer overflow-hidden rounded-2xl border bg-card p-5 shadow-sm",
-        "transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg",
-
-        // subtle priority border styling
-        caseItem.priority === "High" &&
-          "border-red-200 hover:border-red-300 dark:border-red-900/40",
-
-        caseItem.priority === "Medium" &&
-          "border-yellow-200 hover:border-yellow-300 dark:border-yellow-900/40",
-
-        caseItem.priority === "Low" &&
-          "border-green-200 hover:border-green-300 dark:border-green-900/40",
-
-        "hover:border-primary/30"
-      )}
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-card-foreground truncate group-hover:text-primary transition-colors">
-            {caseItem.shortName}
-          </p>
-
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {caseItem.date}
-          </p>
-        </div>
-
-        <div onClick={(e) => e.stopPropagation()}>
-          <CaseActionDropdown
-            isOpen={openActionId === caseItem.id}
-            onToggle={() =>
-              setOpenActionId(
-                openActionId === caseItem.id ? null : caseItem.id
-              )
+      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {filtered.map((caseItem) => (
+          <div
+            key={caseItem.id}
+            onClick={() =>
+              router.push(`/cases/case-details/${encodeURIComponent(caseItem.id)}`)
             }
-            onClose={() => setOpenActionId(null)}
-            onAction={(action) => handleAction(action, caseItem)}
-          />
+            className={cn(
+              "group relative cursor-pointer overflow-hidden rounded-2xl border bg-card p-5 shadow-sm",
+              "transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg",
+
+              // subtle priority border styling
+              caseItem.priority === "High" &&
+                "border-red-200 hover:border-red-300 dark:border-red-900/40",
+
+              caseItem.priority === "Medium" &&
+                "border-yellow-200 hover:border-yellow-300 dark:border-yellow-900/40",
+
+              caseItem.priority === "Low" &&
+                "border-green-200 hover:border-green-300 dark:border-green-900/40",
+
+              "hover:border-primary/30"
+            )}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-card-foreground truncate group-hover:text-primary transition-colors">
+                  {caseItem.fullName?.trim() || caseItem.shortName}
+                </p>
+
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {caseItem.date}
+                </p>
+              </div>
+
+              <div onClick={(e) => e.stopPropagation()}>
+                <CaseActionDropdown
+                  isOpen={openActionId === caseItem.id}
+                  onToggle={() =>
+                    setOpenActionId(
+                      openActionId === caseItem.id ? null : caseItem.id
+                    )
+                  }
+                  onClose={() => setOpenActionId(null)}
+                  onAction={(action) => handleAction(action, caseItem)}
+                />
+              </div>
+            </div>
+
+            {/* Description */}
+            <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-card-foreground">
+              {caseItem.details}
+            </p>
+
+            {/* Category */}
+            <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary/60" />
+              {caseItem.category}
+            </div>
+
+            {/* Tags */}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span
+                className={cn(
+                  "rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
+                  priorityColors[caseItem.priority]
+                )}
+              >
+                {caseItem.priority}
+              </span>
+
+              <span
+                className={cn(
+                  "rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
+                  statusStyles[caseItem.status]
+                )}
+              >
+                {caseItem.status}
+              </span>
+            </div>
+
+            {/* Divider */}
+            <div className="my-4 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+
+            {/* Footer */}
+            <p className="text-xs text-muted-foreground">
+              Assigned:{" "}
+              <span className="font-medium text-card-foreground">
+                {caseItem.assignedOfficer}
+              </span>
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* Empty State */}
+      {filtered.length === 0 && (
+        <div className="col-span-full text-center py-12 text-muted-foreground">
+          No cases found matching your filters.
         </div>
-      </div>
-
-      {/* Description */}
-      <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-card-foreground">
-        {caseItem.details}
-      </p>
-
-      {/* Category */}
-      <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-        <span className="h-1.5 w-1.5 rounded-full bg-primary/60" />
-        {caseItem.category}
-      </div>
-
-      {/* Tags */}
-      <div className="mt-3 flex flex-wrap gap-2">
-        <span
-          className={cn(
-            "rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
-            priorityColors[caseItem.priority]
-          )}
-        >
-          {caseItem.priority}
-        </span>
-
-        <span
-          className={cn(
-            "rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
-            statusStyles[caseItem.status]
-          )}
-        >
-          {caseItem.status}
-        </span>
-      </div>
-
-      {/* Divider */}
-      <div className="my-4 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-
-      {/* Footer */}
-      <p className="text-xs text-muted-foreground">
-        Assigned:{" "}
-        <span className="font-medium text-card-foreground">
-          {caseItem.assignedOfficer}
-        </span>
-      </p>
-    </div>
-  ))}
-</div>
-
-{/* Empty State */}
-{filtered.length === 0 && (
-  <div className="col-span-full text-center py-12 text-muted-foreground">
-    No cases found matching your filters.
-  </div>
-)}
+      )}
 
       <Dialog open={!!pendingAction} onOpenChange={(open) => !open && setPendingAction(null)}>
         <DialogContent className="sm:max-w-md">
