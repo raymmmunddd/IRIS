@@ -1,9 +1,23 @@
 "use client"
 
-import { Clock, Timer, Users, Activity, AlertTriangle } from "lucide-react"
+import { Activity } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-function PulseRow({ title, value, note, status }: any) {
+type PulseRowProps = {
+  title: string
+  value: string
+  note: string
+  status: "good" | "warn" | "bad"
+}
+
+export type DashboardSideStats = {
+  pending: number
+  underReview: number
+  officers: number
+  users: number
+}
+
+function PulseRow({ title, value, note, status }: PulseRowProps) {
   return (
     <div className="flex items-center justify-between py-3 border-b border-slate-100 last:border-none">
       <div>
@@ -24,7 +38,9 @@ function PulseRow({ title, value, note, status }: any) {
   )
 }
 
-export function SideStatCards({ data }: any) {
+export function SideStatCards({ data }: { data?: DashboardSideStats }) {
+  const stats = data ?? { pending: 0, underReview: 0, officers: 0, users: 0 }
+
   return (
     <div className="rounded-2xl border bg-white p-4 shadow-sm">
       <div className="flex items-center gap-2 mb-3">
@@ -34,22 +50,22 @@ export function SideStatCards({ data }: any) {
 
       <PulseRow
         title="Pending Queue"
-        value="152 cases"
-        note="89 under review"
+        value={`${stats.pending} cases`}
+        note={`${stats.underReview} under review`}
         status="warn"
       />
 
       <PulseRow
-        title="Response Time"
-        value="4.2 hrs"
-        note="SLA target: 6 hrs"
+        title="Officer Coverage"
+        value={`${stats.officers} officers`}
+        note="Active operations team"
         status="good"
       />
 
       <PulseRow
-        title="Officer Load"
-        value="12.4 avg"
-        note="35 active officers"
+        title="Registered Users"
+        value={`${stats.users} users`}
+        note="Active resident accounts"
         status="warn"
       />
     </div>

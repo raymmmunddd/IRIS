@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Archive, Clock3, FolderOpen  } from "lucide-react"
+import { Search, Archive, Clock3, FolderOpen } from "lucide-react"
 import type { CaseRecord, CaseStatus, CaseCategory, CasePriority } from "@/lib/types"
 import { CaseActionDropdown } from "./case-action-dropdown"
 import { cn } from "@/lib/utils"
@@ -23,7 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { ArrowUpDown, ArrowUp, ArrowDown, TriangleAlert } from "lucide-react"
+import { ArrowUpDown } from "lucide-react"
 
 const allStatuses: ("All" | CaseStatus)[] = ["All", "Pending", "Under Review", "Mediation", "Resolved", "Closed"]
 const allCategories: ("All" | CaseCategory)[] = [
@@ -44,24 +44,6 @@ const priorityColors: Record<string, string> = {
   Low: "bg-green-100 text-green-700 border border-green-200",
 }
 
-const categoryMeta = [
-  { key: "violence", name: "Violence or Threats", shortName: "Violence/Threats", color: "#d64545" },
-  { key: "harassment", name: "Harassment & Abuse", shortName: "Harassment", color: "#d99e04" },
-  { key: "fraud", name: "Fraud & Scams", shortName: "Fraud/Scams", color: "#f2b705" },
-  { key: "disturbance", name: "Public Disturbance", shortName: "Public Disturb.", color: "#0ea5e9" },
-  { key: "property", name: "Property & Theft", shortName: "Property/Theft", color: "#1e4fa3" },
-  { key: "community", name: "Community Dispute", shortName: "Community Disp.", color: "#7c3aed" },
-  { key: "child", name: "Child & Vulnerable", shortName: "Child/Vulnerable", color: "#8b5cf6" },
-]
-
-const getCategoryMeta = (category: string) => {
-  return (
-    categoryMeta.find((c) =>
-      category.toLowerCase().includes(c.name.toLowerCase())
-    ) || categoryMeta[0]
-  )
-}
-
 const statusStyles: Record<string, string> = {
   Pending: "bg-yellow-100 text-yellow-700 border border-yellow-200",
   "Under Review": "bg-blue-100 text-blue-700 border border-blue-200",
@@ -70,19 +52,13 @@ const statusStyles: Record<string, string> = {
   Closed: "bg-slate-100 text-slate-600 border border-slate-200",
 }
 
-const avatarColors: Record<string, string> = {
-  high: "bg-[#1e3a5f] text-[#60a5fa]",
-  medium: "bg-[#2d4a3d] text-[#4ade80]",
-  low: "bg-[#3d2d2d] text-[#f87171]",
-}
-
 const priorityWeight: Record<string, number> = {
   High: 3,
   Medium: 2,
   Low: 1,
 }
 
-type CaseAction = "verify" | "assign" | "mediation" | "resolve" | "close"
+type CaseAction = "verify" | "assign" | "mediation" | "resolve" | "close" | "restore" | "delete"
 
 const actionTitles: Record<CaseAction, string> = {
   verify: "Verify Case",
@@ -90,6 +66,8 @@ const actionTitles: Record<CaseAction, string> = {
   mediation: "Move to Mediation",
   resolve: "Resolve Case",
   close: "Close Case",
+  restore: "Restore Case",
+  delete: "Delete Case",
 }
 
 export function CasesTable() {
@@ -101,7 +79,6 @@ export function CasesTable() {
   const [priorityFilter, setPriorityFilter] = useState<"All" | CasePriority>("All")
   const [searchQuery, setSearchQuery] = useState("")
   const [openActionId, setOpenActionId] = useState<string | null>(null)
-  const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [cases, setCases] = useState<CaseRecord[]>([])
   const [sortBy, setSortBy] = useState<"Newest" | "Oldest" | "Priority">("Newest")
   const [officers, setOfficers] = useState<string[]>(["Unassigned"])
@@ -110,11 +87,6 @@ export function CasesTable() {
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
   const [actionError, setActionError] = useState("")
   const router = useRouter()
-
-  // Refresh helper to reload from storage after updates
-  const handleRefresh = () => {
-    setRefreshTrigger((prev) => prev + 1)
-  }
 
   async function loadCases() {
     try {
@@ -138,9 +110,31 @@ export function CasesTable() {
     return result.data as CaseRecord
   }
 
+  async function deleteCase(caseId: string) {
+    const response = await fetch(`/api/cases/${encodeURIComponent(caseId)}`, {
+      method: "DELETE",
+    })
+    const result = await response.json()
+    if (!result.success) throw new Error(result.message)
+    await loadCases()
+  }
+
+  async function restoreCase(caseId: string) {
+    const response = await fetch(`/api/cases/${encodeURIComponent(caseId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "restore" }),
+    })
+    const result = await response.json()
+    if (!result.success) throw new Error(result.message)
+    await loadCases()
+    return result.data as CaseRecord
+  }
+
   const filtered = useMemo(() => {
     const sourceCases = cases.filter((caseItem) => {
       const archived =
+        caseItem.isArchived ||
         caseItem.status === "Resolved" ||
         caseItem.status === "Closed"
 
@@ -195,7 +189,6 @@ export function CasesTable() {
     priorityFilter,
     searchQuery,
     activeTab,
-    refreshTrigger,
     sortBy
   ])
 
@@ -230,6 +223,32 @@ export function CasesTable() {
     const { action, caseItem } = pendingAction
     const input: { status?: CaseStatus; assignedOfficer?: string } = {}
 
+    if (action === "delete") {
+      try {
+        setIsSubmittingAction(true)
+        await deleteCase(caseItem.id)
+        setPendingAction(null)
+      } catch (error) {
+        setActionError(error instanceof Error ? error.message : "Unable to delete this case.")
+      } finally {
+        setIsSubmittingAction(false)
+      }
+      return
+    }
+
+    if (action === "restore") {
+      try {
+        setIsSubmittingAction(true)
+        await restoreCase(caseItem.id)
+        setPendingAction(null)
+      } catch (error) {
+        setActionError(error instanceof Error ? error.message : "Unable to restore this case.")
+      } finally {
+        setIsSubmittingAction(false)
+      }
+      return
+    }
+
     if (action === "verify") input.status = "Under Review"
     if (action === "assign") {
       if (!selectedOfficer) {
@@ -245,7 +264,6 @@ export function CasesTable() {
     try {
       setIsSubmittingAction(true)
       await updateCase(caseItem.id, input)
-      handleRefresh()
       setPendingAction(null)
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Unable to update this case.")
@@ -254,24 +272,20 @@ export function CasesTable() {
     }
   }
 
-  const getAvatarColor = (priority: CasePriority) => {
-    // Return a default background if needed, but styling is handled by priorityColors now
-    return "bg-muted text-muted-foreground"
-  }
-
   const pendingCount = cases.filter(
     (c) => c.status === "Pending"
   ).length
 
   const archiveCount = cases.filter(
-    (c) => c.status === "Resolved" || c.status === "Closed"
+    (c) => c.isArchived || c.status === "Resolved" || c.status === "Closed"
   ).length
 
   const activeCount = cases.filter(
     (c) =>
       c.status !== "Pending" &&
       c.status !== "Resolved" &&
-      c.status !== "Closed"
+      c.status !== "Closed" &&
+      !c.isArchived
   ).length
 
   return (
@@ -499,6 +513,7 @@ export function CasesTable() {
                   }
                   onClose={() => setOpenActionId(null)}
                   onAction={(action) => handleAction(action, caseItem)}
+                  mode={activeTab === "archive" ? "archive" : "default"}
                 />
               </div>
             </div>
@@ -587,6 +602,8 @@ export function CasesTable() {
               {pendingAction?.action === "mediation" && "This will mark the case for mediation handling."}
               {pendingAction?.action === "resolve" && "This will move the case into the resolved archive."}
               {pendingAction?.action === "close" && "This will close the case and move it into the archive."}
+              {pendingAction?.action === "restore" && "This will move the case back to Under Review."}
+              {pendingAction?.action === "delete" && "This will permanently delete the case record."}
             </p>
           )}
 
@@ -600,7 +617,7 @@ export function CasesTable() {
             <Button variant="outline" onClick={() => setPendingAction(null)} disabled={isSubmittingAction}>
               Cancel
             </Button>
-            <Button onClick={confirmAction} disabled={isSubmittingAction}>
+            <Button onClick={confirmAction} disabled={isSubmittingAction} variant={pendingAction?.action === "delete" ? "destructive" : "default"}>
               {isSubmittingAction ? "Saving..." : "Confirm"}
             </Button>
           </DialogFooter>

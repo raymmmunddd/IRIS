@@ -1,135 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UserPlus, User, Mail, Lock, X, CheckCircle2, Eye, EyeOff, ShieldCheck, ClipboardCheck, Database, UserCheck, ArrowLeft, Phone, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getRoleLandingPath, saveAuthUser, type AuthUser, type UserRole } from "@/lib/auth";
-import { cn } from "@/lib/utils";
-
-export const EAST_TAPINAC_BARANGAY = "Barangay East Tapinac" as const;
-
-export const EAST_TAPINAC_STREETS: StreetRecord[] = [
-  // Purok 1
-  { name: "Gallagher Street", purok: 1, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Hansen Street", purok: 1, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Irving Street", purok: 1, barangay: EAST_TAPINAC_BARANGAY },
-
-  // Purok 2
-  { name: "Labrador Street", purok: 2, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Rizal Street", purok: 2, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Fontaine Extension", purok: 2, barangay: EAST_TAPINAC_BARANGAY },
-
-  // Purok 3
-  { name: "Hospital Road", purok: 3, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Dela Cruz Drive", purok: 3, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Fontaine Bridge", purok: 3, barangay: EAST_TAPINAC_BARANGAY },
-
-  // Purok 4
-  { name: "Apelado Street", purok: 4, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 14th Street", purok: 4, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Fontaine Extension", purok: 4, barangay: EAST_TAPINAC_BARANGAY },
-
-  // Purok 5
-  { name: "East 14th Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 13th Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "11th Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Veterano Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Bacon Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 9th Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Rizal Avenue", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
-
-  // Purok 6
-  { name: "Donor Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Llanos Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 12th Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Fendler Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 14th Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 13th Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
-
-  // Purok 7
-  { name: "Fendler Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Gallagher Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Hansen Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Irving Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 14th Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 12th Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
-
-  // Purok 8
-  { name: "Bacon Street", purok: 8, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Fendler Street", purok: 8, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 9th Street", purok: 8, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Magsaysay Drive", purok: 8, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Rizal Avenue", purok: 8, barangay: EAST_TAPINAC_BARANGAY },
-
-  // Purok 9
-  { name: "Fendler Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Gallagher Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Hansen Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Irving Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 12th Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 10th Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
-
-  // Purok 10
-  { name: "Fendler Street", purok: 10, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 10th Street", purok: 10, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 8th Street", purok: 10, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 6th Street", purok: 10, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Magsaysay Drive", purok: 10, barangay: EAST_TAPINAC_BARANGAY },
-
-  // Purok 11
-  { name: "5th Street", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "3rd Street", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Alba Street", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Fendler Street", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Lindayag Street", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Rizal Extension", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
-];
-
-type StreetRecord = {
-  name: string;
-  purok: number;
-  barangay: string;
-};
-
-const groupedByPurok = EAST_TAPINAC_STREETS.reduce((acc, street) => {
-  (acc[street.purok] ??= []).push(street);
-  return acc;
-}, {} as Record<number, StreetRecord[]>);
-
+import {
+  resolveEastTapinacLocation,
+  type GeoPoint,
+} from "@/lib/east-tapinac-geo";
 
 const SUFFIX_OPTIONS = ["Jr.", "Sr.", "II", "III", "IV", "V"] as const;
-
-const normalizeStreetQuery = (value: string) =>
-  value.split(",")[0]?.trim().toLowerCase() ?? "";
-
-const findStreetMatch = (value: string) => {
-  const query = normalizeStreetQuery(value);
-
-  if (!query) return null;
-
-  return EAST_TAPINAC_STREETS.find(
-    (street) => street.name.toLowerCase() === query
-  ) ?? null;
-};
-
-const getStreetSuggestions = (value: string) => {
-  const query = normalizeStreetQuery(value);
-  const seen = new Set<string>();
-
-  return EAST_TAPINAC_STREETS
-    .filter((street) =>
-      query ? street.name.toLowerCase().includes(query) : true
-    )
-    .filter((street) => {
-      if (seen.has(street.name)) return false;
-      seen.add(street.name);
-      return true;
-    })
-    .slice(0, 8)
-    .map((s) => s.name);
-};
 
 const formatPhilippinesContact = (value: string) => {
   const trimmed = value.trim();
@@ -164,7 +46,8 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [street, setStreet] = useState("");
+  const [location, setLocation] = useState<(GeoPoint & { address: string; street: string; purok: number }) | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
   const [contact, setContact] = useState("");
   const [gender, setGender] = useState<"" | "MALE" | "FEMALE">("")
   const [genderOpen, setGenderOpen] = useState(false);
@@ -181,7 +64,6 @@ export default function SignupPage() {
   const [devCode, setDevCode] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [streetFocused, setStreetFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
 
   const buildFullName = () => {
@@ -196,7 +78,26 @@ export default function SignupPage() {
     const response = await fetch("/api/auth/signup/request-verification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fullName, email, password, confirmPassword, role, street, contact, gender }),
+      body: JSON.stringify({
+        fullName,
+        firstName,
+        middleName,
+        lastName,
+        suffix,
+        email,
+        password,
+        confirmPassword,
+        role,
+        street: location?.street,
+        contact,
+        gender,
+        termsAccepted,
+        privacyAccepted,
+        locationLatitude: location?.latitude,
+        locationLongitude: location?.longitude,
+        locationAccuracy: location?.accuracy,
+        locationAddress: location?.address,
+      }),
     });
     const result: { success: boolean; message: string; data?: { devCode?: string } } = await response.json();
 
@@ -211,10 +112,10 @@ export default function SignupPage() {
     const fullName = buildFullName();
 
     const normalizedContact = contact.trim();
-    if (!firstName.trim() || !lastName.trim() || !fullName || !email || !password || !confirmPassword || !street || !normalizedContact || normalizedContact === "+63" || !gender) {
+    if (!firstName.trim() || !lastName.trim() || !fullName || !email || !password || !confirmPassword || !location || !normalizedContact || normalizedContact === "+63" || !gender) {
       toast({
         title: "Missing fields",
-        description: "Please fill in all required fields.",
+        description: "Please fill in all required fields and capture your location.",
         variant: "warning",
       });
       return;
@@ -343,13 +244,38 @@ export default function SignupPage() {
     checks.number &&
     checks.special;
 
-  const streetSuggestions = useMemo(() => getStreetSuggestions(street), [street]);
-  const showStreetSuggestions = streetFocused && streetSuggestions.length > 0;
-  const streetQuery = normalizeStreetQuery(street).toLowerCase();
+  const captureLocation = () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Location unavailable",
+        description: "Your browser does not support location services.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  const handleStreetSelect = (streetName: string) => {
-    setStreet(streetName);
-    setStreetFocused(false);
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const point = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        };
+        const resolvedLocation = await resolveEastTapinacLocation(point);
+        setLocation(resolvedLocation);
+        setIsLocating(false);
+      },
+      (error) => {
+        setIsLocating(false);
+        toast({
+          title: "Location permission needed",
+          description: error.message || "Allow location access to continue.",
+          variant: "destructive",
+        });
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    );
   };
 
   const openLegalDoc = (doc: "terms" | "privacy") => {
@@ -395,7 +321,7 @@ export default function SignupPage() {
       intro:
         "IRIS protects your personal and case data by limiting collection to what is required for operations, safety, and legal compliance.",
       body: [
-        "Data We Collect: Name, email, contact, street, gender, role, and account credentials (stored securely).",
+        "Data We Collect: Name, email, contact, location, gender, role, and account credentials (stored securely).",
         "Case Information: Incident reports, evidence uploads, messages, and case updates needed for barangay workflows.",
         "How We Use Data: Verification, case management, notifications, analytics, and service improvement.",
         "Access & Sharing: Data is shared only with authorized barangay staff and officers for official purposes.",
@@ -676,54 +602,32 @@ export default function SignupPage() {
                 )}
               </div>
 
-              <div className="relative">
-                <MapPin className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                <label htmlFor="street" className="sr-only">Street</label>
-                <input
-                  id="street"
-                  type="text"
-                  autoComplete="street-address"
-                  aria-autocomplete="list"
-                  aria-expanded={showStreetSuggestions}
-                  aria-controls="street-suggestions"
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                  value={street}
-                  onChange={(e) => setStreet(e.target.value)}
-                  onFocus={() => setStreetFocused(true)}
-                  onBlur={() => {
-                    setTimeout(() => {
-                      const match = findStreetMatch(street);
-                        if (match) {
-                          setStreet(match.name);
-                        }
-                      setStreetFocused(false);
-                    }, 120);
-                  }}
-                  placeholder="Street"
-                  disabled={isLoading}
-                />
-                {showStreetSuggestions && (
-                  <div
-                    id="street-suggestions"
-                    role="listbox"
-                    className="absolute left-0 right-0 top-full z-20 mt-2 max-h-64 overflow-auto rounded-2xl border border-[var(--iris-border)] bg-white shadow-[0_14px_40px_rgba(15,23,42,0.15)]"
-                  >
-                    {streetSuggestions.map((streetName) => (
-                      <button
-                        key={streetName}
-                        type="button"
-                        role="option"
-                        aria-selected={streetQuery === streetName.toLowerCase()}
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => handleStreetSelect(streetName)}
-                        className="flex w-full flex-col gap-1 px-4 py-3 text-left transition hover:bg-[var(--iris-primary-light)]/40 focus:bg-[var(--iris-primary-light)]/50 focus:outline-none"
-                      >
-                        <span className="text-sm font-semibold text-[var(--iris-text)]">{streetName}</span>
-                        <span className="text-xs text-[var(--iris-text-subtle)]">{EAST_TAPINAC_BARANGAY}</span>
-                      </button>
-                    ))}
+              <div className="rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] p-3 md:col-span-2">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 rounded-xl bg-[var(--iris-primary-light)] p-2 text-[var(--iris-primary)]">
+                      <MapPin className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--iris-text)]">Residence Location *</p>
+                      <p className="text-xs leading-relaxed text-[var(--iris-text-subtle)]">
+                        {location
+                          ? `${location.address} (${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)})`
+                          : "Use device location to identify your East Tapinac street and purok."}
+                      </p>
+                    </div>
                   </div>
-                )}
+
+                  <button
+                    type="button"
+                    onClick={captureLocation}
+                    disabled={isLoading || isLocating}
+                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-[var(--iris-border)] bg-white px-4 text-sm font-semibold text-[var(--iris-primary)] transition hover:bg-[var(--iris-primary-light)]/50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <MapPin className="h-4 w-4" />
+                    {isLocating ? "Locating..." : location ? "Update location" : "Use my location"}
+                  </button>
+                </div>
               </div>
 
               <div className="relative">

@@ -1,5 +1,14 @@
-import { Prisma, UserRole } from "@/generated/prisma/client"
+import { CaseStatus, Prisma, UserRole } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
+
+const activeChatStatuses: CaseStatus[] = [
+  CaseStatus.PENDING,
+  CaseStatus.UNDER_REVIEW,
+  CaseStatus.ACCEPTED,
+  CaseStatus.ASSIGNED,
+  CaseStatus.SCHEDULED,
+  CaseStatus.ONGOING,
+]
 
 const threadInclude = {
   complainant: true,
@@ -84,6 +93,7 @@ export async function getOfficerChatThreadsData(email?: string | null) {
   const cases = await prisma.case.findMany({
     where: {
       assignedOfficerId: officer.id,
+      status: { in: activeChatStatuses },
       isArchived: false,
     },
     include: threadInclude,

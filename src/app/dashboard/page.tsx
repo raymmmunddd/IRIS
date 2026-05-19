@@ -6,20 +6,21 @@ import { isAuthenticated } from "@/lib/auth"
 
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { PageHeader } from "@/components/ui/page-header"
-import { StatCards } from "@/components/dashboard/stat-cards"
+import { StatCards, type DashboardStat } from "@/components/dashboard/stat-cards"
 import { MonthlyTrendChart } from "@/components/dashboard/bar-chart-section"
 import { IncidentCategoryChart } from "@/components/dashboard/incident-category-chart"
-import { SideStatCards } from "@/components/dashboard/side-stat-cards"
+import { SideStatCards, type DashboardSideStats } from "@/components/dashboard/side-stat-cards"
 
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import { PageHeaderSkeleton } from "@/components/ui/page-header-skeleton"
-import { RecentCases } from "@/components/dashboard/recent-cases"
+import { RecentCases, type RecentCaseItem } from "@/components/dashboard/recent-cases"
 
 type DashboardData = {
-  stats?: Parameters<typeof StatCards>[0]["data"]
+  stats?: DashboardStat[]
   monthlyTrend?: Parameters<typeof MonthlyTrendChart>[0]["data"]
   categoryBreakdown?: Parameters<typeof IncidentCategoryChart>[0]["data"]
-  sideStats?: Parameters<typeof SideStatCards>[0]["data"]
+  sideStats?: DashboardSideStats
+  recentCases?: RecentCaseItem[]
 }
 
 export default function DashboardPage() {
@@ -52,6 +53,7 @@ export default function DashboardPage() {
           monthlyTrend: data.monthlyTrend ?? [],
           categoryBreakdown: data.categoryBreakdown ?? [],
           sideStats: data.sideStats ?? [],
+          recentCases: data.recentCases ?? [],
         })
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error)

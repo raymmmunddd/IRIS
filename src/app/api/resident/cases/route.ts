@@ -28,12 +28,19 @@ export async function POST(request: Request) {
       contact: body.contact,
       email: body.email,
       street: body.street,
+      incidentLatitude: body.incidentLatitude,
+      incidentLongitude: body.incidentLongitude,
+      incidentAccuracy: body.incidentAccuracy,
+      incidentLocation: body.incidentLocation,
       details: body.details,
     })
 
     return NextResponse.json({ success: true, message: "Resident report filed", data }, { status: 201 })
   } catch (error) {
     console.error("Failed to file resident report:", error)
-    return NextResponse.json({ success: false, message: "Failed to file resident report", data: null }, { status: 500 })
+    return NextResponse.json(
+      { success: false, message: error instanceof Error ? error.message : "Failed to file resident report", data: null },
+      { status: 400 }
+    )
   }
 }

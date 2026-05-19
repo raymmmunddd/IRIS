@@ -7,14 +7,52 @@ import { ReportStats } from "@/components/reports/stats"
 import { MonthlyTrendChart } from "@/components/dashboard/bar-chart-section" 
 import { CategoryBreakdown } from "@/components/reports/category-breakdown"
 import { AIPriorityDistribution } from "@/components/reports/priority-distribution"
-import { StreetMap } from "@/components/reports/street-map"
+import { StreetMap, type StreetHeatStat } from "@/components/reports/street-map"
 import { ResolutionStatusOverview } from "@/components/reports/resolution-overview"
 import { KeyInsights } from "@/components/reports/key-insights"
 import { OfficerResponseAnalysis } from "@/components/reports/officer-performance"
 import { FileText } from "lucide-react"
 
+type ReportsData = {
+  reportStats?: {
+    totalCases: number
+    resolutionRate: number
+    activeOfficers: number
+  }
+  monthlyTrend?: {
+    month: string
+    cases: number
+    violence?: number
+    harassment?: number
+    fraud?: number
+    disturbance?: number
+    property?: number
+    community?: number
+    child?: number
+  }[]
+  categoryBreakdown?: { name: string; value: number; color?: string }[]
+  priorityDistribution?: { name: string; value: number; color?: string }[]
+  streetStats?: StreetHeatStat[]
+  resolutionStatus?: Partial<Record<"today" | "weekly" | "monthly" | "yearly", Record<string, number>>>
+  keyInsights?: {
+    topStreet: string
+    topStreetCount: number
+    topCategory: string
+    topCategoryCount: number
+  }
+  officerPerformance?: {
+    name: string
+    fullName: string
+    position: string
+    activeCases: number
+    resolvedCases: number
+    performance: number
+    avgResponseTime: string
+  }[]
+}
+
 export default function ReportsPage() {
-  const [reportsData, setReportsData] = useState<any>(null)
+  const [reportsData, setReportsData] = useState<ReportsData | null>(null)
 
   useEffect(() => {
     async function loadReports() {
@@ -62,7 +100,7 @@ export default function ReportsPage() {
 
         <div className="mt-4 sm:mt-6 grid gap-4 sm:gap-6 md:grid-cols-2">
           <div className="h-80 sm:h-[400px]">
-               <StreetMap />
+               <StreetMap data={reportsData?.streetStats} />
           </div>
           <div className="h-80 sm:h-[400px]">
                <ResolutionStatusOverview data={reportsData?.resolutionStatus} />

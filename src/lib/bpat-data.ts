@@ -8,6 +8,7 @@ import {
   UserStatus,
 } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
+import { findEastTapinacStreet } from "@/lib/east-tapinac-geo"
 
 type BpatPriority = "Urgent" | "High" | "Medium" | "Low"
 type DispatchStatus = "Assigned" | "In Progress" | "Pending Review"
@@ -66,11 +67,11 @@ function caseNumber(id: string) {
 }
 
 function addressForCase(item: BpatCase) {
-  return item.complainant.street || item.respondentAddress || "East Tapinac"
+  return item.incidentLocation || item.complainant.locationAddress || item.complainant.street || item.respondentAddress || "East Tapinac"
 }
 
 function streetForCase(item: BpatCase) {
-  return item.complainant.street || "Unspecified"
+  return item.incidentStreet || item.complainant.street || "Unspecified"
 }
 
 function mapOpenCase(item: BpatCase) {
@@ -119,7 +120,7 @@ async function findOfficerByEmail(email?: string | null) {
   return prisma.officer.findFirst({
     where: {
       user: {
-        email,
+        email: email.trim().toLowerCase(),
         role: UserRole.BPAT_OFFICER,
         isArchived: false,
       },
@@ -172,12 +173,13 @@ export async function getBpatOpenCasesData() {
 
 export async function getBpatAssignedCasesData(email?: string | null) {
   const officer = await findOfficerByEmail(email)
+  if (!officer) return []
 
   const cases = await prisma.case.findMany({
     where: {
       status: { in: activeStatuses },
       isArchived: false,
-      assignedOfficerId: officer?.id,
+      assignedOfficerId: officer.id,
     },
     include: caseInclude,
     orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
@@ -237,14 +239,47 @@ export async function getBpatMapData() {
   })
 
   const total = Math.max(cases.length, 1)
-  const streetCounts = new Map<string, { cases: number; urgent: number }>()
+  const streetCounts = new Map<string, {
+    cases: number
+    urgent: number
+    points: Array<{
+      id: string
+      label: string
+      name: string
+      lat: number
+      lng: number
+      urgent: boolean
+      recorded: boolean
+      purok?: number | null
+    }>
+  }>()
   const categoryCounts = new Map<string, number>()
 
   cases.forEach((item) => {
     const street = streetForCase(item)
-    const current = streetCounts.get(street) ?? { cases: 0, urgent: 0 }
+    const current = streetCounts.get(street) ?? { cases: 0, urgent: 0, points: [] }
+    const knownStreet = findEastTapinacStreet(street)
+    const hasRecordedPoint = item.incidentLatitude !== null && item.incidentLongitude !== null
+    const lat = hasRecordedPoint ? item.incidentLatitude : knownStreet?.lat
+    const lng = hasRecordedPoint ? item.incidentLongitude : knownStreet?.lng
+    const isUrgent = item.priority === DbCasePriority.URGENT || item.priority === DbCasePriority.HIGH
+
     current.cases += 1
-    if (item.priority === DbCasePriority.URGENT || item.priority === DbCasePriority.HIGH) current.urgent += 1
+    if (isUrgent) current.urgent += 1
+
+    if (lat !== null && lat !== undefined && lng !== null && lng !== undefined) {
+      current.points.push({
+        id: item.id,
+        label: caseNumber(item.id),
+        name: street,
+        lat,
+        lng,
+        urgent: isUrgent,
+        recorded: hasRecordedPoint,
+        purok: item.incidentPurok ?? knownStreet?.purok ?? null,
+      })
+    }
+
     streetCounts.set(street, current)
 
     const category = categoryLabels[item.category]
@@ -267,6 +302,8 @@ export async function getBpatMapData() {
       urgent: value.urgent,
       trend: "0",
       color: colorForCount(value.cases),
+      purok: findEastTapinacStreet(name)?.purok ?? null,
+      points: value.points,
     }))
     .sort((a, b) => b.cases - a.cases)
 

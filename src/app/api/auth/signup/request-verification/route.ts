@@ -8,6 +8,10 @@ export async function POST(request: Request) {
     const body = await request.json()
     const input = {
       fullName: body.fullName,
+      firstName: body.firstName,
+      middleName: body.middleName,
+      lastName: body.lastName,
+      suffix: body.suffix,
       email: body.email,
       password: body.password,
       confirmPassword: body.confirmPassword,
@@ -15,6 +19,12 @@ export async function POST(request: Request) {
       street: body.street,
       contact: body.contact,
       gender: body.gender,
+      termsAccepted: body.termsAccepted,
+      privacyAccepted: body.privacyAccepted,
+      locationLatitude: body.locationLatitude,
+      locationLongitude: body.locationLongitude,
+      locationAccuracy: body.locationAccuracy,
+      locationAddress: body.locationAddress,
     }
 
     const validationError = validateSignupInput(input)

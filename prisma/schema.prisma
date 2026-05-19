@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../src/generated/prisma"
 }
 
@@ -94,6 +94,7 @@ enum NotificationType {
 }
 
 enum AuditAction {
+  LOGIN
   CREATE
   UPDATE
   DELETE
@@ -107,13 +108,24 @@ enum AuditAction {
 model User {
   id              String    @id @default(uuid())
   fullName        String    @map("full_name")
+  firstName       String?   @map("first_name")
+  middleName      String?   @map("middle_name")
+  lastName        String?   @map("last_name")
+  suffix          String?
   email           String    @unique
   password        String?
   contact         String?
   street          String?
+  locationLatitude Float?    @map("location_latitude")
+  locationLongitude Float?   @map("location_longitude")
+  locationAccuracy Float?    @map("location_accuracy")
+  locationAddress  String?   @map("location_address")
+  locationCapturedAt DateTime? @map("location_captured_at")
   bio             String?
   photoUrl        String?   @map("photo_url")
   gender          Gender?
+  termsAcceptedAt DateTime? @map("terms_accepted_at")
+  privacyAcceptedAt DateTime? @map("privacy_accepted_at")
   passwordLastUpdated DateTime? @map("password_last_updated")
   twoFactorEnabled Boolean  @default(false) @map("two_factor_enabled")
   role            UserRole  @default(RESIDENT)
@@ -156,6 +168,12 @@ model Case {
   respondentName     String?      @map("respondent_name")
   respondentContact  String?      @map("respondent_contact")
   respondentAddress  String?      @map("respondent_address")
+  incidentStreet      String?      @map("incident_street")
+  incidentPurok       Int?         @map("incident_purok")
+  incidentLatitude    Float?       @map("incident_latitude")
+  incidentLongitude   Float?       @map("incident_longitude")
+  incidentAccuracy    Float?       @map("incident_accuracy")
+  incidentLocation    String?      @map("incident_location")
   assignedOfficerId  String?      @map("assigned_officer_id")
   category           CaseCategory
   type               String
@@ -181,7 +199,6 @@ model Case {
   statusHistory      CaseStatusHistory[]
   settlement         Settlement?
   monitoring         CaseMonitoring?
-  auditLogs          AuditLog[]
   chatMessages       CaseChatMessage[]
 
   @@map("cases")
@@ -289,8 +306,6 @@ model AuditLog {
   targetId    String      @map("target_id")
   changes     Json
   loggedAt    DateTime    @default(now()) @map("logged_at")
-
-  case Case? @relation(fields: [targetId], references: [id], onDelete: SetNull, map: "audit_logs_case_fk")
 
   @@map("audit_logs")
 }

@@ -11,45 +11,6 @@ export interface RecentCaseItem {
   created_at: string
 }
 
-/* MOCK DATA */
-const MOCK_CASES: RecentCaseItem[] = [
-  {
-    id: "C-001",
-    title: "Noise complaint at Block 4",
-    category: "Disturbance",
-    status: "pending",
-    created_at: "2026-05-09T10:30:00Z",
-  },
-  {
-    id: "C-002",
-    title: "Property boundary dispute",
-    category: "Land Conflict",
-    status: "under_review",
-    created_at: "2026-05-08T14:12:00Z",
-  },
-  {
-    id: "C-003",
-    title: "Public disturbance report",
-    category: "Peace & Order",
-    status: "resolved",
-    created_at: "2026-05-07T18:45:00Z",
-  },
-  {
-    id: "C-004",
-    title: "Unauthorized structure complaint",
-    category: "Community Dispute",
-    status: "pending",
-    created_at: "2026-05-07T09:20:00Z",
-  },
-  {
-    id: "C-005",
-    title: "Neighbor harassment report",
-    category: "Harassment",
-    status: "under_review",
-    created_at: "2026-05-06T16:05:00Z",
-  },
-]
-
 function getStatusMeta(status: string) {
   switch (status) {
     case "pending":
@@ -92,7 +53,7 @@ export function RecentCases({
 }: {
   data?: RecentCaseItem[]
 }) {
-  const cases = (data?.length ? data : MOCK_CASES).slice(0, 5)
+  const cases = (data ?? []).slice(0, 5)
 
   return (
     <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-5">
@@ -109,6 +70,11 @@ export function RecentCases({
 
       {/* GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {cases.length === 0 && (
+          <div className="col-span-full rounded-xl border border-dashed border-border bg-background p-8 text-center text-sm text-muted-foreground">
+            No recent cases found.
+          </div>
+        )}
         {cases.map((c) => {
           const status = getStatusMeta(c.status)
 

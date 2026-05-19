@@ -6,10 +6,9 @@ import { useRouter } from "next/navigation"
 import {
   AlertTriangle,
   ArrowLeft,
-  FileText,
   Gavel,
   Info,
-  Scale,
+  MapPin,
   ShieldAlert,
 } from "lucide-react"
 
@@ -34,10 +33,13 @@ import {
 import {
   CATEGORY_SCOPE_RULES,
   evaluateResidentReportScope,
-  type ScopeEvaluation,
 } from "@/lib/residentReportScope"
 
 import type { CaseCategory } from "@/lib/types"
+import {
+  resolveEastTapinacLocation,
+  type GeoPoint,
+} from "@/lib/east-tapinac-geo"
 
 const categories: CaseCategory[] = [
   "Violence or Threats",
@@ -49,17 +51,25 @@ const categories: CaseCategory[] = [
   "Child & Vulnerable Protection",
 ]
 
+function formatDateInput(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
 export default function ResidentReportIntakePage() {
   const router = useRouter()
   const { toast } = useToast()
   const initialUser = getAuthUser()
 
-  const [fullName, setFullName] = useState(initialUser?.email ?? "")
+  const [fullName, setFullName] = useState("")
   const [contact, setContact] = useState("")
   const [email, setEmail] = useState(initialUser?.email ?? "")
-  const [street, setStreet] = useState("")
+  const [incidentLocation, setIncidentLocation] =
+    useState<(GeoPoint & { address: string; street: string; purok: number }) | null>(null)
+  const [isLocating, setIsLocating] = useState(false)
   const [incidentDate, setIncidentDate] = useState("")
-  const [incidentCity, setIncidentCity] = useState("Olongapo City")
   const [category, setCategory] =
     useState<CaseCategory>("Community Dispute")
   const [details, setDetails] = useState("")
@@ -83,15 +93,13 @@ export default function ResidentReportIntakePage() {
     useState(false)
   const [flagHumanRights, setFlagHumanRights] = useState(false)
 
-  const [submitEvaluation, setSubmitEvaluation] =
-    useState<ScopeEvaluation | null>(null)
-
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [openGuide, setOpenGuide] = useState(true)
   const [openScopeModal, setOpenScopeModal] = useState(false)
   const [openRestrictionModal, setOpenRestrictionModal] =
     useState(false)
+  const todayInput = formatDateInput(new Date())
 
   useEffect(() => {
     const user = getAuthUser()
@@ -105,6 +113,26 @@ export default function ResidentReportIntakePage() {
       router.push(getRoleLandingPath(user.role))
       return
     }
+
+    const residentEmail = user.email
+
+    async function loadProfile() {
+      try {
+        await Promise.resolve()
+        setEmail(residentEmail)
+        const response = await fetch(`/api/resident/profile?email=${encodeURIComponent(residentEmail)}`)
+        const result = await response.json()
+        if (result.success && result.data) {
+          setFullName(result.data.fullName || residentEmail)
+          setContact(result.data.phone || "")
+        }
+      } catch (error) {
+        console.error("Failed to load resident profile:", error)
+        setFullName(residentEmail)
+      }
+    }
+
+    loadProfile()
   }, [router])
 
   useEffect(() => {
@@ -114,7 +142,7 @@ export default function ResidentReportIntakePage() {
       flagVehicularAccident ||
       possiblePenaltyOverOneYear
     ) {
-      setOpenRestrictionModal(true)
+      queueMicrotask(() => setOpenRestrictionModal(true))
     }
   }, [
     flagCybercrime,
@@ -133,7 +161,7 @@ export default function ResidentReportIntakePage() {
     () =>
       evaluateResidentReportScope({
         category,
-        incidentCity,
+        incidentCity: "Olongapo City",
         respondentWithinBarangay,
         respondentHomeless,
         estimatedClaimAmount: parsedAmount,
@@ -148,7 +176,6 @@ export default function ResidentReportIntakePage() {
       }),
     [
       category,
-      incidentCity,
       respondentWithinBarangay,
       respondentHomeless,
       parsedAmount,
@@ -167,7 +194,7 @@ export default function ResidentReportIntakePage() {
     if (
       !fullName ||
       !contact ||
-      !street ||
+      !incidentLocation ||
       !incidentDate ||
       !details
     ) {
@@ -179,11 +206,20 @@ export default function ResidentReportIntakePage() {
       return
     }
 
+    if (incidentDate > todayInput) {
+      toast({
+        title: "Invalid incident date",
+        description: "Incident date cannot be in the future.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     const evaluation = evaluateResidentReportScope({
       category,
-      incidentCity,
+      incidentCity: "Olongapo City",
       respondentWithinBarangay,
       respondentHomeless,
       estimatedClaimAmount: parsedAmount,
@@ -196,8 +232,6 @@ export default function ResidentReportIntakePage() {
         humanRightsViolation: flagHumanRights,
       },
     })
-
-    setSubmitEvaluation(evaluation)
 
     if (!evaluation.allowed) {
       setIsSubmitting(false)
@@ -214,6 +248,7 @@ export default function ResidentReportIntakePage() {
     }
 
     let created: { id: string } | null = null
+    let submitError = "Unable to save report. Please try again."
 
     try {
       const response = await fetch("/api/resident/cases", {
@@ -227,13 +262,18 @@ export default function ResidentReportIntakePage() {
           incidentDate,
           contact,
           email,
-          street,
+          street: incidentLocation.street,
+          incidentLatitude: incidentLocation.latitude,
+          incidentLongitude: incidentLocation.longitude,
+          incidentAccuracy: incidentLocation.accuracy,
+          incidentLocation: incidentLocation.address,
           details,
         }),
       })
 
       const result = await response.json()
       created = result.success ? result.data : null
+      if (!result.success && result.message) submitError = result.message
     } catch {
       created = null
     }
@@ -243,8 +283,7 @@ export default function ResidentReportIntakePage() {
     if (!created) {
       toast({
         title: "Submission failed",
-        description:
-          "Unable to save report. Please try again.",
+        description: submitError,
         variant: "destructive",
       })
       return
@@ -256,6 +295,40 @@ export default function ResidentReportIntakePage() {
     })
 
     router.push("/resident")
+  }
+
+  const captureIncidentLocation = () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Location unavailable",
+        description: "Your browser does not support location services.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const point = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        }
+        const resolvedLocation = await resolveEastTapinacLocation(point)
+        setIncidentLocation(resolvedLocation)
+        setIsLocating(false)
+      },
+      (error) => {
+        setIsLocating(false)
+        toast({
+          title: "Location permission needed",
+          description: error.message || "Allow location access to attach the incident location.",
+          variant: "destructive",
+        })
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    )
   }
 
   return (
@@ -339,10 +412,8 @@ export default function ResidentReportIntakePage() {
 
                       <input
                         value={fullName}
-                        onChange={(event) =>
-                          setFullName(event.target.value)
-                        }
-                        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm"
+                        readOnly
+                        className="w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground"
                       />
                     </label>
 
@@ -362,15 +433,13 @@ export default function ResidentReportIntakePage() {
 
                     <label className="space-y-2">
                       <span className="text-sm font-medium">
-                        Email (optional)
+                        Email
                       </span>
 
                       <input
                         value={email}
-                        onChange={(event) =>
-                          setEmail(event.target.value)
-                        }
-                        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm"
+                        readOnly
+                        className="w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground"
                       />
                     </label>
 
@@ -382,6 +451,7 @@ export default function ResidentReportIntakePage() {
                       <input
                         type="date"
                         value={incidentDate}
+                        max={todayInput}
                         onChange={(event) =>
                           setIncidentDate(event.target.value)
                         }
@@ -390,19 +460,33 @@ export default function ResidentReportIntakePage() {
                     </label>
                   </div>
 
-                  <label className="space-y-2 block">
-                    <span className="text-sm font-medium">
-                      Address / Street *
-                    </span>
+                  <div className="rounded-2xl border border-border bg-background p-4">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className="rounded-xl bg-primary/10 p-2 text-primary">
+                          <MapPin className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Incident Location *</p>
+                          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                            {incidentLocation
+                              ? `${incidentLocation.address} (${incidentLocation.latitude.toFixed(5)}, ${incidentLocation.longitude.toFixed(5)})`
+                              : "Use device location to attach the exact incident area and derive the East Tapinac street/purok."}
+                          </p>
+                        </div>
+                      </div>
 
-                    <input
-                      value={street}
-                      onChange={(event) =>
-                        setStreet(event.target.value)
-                      }
-                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm"
-                    />
-                  </label>
+                      <button
+                        type="button"
+                        onClick={captureIncidentLocation}
+                        disabled={isLocating || isSubmitting}
+                        className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-medium text-primary hover:bg-muted disabled:opacity-60"
+                      >
+                        <MapPin className="h-4 w-4" />
+                        {isLocating ? "Locating..." : incidentLocation ? "Update location" : "Use incident location"}
+                      </button>
+                    </div>
+                  </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <label className="space-y-2">
@@ -426,20 +510,6 @@ export default function ResidentReportIntakePage() {
                           </option>
                         ))}
                       </select>
-                    </label>
-
-                    <label className="space-y-2">
-                      <span className="text-sm font-medium">
-                        Incident City *
-                      </span>
-
-                      <input
-                        value={incidentCity}
-                        onChange={(event) =>
-                          setIncidentCity(event.target.value)
-                        }
-                        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm"
-                      />
                     </label>
                   </div>
 

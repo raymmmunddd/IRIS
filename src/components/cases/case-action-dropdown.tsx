@@ -1,5 +1,6 @@
 "use client"
 
+import type React from "react"
 import { useEffect, useRef } from "react"
 import {
   MoreHorizontal,
@@ -8,6 +9,8 @@ import {
   Calendar,
   CircleCheck,
   XCircle,
+  RotateCcw,
+  Trash2,
 } from "lucide-react"
 
 interface CaseActionDropdownProps {
@@ -15,9 +18,17 @@ interface CaseActionDropdownProps {
   onToggle: () => void
   onClose: () => void
   onAction: (action: string) => void
+  mode?: "default" | "archive"
 }
 
-const actions = [
+type MenuAction = {
+  label: string
+  icon: React.ReactNode
+  key: string
+  danger?: boolean
+}
+
+const actions: MenuAction[] = [
   { label: "Verify", icon: <CheckCircle2 className="h-4 w-4" />, key: "verify" },
   { label: "Assign Officer", icon: <UserPlus className="h-4 w-4" />, key: "assign" },
   { label: "Schedule Mediation", icon: <Calendar className="h-4 w-4" />, key: "mediation" },
@@ -25,8 +36,14 @@ const actions = [
   { label: "Close Case", icon: <XCircle className="h-4 w-4" />, key: "close" },
 ]
 
-export function CaseActionDropdown({ isOpen, onToggle, onClose, onAction }: CaseActionDropdownProps) {
+const archiveActions: MenuAction[] = [
+  { label: "Restore", icon: <RotateCcw className="h-4 w-4" />, key: "restore" },
+  { label: "Delete", icon: <Trash2 className="h-4 w-4" />, key: "delete", danger: true },
+]
+
+export function CaseActionDropdown({ isOpen, onToggle, onClose, onAction, mode = "default" }: CaseActionDropdownProps) {
   const ref = useRef<HTMLDivElement>(null)
+  const visibleActions = mode === "archive" ? archiveActions : actions
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -55,7 +72,7 @@ export function CaseActionDropdown({ isOpen, onToggle, onClose, onAction }: Case
 
       {isOpen && (
         <div className="absolute right-0 top-full z-30 mt-1 w-52 rounded-xl border border-border bg-card py-1 shadow-lg">
-          {actions.map((action) => (
+          {visibleActions.map((action) => (
             <button
               key={action.key}
               onClick={(e) => {
@@ -63,7 +80,9 @@ export function CaseActionDropdown({ isOpen, onToggle, onClose, onAction }: Case
                 onAction(action.key)
                 onClose()
               }}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-card-foreground transition-colors hover:bg-muted"
+              className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-muted ${
+                action.danger ? "text-red-600" : "text-card-foreground"
+              }`}
             >
               <span className="text-muted-foreground">{action.icon}</span>
               <span>{action.label}</span>

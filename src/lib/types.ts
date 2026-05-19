@@ -55,8 +55,16 @@ export interface CaseRecord {
   evidenceFiles: EvidenceFile[];
   statusHistory?: StatusHistoryEntry[];
   assignedOfficerHistory?: OfficerHistoryEntry[];
+  aiAnalysis?: {
+    score: number;
+    confidence: number;
+    suggestion: string;
+    reasons: string[];
+    source: "gemini" | "rules";
+  };
   lastUpdated?: string;
   version?: number;
+  isArchived?: boolean;
 }
 
 export type Officer = string;

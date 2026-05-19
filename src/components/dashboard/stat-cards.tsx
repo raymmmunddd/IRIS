@@ -18,6 +18,14 @@ interface InsightCard {
   icon: React.ReactNode
 }
 
+export type DashboardStat = {
+  title: string
+  value: string
+  period?: string
+  change?: number
+  trending?: "up" | "down"
+}
+
 function InsightTile({
   title,
   value,
@@ -98,40 +106,35 @@ function InsightTile({
   )
 }
 
-export function StatCards() {
-  const insights: InsightCard[] = [
-  {
-    title: "Cases Being Handled",
-    value: "438 Cases",
-    description: "Cases currently under review.",
-    state: "warning",
-    icon: <Clock3 className="h-6 w-6" />,
-  },
+const iconByTitle: Record<string, React.ReactNode> = {
+  "Total Reports": <Activity className="h-6 w-6" />,
+  "Active Cases": <Clock3 className="h-6 w-6" />,
+  "Resolved Cases": <CheckCircle2 className="h-6 w-6" />,
+  "Urgent Cases": <AlertTriangle className="h-6 w-6" />,
+}
 
-  {
-    title: "Cases Resolved Faster",
-    value: "+18%",
-    description: "Cases finished this week.",
-    state: "positive",
-    icon: <TrendingUp className="h-6 w-6" />,
-  },
+function toInsight(item: DashboardStat): InsightCard {
+  const title = item.title.toLowerCase()
 
-  {
-    title: "New Incident Reports",
-    value: "Normal",
-    description: "New reports remain steady.",
-    state: "normal",
-    icon: <Activity className="h-6 w-6" />,
-  },
+  return {
+    title: item.title,
+    value: item.value,
+    description: item.period
+      ? `${item.period}${typeof item.change === "number" ? `, ${item.change}% ${item.trending ?? "change"}` : ""}`
+      : "Current database count.",
+    state: title.includes("urgent")
+      ? "critical"
+      : title.includes("resolved")
+        ? "positive"
+        : title.includes("active")
+          ? "warning"
+          : "normal",
+    icon: iconByTitle[item.title] ?? <TrendingUp className="h-6 w-6" />,
+  }
+}
 
-  {
-    title: "Urgent Cases",
-    value: "76 Cases",
-    description: "Needs immediate attention.",
-    state: "critical",
-    icon: <AlertTriangle className="h-6 w-6" />,
-  },
-  ]
+export function StatCards({ data = [] }: { data?: DashboardStat[] }) {
+  const insights = data.map(toInsight)
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

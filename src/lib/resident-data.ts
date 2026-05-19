@@ -1,4 +1,5 @@
 import {
+  AuditAction,
   CaseCategory as DbCaseCategory,
   CasePriority as DbCasePriority,
   CaseStatus as DbCaseStatus,
@@ -6,7 +7,17 @@ import {
   Prisma,
   UserRole,
 } from "@/generated/prisma/client"
+import { analyzeResidentReport } from "@/lib/ai-case-analysis"
+import { getAdminSettingsData } from "@/lib/admin-settings-data"
+import { writeAuditLog } from "@/lib/audit-logs"
 import { prisma } from "@/lib/prisma"
+import {
+  describeEastTapinacLocation,
+  findEastTapinacStreet,
+  getNearestEastTapinacStreet,
+  parseGeoCoordinate,
+  type GeoPoint,
+} from "@/lib/east-tapinac-geo"
 import type { CaseCategory } from "@/lib/types"
 
 const categoryLabels: Record<DbCaseCategory, CaseCategory> = {
@@ -140,6 +151,21 @@ async function findResidentByEmail(email: string) {
   })
 }
 
+function parseIncidentDate(value: string) {
+  const incidentDate = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(incidentDate.getTime())) {
+    throw new Error("Invalid incident date")
+  }
+
+  const today = new Date()
+  today.setHours(23, 59, 59, 999)
+  if (incidentDate > today) {
+    throw new Error("Incident date cannot be in the future")
+  }
+
+  return incidentDate
+}
+
 export async function getResidentCasesData(email: string) {
   const resident = await findResidentByEmail(email)
   if (!resident) return []
@@ -176,27 +202,64 @@ export async function createResidentCaseData(input: {
   incidentDate: string
   contact: string
   email: string
-  street: string
+  street?: string
+  incidentLatitude?: number | string | null
+  incidentLongitude?: number | string | null
+  incidentAccuracy?: number | string | null
+  incidentLocation?: string | null
   details: string
 }) {
   const email = input.email.trim().toLowerCase()
-  if (!input.fullName || !input.contact || !email || !input.street || !input.incidentDate || !input.details) {
+  const latitude = parseGeoCoordinate(input.incidentLatitude)
+  const longitude = parseGeoCoordinate(input.incidentLongitude)
+  const accuracy = parseGeoCoordinate(input.incidentAccuracy)
+  const incidentPoint = latitude !== null && longitude !== null
+    ? ({ latitude, longitude, accuracy } satisfies GeoPoint)
+    : null
+  const nearestStreet = incidentPoint ? getNearestEastTapinacStreet(incidentPoint) : null
+  const incidentLocation = input.incidentLocation?.trim() || describeEastTapinacLocation(nearestStreet)
+  const addressStreet = findEastTapinacStreet(incidentLocation)
+  const inputStreet = findEastTapinacStreet(input.street)
+  const resolvedStreet = addressStreet ?? inputStreet ?? nearestStreet
+  const incidentStreet = resolvedStreet?.name || input.street?.trim() || ""
+  const incidentDate = parseIncidentDate(input.incidentDate)
+
+  if (!input.contact || !email || !incidentStreet || !input.details) {
     throw new Error("Missing required report details")
   }
+
+  const settings = await getAdminSettingsData()
+  const analysis = await analyzeResidentReport({
+    selectedCategory: input.category,
+    details: input.details,
+    contact: input.contact,
+    incidentLocation,
+  }, settings.aiConfig)
+  const minimumConfidence = Number(settings.aiConfig.autoConfidence) || 85
+  const finalCategory = analysis.confidence >= minimumConfidence ? analysis.category : input.category
 
   const resident = await prisma.user.upsert({
     where: { email },
     update: {
-      fullName: input.fullName,
       contact: input.contact,
-      street: input.street,
+      street: incidentStreet,
+      locationLatitude: latitude,
+      locationLongitude: longitude,
+      locationAccuracy: accuracy,
+      locationAddress: incidentLocation,
+      locationCapturedAt: incidentPoint ? new Date() : undefined,
       role: UserRole.RESIDENT,
     },
     create: {
-      fullName: input.fullName,
+      fullName: input.fullName || email,
       email,
       contact: input.contact,
-      street: input.street,
+      street: incidentStreet,
+      locationLatitude: latitude,
+      locationLongitude: longitude,
+      locationAccuracy: accuracy,
+      locationAddress: incidentLocation,
+      locationCapturedAt: incidentPoint ? new Date() : undefined,
       role: UserRole.RESIDENT,
     },
   })
@@ -204,12 +267,18 @@ export async function createResidentCaseData(input: {
   const created = await prisma.case.create({
     data: {
       complainantId: resident.id,
-      category: categoryFromLabel[input.category] ?? DbCaseCategory.OTHER,
-      type: "Resident Report",
+      category: categoryFromLabel[finalCategory] ?? DbCaseCategory.OTHER,
+      type: `${finalCategory} Report`,
       details: input.details,
-      priority: priorityFromCategory[input.category] ?? DbCasePriority.MEDIUM,
+      priority: analysis.dbPriority ?? priorityFromCategory[finalCategory] ?? DbCasePriority.MEDIUM,
       status: DbCaseStatus.PENDING,
-      incidentDate: new Date(input.incidentDate),
+      incidentStreet,
+      incidentPurok: resolvedStreet?.purok,
+      incidentLatitude: latitude,
+      incidentLongitude: longitude,
+      incidentAccuracy: accuracy,
+      incidentLocation,
+      incidentDate,
     },
     include: caseInclude,
   })
@@ -221,6 +290,23 @@ export async function createResidentCaseData(input: {
       message: `${caseNumber(created.id, created.dateSubmitted)} was submitted for barangay review.`,
     },
   })
+
+  try {
+    await writeAuditLog({
+      actorId: resident.id,
+      action: AuditAction.CREATE,
+      target: { table: "cases", id: created.id },
+      changes: {
+        caseNumber: caseNumber(created.id, created.dateSubmitted),
+        category: created.category,
+        priority: created.priority,
+        status: created.status,
+        submittedBy: resident.email,
+      },
+    })
+  } catch (error) {
+    console.error("Failed to write resident report audit log:", error)
+  }
 
   return mapResidentCase(created)
 }

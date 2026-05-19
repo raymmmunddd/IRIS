@@ -3,7 +3,6 @@ import {
   CaseCategory as DbCaseCategory,
   CasePriority as DbCasePriority,
   CaseStatus as DbCaseStatus,
-  HearingOutcome,
   HearingStage,
   HearingStatus,
   NotificationType,
@@ -13,6 +12,9 @@ import {
   UserStatus,
 } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
+import { getAuditLogsData, getSystemActorId, writeAuditLog } from "@/lib/audit-logs"
+import { analyzeStoredCase } from "@/lib/ai-case-analysis"
+import { findEastTapinacStreet } from "@/lib/east-tapinac-geo"
 import type { CaseCategory, CasePriority, CaseRecord, CaseStatus, EvidenceFile } from "@/lib/types"
 
 const categoryLabels: Record<DbCaseCategory, CaseCategory> = {
@@ -21,16 +23,6 @@ const categoryLabels: Record<DbCaseCategory, CaseCategory> = {
   VAWC: "Harassment & Abuse",
   ORDINANCE_VIOLATION: "Public Disturbance",
   OTHER: "Community Dispute",
-}
-
-const categoryFromLabel: Partial<Record<CaseCategory, DbCaseCategory>> = {
-  "Violence or Threats": DbCaseCategory.INJURY,
-  "Harassment & Abuse": DbCaseCategory.VAWC,
-  "Fraud & Scams": DbCaseCategory.OTHER,
-  "Public Disturbance": DbCaseCategory.ORDINANCE_VIOLATION,
-  "Property & Theft": DbCaseCategory.OTHER,
-  "Community Dispute": DbCaseCategory.DISPUTE,
-  "Child & Vulnerable Protection": DbCaseCategory.VAWC,
 }
 
 const priorityLabels: Record<DbCasePriority, CasePriority> = {
@@ -131,7 +123,7 @@ export function mapCaseRecord(item: CaseWithRelations): CaseRecord {
     gender: complainant.gender ?? "Not specified",
     contact: complainant.contact ?? "Not provided",
     email: complainant.email,
-    street: complainant.street || item.respondentAddress || "Not specified",
+    street: item.incidentStreet || complainant.street || item.respondentAddress || "Not specified",
     details: item.details,
     dateSubmitted,
     incidentDate: formatDate(item.incidentDate),
@@ -153,8 +145,14 @@ export function mapCaseRecord(item: CaseWithRelations): CaseRecord {
     assignedOfficerHistory: item.assignedOfficer
       ? [{ officer: assignedOfficer, assignedAt: item.updatedAt.toISOString(), assignedBy: "System" }]
       : [{ officer: "Unassigned", assignedAt: item.dateSubmitted.toISOString(), assignedBy: "System" }],
+    aiAnalysis: analyzeStoredCase({
+      selectedCategory: categoryLabels[item.category],
+      details: item.details,
+      incidentLocation: item.incidentLocation ?? item.incidentStreet,
+    }),
     lastUpdated: item.updatedAt.toISOString(),
     version: 1,
+    isArchived: item.isArchived,
   }
 }
 
@@ -239,14 +237,26 @@ export async function getCaseData(id: string) {
   return item ? mapCaseRecord(item) : null
 }
 
-export async function updateCaseData(id: string, input: { status?: CaseStatus; assignedOfficer?: string }) {
+export async function updateCaseData(id: string, input: { status?: CaseStatus; assignedOfficer?: string; action?: "restore" }) {
   const current = await prisma.case.findUnique({ where: { id } })
   if (!current) return null
 
   const data: Prisma.CaseUpdateInput = {}
 
+  if (input.action === "restore") {
+    data.status = DbCaseStatus.UNDER_REVIEW
+    data.isArchived = false
+    data.archivedAt = null
+    data.archivedReason = null
+  }
+
   if (input.status) {
     data.status = statusFromLabel[input.status]
+    if (input.status === "Resolved" || input.status === "Closed") {
+      data.isArchived = true
+      data.archivedAt = new Date()
+      data.archivedReason = input.status === "Resolved" ? "Resolved case" : "Closed case"
+    }
   }
 
   if (input.assignedOfficer) {
@@ -260,21 +270,71 @@ export async function updateCaseData(id: string, input: { status?: CaseStatus; a
 
   await prisma.case.update({ where: { id }, data })
 
-  if (input.status && statusFromLabel[input.status] !== current.status) {
-    const actor = await prisma.user.findFirst({ where: { role: UserRole.ADMIN } })
-    if (actor) {
+  const actorId = await getSystemActorId()
+
+  if (actorId && input.status && statusFromLabel[input.status] !== current.status) {
       await prisma.caseStatusHistory.create({
         data: {
           caseId: id,
-          changedBy: actor.id,
+          changedBy: actorId,
           oldStatus: current.status,
           newStatus: statusFromLabel[input.status],
         },
       })
-    }
+  }
+
+  if (input.action === "restore") {
+    await writeAuditLog({
+      actorId,
+      action: AuditAction.UPDATE,
+      target: { table: "cases", id },
+      changes: {
+        restored: true,
+        oldStatus: current.status,
+        newStatus: DbCaseStatus.UNDER_REVIEW,
+      },
+    })
+  } else if (input.status && statusFromLabel[input.status] !== current.status) {
+    await writeAuditLog({
+      actorId,
+      action: input.status === "Resolved" || input.status === "Closed" ? AuditAction.ARCHIVE : AuditAction.STATUS_CHANGE,
+      target: { table: "cases", id },
+      changes: {
+        oldStatus: current.status,
+        newStatus: statusFromLabel[input.status],
+      },
+    })
+  }
+
+  if (input.assignedOfficer) {
+    await writeAuditLog({
+      actorId,
+      action: AuditAction.ASSIGN,
+      target: { table: "cases", id },
+      changes: {
+        oldOfficerId: current.assignedOfficerId,
+        assignedOfficer: input.assignedOfficer,
+      },
+    })
   }
 
   return getCaseData(id)
+}
+
+export async function deleteCaseData(id: string) {
+  const current = await prisma.case.findUnique({ where: { id } })
+  if (!current) return null
+
+  await writeAuditLog({
+    action: AuditAction.DELETE,
+    target: { table: "cases", id },
+    changes: {
+      caseType: current.type,
+      status: current.status,
+    },
+  })
+
+  return prisma.case.delete({ where: { id } })
 }
 
 export async function createCaseNoteData(id: string, note: string) {
@@ -329,9 +389,12 @@ export async function requestCaseInfoData(id: string, message: string) {
 
 export async function getDashboardData() {
   const [cases, officers, users] = await Promise.all([
-    prisma.case.findMany({ select: { status: true, priority: true, category: true, dateSubmitted: true } }),
+    prisma.case.findMany({
+      select: { id: true, status: true, priority: true, category: true, type: true, dateSubmitted: true },
+      orderBy: { dateSubmitted: "desc" },
+    }),
     prisma.officer.count(),
-    prisma.user.count({ where: { isArchived: false } }),
+    prisma.user.count({ where: { role: UserRole.RESIDENT, isArchived: false } }),
   ])
   const weekStart = startOfWeek()
   const priorWeekStart = new Date(weekStart)
@@ -362,6 +425,18 @@ export async function getDashboardData() {
       officers,
       users,
     },
+    recentCases: cases.slice(0, 5).map((item) => ({
+      id: item.id,
+      title: item.type,
+      category: categoryLabels[item.category],
+      status:
+        item.status === DbCaseStatus.RESOLVED
+          ? "resolved"
+          : statusLabels[item.status] === "Under Review"
+            ? "under_review"
+            : "pending",
+      created_at: item.dateSubmitted.toISOString(),
+    })),
   }
 }
 
@@ -484,17 +559,52 @@ export async function assignCaseData(input: { caseId: string; officerId: string 
 
 export async function getReportsData() {
   const [dashboard, operations] = await Promise.all([getDashboardData(), getOperationsData()])
-  const cases = await prisma.case.findMany({
-    include: { complainant: true },
-  })
+  const cases = await prisma.case.findMany({ include: { complainant: true } })
   const resolved = cases.filter((item) => item.status === DbCaseStatus.RESOLVED).length
   const topCategory = categoryPercentages(cases).sort((a, b) => b.value - a.value)[0]
-  const streetCounts = new Map<string, number>()
+  const streetCounts = new Map<string, {
+    cases: number
+    urgent: number
+    points: Array<{
+      id: string
+      label: string
+      name: string
+      lat: number
+      lng: number
+      urgent: boolean
+      recorded: boolean
+      purok?: number | null
+    }>
+  }>()
+
   cases.forEach((item) => {
-    const street = item.complainant.street ?? "Unspecified"
-    streetCounts.set(street, (streetCounts.get(street) ?? 0) + 1)
+    const street = item.incidentStreet ?? item.complainant.street ?? "Unspecified"
+    const current = streetCounts.get(street) ?? { cases: 0, urgent: 0, points: [] }
+    const knownStreet = findEastTapinacStreet(street)
+    const hasRecordedPoint = item.incidentLatitude !== null && item.incidentLongitude !== null
+    const lat = hasRecordedPoint ? item.incidentLatitude : knownStreet?.lat
+    const lng = hasRecordedPoint ? item.incidentLongitude : knownStreet?.lng
+    const isUrgent = item.priority === DbCasePriority.URGENT || item.priority === DbCasePriority.HIGH
+
+    current.cases += 1
+    if (isUrgent) current.urgent += 1
+
+    if (lat !== null && lat !== undefined && lng !== null && lng !== undefined) {
+      current.points.push({
+        id: item.id,
+        label: caseNumber(item.id, item.dateSubmitted),
+        name: street,
+        lat,
+        lng,
+        urgent: isUrgent,
+        recorded: hasRecordedPoint,
+        purok: item.incidentPurok ?? knownStreet?.purok ?? null,
+      })
+    }
+
+    streetCounts.set(street, current)
   })
-  const topStreet = [...streetCounts.entries()].sort((a, b) => b[1] - a[1])[0] ?? ["Unspecified", 0]
+  const topStreet = [...streetCounts.entries()].sort((a, b) => b[1].cases - a[1].cases)[0] ?? ["Unspecified", { cases: 0 }]
 
   return {
     ...dashboard,
@@ -509,10 +619,21 @@ export async function getReportsData() {
     })),
     keyInsights: {
       topStreet: topStreet[0],
-      topStreetCount: topStreet[1],
+      topStreetCount: topStreet[1].cases,
       topCategory: topCategory?.name ?? "No cases",
       topCategoryCount: Math.round(((topCategory?.value ?? 0) / 100) * cases.length),
     },
+    streetStats: [...streetCounts.entries()].map(([name, value]) => {
+      const street = findEastTapinacStreet(name)
+      return {
+        name,
+        cases: value.cases,
+        urgent: value.urgent,
+        lat: street?.lat,
+        lng: street?.lng,
+        points: value.points,
+      }
+    }),
     officerPerformance: operations.officers.slice(0, 5),
   }
 }
@@ -521,7 +642,7 @@ export async function getAdminData() {
   const [users, announcements, auditLogs] = await Promise.all([
     prisma.user.findMany({ where: { isArchived: false }, orderBy: { createdAt: "desc" } }),
     prisma.announcement.findMany({ include: { author: true }, orderBy: { publishedAt: "desc" } }),
-    prisma.auditLog.findMany({ orderBy: { loggedAt: "desc" }, take: 50 }),
+    getAuditLogsData(50),
   ])
 
   return {
@@ -541,45 +662,72 @@ export async function getAdminData() {
       date: formatDate(announcement.publishedAt),
       isPinned: false,
     })),
-    auditLogs: auditLogs.map((log) => ({
-      id: log.id,
-      action: log.action.replaceAll("_", " "),
-      user: log.actorId,
-      target: log.targetId,
-      timestamp: formatDateTime(log.loggedAt),
-      ip: "Not tracked",
-    })),
+    auditLogs,
   }
 }
 
 export async function updateUserStatusData(id: string, status: "Verified" | "Suspended" | "Pending") {
   const nextStatus = status === "Verified" ? UserStatus.ACTIVE : status === "Suspended" ? UserStatus.SUSPENDED : UserStatus.INACTIVE
-  return prisma.user.update({ where: { id }, data: { status: nextStatus } })
+  const current = await prisma.user.findUnique({ where: { id }, select: { status: true } })
+  const user = await prisma.user.update({ where: { id }, data: { status: nextStatus } })
+
+  await writeAuditLog({
+    action: AuditAction.UPDATE,
+    target: { table: "users", id },
+    changes: { oldStatus: current?.status, newStatus: nextStatus },
+  })
+
+  return user
 }
 
 export async function createAnnouncementData(input: { title: string; content: string }) {
   const author = await prisma.user.findFirst({ where: { role: UserRole.ADMIN } })
   if (!author) return null
-  return prisma.announcement.create({
+  const announcement = await prisma.announcement.create({
     data: {
       createdBy: author.id,
       title: input.title,
       content: input.content,
     },
   })
+
+  await writeAuditLog({
+    actorId: author.id,
+    action: AuditAction.CREATE,
+    target: { table: "announcements", id: announcement.id },
+    changes: { title: input.title },
+  })
+
+  return announcement
 }
 
 export async function updateAnnouncementData(id: string, input: { title: string; content: string }) {
-  return prisma.announcement.update({
+  const current = await prisma.announcement.findUnique({ where: { id } })
+  const announcement = await prisma.announcement.update({
     where: { id },
     data: {
       title: input.title,
       content: input.content,
     },
   })
+
+  await writeAuditLog({
+    action: AuditAction.UPDATE,
+    target: { table: "announcements", id },
+    changes: { oldTitle: current?.title, newTitle: input.title },
+  })
+
+  return announcement
 }
 
 export async function deleteAnnouncementData(id: string) {
+  const current = await prisma.announcement.findUnique({ where: { id } })
+  await writeAuditLog({
+    action: AuditAction.DELETE,
+    target: { table: "announcements", id },
+    changes: { title: current?.title },
+  })
+
   return prisma.announcement.delete({ where: { id } })
 }
 

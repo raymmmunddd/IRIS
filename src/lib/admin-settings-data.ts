@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma"
 
-type AiConfig = {
+export type AiConfig = {
   highPriorityThreshold: string
   criticalPriorityThreshold: string
   autoConfidence: string
@@ -12,7 +12,7 @@ type RolePermission = {
   denied: string[]
 }
 
-const DEFAULT_AI_CONFIG: AiConfig = {
+export const DEFAULT_AI_CONFIG: AiConfig = {
   highPriorityThreshold: "7.0",
   criticalPriorityThreshold: "9.0",
   autoConfidence: "85",
@@ -20,14 +20,12 @@ const DEFAULT_AI_CONFIG: AiConfig = {
 
 const DEFAULT_CATEGORIES = [
   "Violence or Threats",
-  "Harassment & Bullying",
-  "Online & Cyber Issues",
+  "Harassment & Abuse",
+  "Fraud & Scams",
   "Public Disturbance",
-  "Property & Damage",
-  "Noise Complaint",
-  "Environmental Concerns",
-  "Community Safety",
-  "Others",
+  "Property & Theft",
+  "Community Dispute",
+  "Child & Vulnerable Protection",
 ]
 
 const DEFAULT_PERMISSIONS: RolePermission[] = [

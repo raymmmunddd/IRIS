@@ -72,6 +72,9 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, o
         : []
 
     const isArchived = caseData.status === "Resolved" || caseData.status === "Closed"
+    const aiAnalysis = caseData.aiAnalysis
+    const aiScore = aiAnalysis?.score ?? (caseData.priority === "High" ? 8 : caseData.priority === "Medium" ? 5.5 : 3.5)
+    const aiProgress = Math.min(100, Math.max(0, aiScore * 10))
 
     const updateCase = async (input: { status?: CaseRecord["status"]; assignedOfficer?: string }, successMessage: string) => {
         const response = await fetch(`/api/cases/${encodeURIComponent(caseData.id)}`, {
@@ -374,19 +377,41 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, o
                         <div>
                             <div className="flex items-center justify-between mb-2">
                                 <span className="text-sm font-medium text-blue-900">Priority Score</span>
-                                <span className="text-sm font-bold text-blue-700">8.5/10</span>
+                                <span className="text-sm font-bold text-blue-700">{aiScore.toFixed(1)}/10</span>
                             </div>
                             <div className="h-2 w-full bg-blue-200/50 rounded-full overflow-hidden">
-                                <div className="h-full bg-blue-600 w-[85%] rounded-full" />
+                                <div className="h-full bg-blue-600 rounded-full" style={{ width: `${aiProgress}%` }} />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="rounded-lg border border-blue-100 bg-white/60 p-3">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-blue-800">Category</p>
+                                <p className="mt-1 text-sm font-medium text-blue-950">{caseData.category}</p>
+                            </div>
+                            <div className="rounded-lg border border-blue-100 bg-white/60 p-3">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-blue-800">Confidence</p>
+                                <p className="mt-1 text-sm font-medium text-blue-950">{aiAnalysis?.confidence ?? 70}%</p>
                             </div>
                         </div>
                         
                         <div>
                             <h3 className="text-xs font-semibold text-blue-800 uppercase tracking-wider mb-2">AI Suggestion</h3>
                             <p className="text-sm text-blue-800/80 leading-relaxed">
-                                Recommend immediate mediation. Pattern analysis indicates escalating behavior. Similar cases resolved through community dialogue.
+                                {aiAnalysis?.suggestion ?? "Review report details, confirm jurisdiction, and request missing evidence before moving the case forward."}
                             </p>
                         </div>
+
+                        {aiAnalysis?.reasons?.length ? (
+                            <div>
+                                <h3 className="text-xs font-semibold text-blue-800 uppercase tracking-wider mb-2">Signals</h3>
+                                <ul className="space-y-1 text-sm text-blue-800/80">
+                                    {aiAnalysis.reasons.map((reason) => (
+                                        <li key={reason}>- {reason}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ) : null}
                     </div>
                 </div>
 
