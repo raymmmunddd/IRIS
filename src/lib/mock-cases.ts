@@ -1,1 +1,1 @@
-export const mockCases = []
+import type { CaseRecord } from "./types"; export const mockCases: CaseRecord[] = []
