@@ -1,1 +1,1 @@
-export function DashboardHeader({ title, description }: { title: string; description?: string }) { return null }
+export function DashboardHeader({ title, description, actionSlot }: { title: string; description?: string; actionSlot?: React.ReactNode }) { return null }
