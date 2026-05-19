@@ -1,5 +1,5 @@
-export const dynamic = 'force-dynamic'
 "use client"
+export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from "react"
 import { CheckCircle2, KeyRound, Mail, RotateCw, Save, Upload, UserCircle2 } from "lucide-react"

@@ -1,5 +1,5 @@
-export const dynamic = 'force-dynamic'
 "use client";
+export const dynamic = 'force-dynamic'
 
 type PaletteItem = { name: string; token: string; fallback?: string; note?: string }
 
