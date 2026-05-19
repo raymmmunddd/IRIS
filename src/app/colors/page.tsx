@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 "use client";
 
 type PaletteItem = { name: string; token: string; fallback?: string; note?: string }
