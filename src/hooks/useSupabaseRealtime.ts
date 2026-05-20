@@ -16,6 +16,7 @@ export type RealtimeTable =
   | "user_activities"
 
 let client: SupabaseClient | null | undefined
+let channelId = 0
 
 function getRealtimeClient() {
   if (client !== undefined) return client
@@ -45,7 +46,7 @@ export function useSupabaseRealtime(tables: RealtimeTable[], onChange: () => voi
     if (!supabase || !tableKey) return
 
     let refreshTimer: number | null = null
-    const channel = supabase.channel(`iris-realtime-${tableKey}`)
+    const channel = supabase.channel(`iris-realtime-${tableKey}-${channelId++}`)
     const tableNames = tableKey.split("|").filter(Boolean) as RealtimeTable[]
 
     const refresh = () => {

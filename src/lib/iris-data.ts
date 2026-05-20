@@ -361,19 +361,17 @@ export async function getCasesData(input?: {
         ? [{ priority: "desc" }, { dateSubmitted: "desc" }]
         : [{ dateSubmitted: "desc" }]
 
-  const [cases, total, pending, active, archive] = await Promise.all([
-    prisma.case.findMany({
-      where,
-      include: caseInclude,
-      orderBy,
-      take: limit,
-      skip: (page - 1) * limit,
-    }),
-    prisma.case.count({ where }),
-    prisma.case.count({ where: getCaseTabWhere("pending") }),
-    prisma.case.count({ where: getCaseTabWhere("active") }),
-    prisma.case.count({ where: getCaseTabWhere("archive") }),
-  ])
+  const cases = await prisma.case.findMany({
+    where,
+    include: caseInclude,
+    orderBy,
+    take: limit,
+    skip: (page - 1) * limit,
+  })
+  const total = await prisma.case.count({ where })
+  const pending = await prisma.case.count({ where: getCaseTabWhere("pending") })
+  const active = await prisma.case.count({ where: getCaseTabWhere("active") })
+  const archive = await prisma.case.count({ where: getCaseTabWhere("archive") })
 
   return {
     items: cases.map(mapCaseRecord),

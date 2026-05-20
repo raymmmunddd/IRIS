@@ -61,7 +61,7 @@ function saveNotifs(notifs: ResidentNotif[]) {
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [notifs, setNotifs] = useState<ResidentNotif[]>(loadNotifs);
+  const [notifs, setNotifs] = useState<ResidentNotif[]>(INITIAL_NOTIFS);
   const [menuPosition, setMenuPosition] = useState({ top: 0, right: 16 });
   const ref = useRef<HTMLDivElement>(null);
 

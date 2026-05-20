@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardList, LifeBuoy, Megaphone, Plus } from "lucide-react";
-import { getAuthUser, getRoleLandingPath, isRoleAuthorized } from "@/lib/auth";
+import { getAuthUser, getRoleLandingPath, type AuthUser } from "@/lib/auth";
 import { ResidentSidebar } from "@/components/resident/sidebar";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ResidentNav } from "@/components/ResidentNav";
@@ -48,22 +48,26 @@ const shortcuts = [
 
 export default function ResidentPage() {
   const router = useRouter();
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [recentUpdates, setRecentUpdates] = useState(fallbackRecentUpdates);
 
   const loadDashboard = useCallback(() => {
-    const user = getAuthUser();
+    const authUser = getAuthUser();
 
-    if (!user) {
+    if (!authUser) {
+      setUser(null);
       router.push("/login");
       return;
     }
 
-    if (!isRoleAuthorized(["resident"])) {
-      router.push(getRoleLandingPath(user.role));
+    setUser(authUser);
+
+    if (authUser.role !== "resident") {
+      router.push(getRoleLandingPath(authUser.role));
       return;
     }
 
-    fetch(`/api/resident/dashboard?email=${encodeURIComponent(user.email)}`)
+    fetch(`/api/resident/dashboard?email=${encodeURIComponent(authUser.email)}`)
       .then((response) => response.json())
       .then((result) => {
         if (result.success && result.data?.recentUpdates) {
@@ -74,12 +78,11 @@ export default function ResidentPage() {
   }, [router]);
 
   useEffect(() => {
-    loadDashboard();
+    const timeout = window.setTimeout(loadDashboard, 0);
+    return () => window.clearTimeout(timeout);
   }, [loadDashboard]);
 
   useSupabaseRealtime(["cases", "hearings", "notifications"], loadDashboard);
-
-  const user = getAuthUser();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">

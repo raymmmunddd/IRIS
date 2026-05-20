@@ -7,7 +7,7 @@ import { ArrowLeft, Bell, Briefcase, CheckCircle2, Clock, FileText, Settings } f
 import { ResidentNav } from "@/components/ResidentNav";
 import { ResidentSidebar } from "@/components/resident/sidebar";
 import { PageHeader } from "@/components/ui/page-header";
-import { type ResidentNotif, loadNotifs, saveNotifs } from "@/components/NotificationBell";
+import { INITIAL_NOTIFS, type ResidentNotif, loadNotifs, saveNotifs } from "@/components/NotificationBell";
 import { getAuthUser } from "@/lib/auth";
 import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime";
 
@@ -23,7 +23,7 @@ function getCategoryIcon(category: string) {
 }
 
 export default function UpdatesPage() {
-  const [notifs, setNotifs] = useState<ResidentNotif[]>(loadNotifs);
+  const [notifs, setNotifs] = useState<ResidentNotif[]>(INITIAL_NOTIFS);
 
   const loadNotifications = useCallback(() => {
     const user = getAuthUser();
