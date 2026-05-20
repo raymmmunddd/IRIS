@@ -2,9 +2,9 @@ import { PrismaPg } from "@prisma/adapter-pg"
 
 type DatabaseEnv = NodeJS.ProcessEnv
 
-const DEFAULT_POOL_MAX = 3
-const DEFAULT_IDLE_TIMEOUT_MS = 10_000
-const DEFAULT_CONNECTION_TIMEOUT_MS = 10_000
+const DEFAULT_POOL_MAX = 10
+const DEFAULT_IDLE_TIMEOUT_MS = 30_000
+const DEFAULT_CONNECTION_TIMEOUT_MS = 5_000
 const DEFAULT_MAX_LIFETIME_SECONDS = 300
 
 function readPositiveInteger(value: string | undefined, fallback: number) {

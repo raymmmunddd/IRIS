@@ -36,6 +36,8 @@ const formatPhilippinesContact = (value: string) => {
   return `+63${part1 ? ` ${part1}` : ""}${part2 ? ` ${part2}` : ""}${part3 ? ` ${part3}` : ""}`;
 };
 
+const cleanNameInput = (value: string) => value.replace(/\d/g, "");
+
 export default function SignupPage() {
   const { toast } = useToast();
   const router = useRouter();
@@ -56,7 +58,6 @@ export default function SignupPage() {
   const role: UserRole = "resident";
   const [legalDoc, setLegalDoc] = useState<"terms" | "privacy" | null>(null);
   const [legalAccepted, setLegalAccepted] = useState(false);
-  const [legalScrolledToEnd, setLegalScrolledToEnd] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [verificationOpen, setVerificationOpen] = useState(false);
@@ -281,7 +282,6 @@ export default function SignupPage() {
 
   const openLegalDoc = (doc: "terms" | "privacy") => {
     setLegalAccepted(false);
-    setLegalScrolledToEnd(doc === "privacy");
     setLegalDoc(doc);
   };
 
@@ -414,7 +414,7 @@ export default function SignupPage() {
                   autoComplete="given-name"
                   className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                   value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
+                  onChange={(e) => setFirstName(cleanNameInput(e.target.value))}
                   placeholder="First Name"
                   disabled={isLoading}
                 />
@@ -429,7 +429,7 @@ export default function SignupPage() {
                   autoComplete="family-name"
                   className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                   value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
+                  onChange={(e) => setLastName(cleanNameInput(e.target.value))}
                   placeholder="Last Name"
                   disabled={isLoading}
                 />
@@ -444,7 +444,7 @@ export default function SignupPage() {
                   autoComplete="additional-name"
                   className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
                   value={middleName}
-                  onChange={(e) => setMiddleName(e.target.value)}
+                  onChange={(e) => setMiddleName(cleanNameInput(e.target.value))}
                   placeholder="Middle Name"
                   disabled={isLoading}
                 />
@@ -817,12 +817,6 @@ export default function SignupPage() {
               </div>
               <div
                 className="flex-1 overflow-y-auto px-6 py-6 text-sm text-[var(--iris-text)] custom-scrollbar"
-                onScroll={(event) => {
-                  const target = event.currentTarget;
-                  if (target.scrollTop + target.clientHeight >= target.scrollHeight - 12) {
-                    setLegalScrolledToEnd(true);
-                  }
-                }}
               >
                 <div className="mb-6 rounded-2xl border border-[var(--iris-border)] bg-white/70 p-4 text-[var(--iris-primary-strong)]">
                   <p className="font-medium">{legalContent[legalDoc].intro}</p>
@@ -853,12 +847,11 @@ export default function SignupPage() {
                   <input
                     type="checkbox"
                     checked={legalAccepted}
-                    disabled={legalDoc === "terms" && !legalScrolledToEnd}
                     onChange={(e) => setLegalAccepted(e.target.checked)}
                     className="h-4 w-4 rounded border-[#D1D5DB] text-[var(--iris-primary)] focus:ring-[var(--iris-primary)] accent-[var(--iris-primary)]"
                   />
                   <span className="font-medium">
-                    {legalDoc === "terms" && !legalScrolledToEnd ? "Scroll to the bottom to accept" : "I have read and agree"}
+                    I have read and agree
                   </span>
                 </label>
                 <button
@@ -868,7 +861,7 @@ export default function SignupPage() {
                     if (legalDoc === "privacy") setPrivacyAccepted(true);
                     setLegalDoc(null);
                   }}
-                  disabled={!legalAccepted || (legalDoc === "terms" && !legalScrolledToEnd)}
+                  disabled={!legalAccepted}
                   className="rounded-lg bg-[var(--iris-primary)] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[var(--iris-primary-strong)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {legalDoc === "terms" ? "Accept Terms" : "Continue"}

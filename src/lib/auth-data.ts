@@ -69,6 +69,10 @@ function cleanNamePart(value: string | null | undefined) {
   return value?.trim().replace(/\s+/g, " ") || null
 }
 
+function hasNumber(value: string | null | undefined) {
+  return /\d/.test(value ?? "")
+}
+
 export function buildFullName(input: {
   firstName?: string | null
   middleName?: string | null
@@ -93,6 +97,10 @@ export function validateSignupInput(input: SignupInput) {
 
   if (!fullName || !cleanNamePart(input.firstName) || !cleanNamePart(input.lastName) || !input.email || !input.password || !input.confirmPassword || !input.contact || !input.gender) {
     return "Please fill in all required fields."
+  }
+
+  if (hasNumber(input.firstName) || hasNumber(input.middleName) || hasNumber(input.lastName)) {
+    return "Names cannot contain numbers."
   }
 
   if (!input.privacyAccepted || !input.termsAccepted) {
@@ -145,6 +153,46 @@ export async function emailExists(email: string) {
   })
 
   return Boolean(existing)
+}
+
+export async function activeUserExists(email: string) {
+  const existing = await prisma.user.findFirst({
+    where: {
+      email: email.trim().toLowerCase(),
+      status: UserStatus.ACTIVE,
+      isArchived: false,
+    },
+    select: { id: true },
+  })
+
+  return Boolean(existing)
+}
+
+export function validateNewPassword(input: { password: string; confirmPassword: string }) {
+  if (!input.password || !input.confirmPassword) {
+    return "Please enter and confirm your new password."
+  }
+
+  if (input.password !== input.confirmPassword) {
+    return "Passwords do not match."
+  }
+
+  if (input.password.length < 8 || !/[A-Z]/.test(input.password) || !/[a-z]/.test(input.password) || !/\d/.test(input.password) || !/[^A-Za-z0-9]/.test(input.password)) {
+    return "Password must be at least 8 characters and include uppercase, lowercase, number, and special character."
+  }
+
+  return null
+}
+
+export async function resetUserPassword(email: string, password: string) {
+  return prisma.user.update({
+    where: { email: email.trim().toLowerCase() },
+    data: {
+      password: hashPassword(password),
+      passwordLastUpdated: new Date(),
+    },
+    select: { id: true, email: true },
+  })
 }
 
 export async function createVerifiedUserData(input: SignupInput) {

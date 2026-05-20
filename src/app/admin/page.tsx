@@ -11,16 +11,43 @@ import { AuditLogsTab } from "@/components/admin/audit-logs-tab";
 import { SettingsTab } from "@/components/admin/settings-tab";
 import { Users, Megaphone, Eye, FileText, Settings, ShieldCheck } from "lucide-react";
 
+function buildAdminParams(input: { usersPage: number; announcementsPage: number; auditLogsPage: number }) {
+  return new URLSearchParams({
+    usersPage: String(input.usersPage),
+    usersLimit: "10",
+    announcementsPage: String(input.announcementsPage),
+    announcementsLimit: "3",
+    auditLogsPage: String(input.auditLogsPage),
+    auditLogsLimit: "10",
+  })
+}
+
 export default function AdminPage() {
+  type PageMeta = { page: number; pageSize: number; total: number; totalPages: number }
+  const defaultPagination: PageMeta = { page: 1, pageSize: 10, total: 0, totalPages: 1 }
   const [adminData, setAdminData] = useState<{
     users: Parameters<typeof UsersTab>[0]["users"]
     announcements: Parameters<typeof AnnouncementsTab>[0]["announcements"]
     auditLogs: Parameters<typeof AuditLogsTab>[0]["logs"]
-  }>({ users: [], announcements: [], auditLogs: [] })
+    usersPagination: PageMeta
+    announcementsPagination: PageMeta
+    auditLogsPagination: PageMeta
+  }>({
+    users: [],
+    announcements: [],
+    auditLogs: [],
+    usersPagination: defaultPagination,
+    announcementsPagination: { ...defaultPagination, pageSize: 3 },
+    auditLogsPagination: defaultPagination,
+  })
+  const [usersPage, setUsersPage] = useState(1)
+  const [announcementsPage, setAnnouncementsPage] = useState(1)
+  const [auditLogsPage, setAuditLogsPage] = useState(1)
 
   async function loadAdminData() {
     try {
-      const response = await fetch("/api/admin")
+      const params = buildAdminParams({ usersPage, announcementsPage, auditLogsPage })
+      const response = await fetch(`/api/admin?${params.toString()}`)
       const result = await response.json()
       if (result.success) setAdminData(result.data)
     } catch (error) {
@@ -29,8 +56,21 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    loadAdminData()
-  }, [])
+    let cancelled = false
+    const params = buildAdminParams({ usersPage, announcementsPage, auditLogsPage })
+    fetch(`/api/admin?${params.toString()}`)
+      .then((response) => response.json())
+      .then((result) => {
+        if (!cancelled && result.success) setAdminData(result.data)
+      })
+      .catch((error) => {
+        console.error("Failed to load admin data:", error)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [announcementsPage, auditLogsPage, usersPage])
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -85,11 +125,21 @@ export default function AdminPage() {
           </TabsList>
 
           <TabsContent value="users" className="space-y-4">
-            <UsersTab users={adminData.users} onUpdated={loadAdminData} />
+            <UsersTab
+              users={adminData.users}
+              pagination={adminData.usersPagination}
+              onPageChange={setUsersPage}
+              onUpdated={loadAdminData}
+            />
           </TabsContent>
           
           <TabsContent value="announcements" className="space-y-4">
-            <AnnouncementsTab announcements={adminData.announcements} onUpdated={loadAdminData} />
+            <AnnouncementsTab
+              announcements={adminData.announcements}
+              pagination={adminData.announcementsPagination}
+              onPageChange={setAnnouncementsPage}
+              onUpdated={loadAdminData}
+            />
           </TabsContent>
           
           <TabsContent value="public-data" className="space-y-4">
@@ -97,7 +147,11 @@ export default function AdminPage() {
           </TabsContent>
 
           <TabsContent value="audit-logs" className="space-y-4">
-            <AuditLogsTab logs={adminData.auditLogs} />
+            <AuditLogsTab
+              logs={adminData.auditLogs}
+              pagination={adminData.auditLogsPagination}
+              onPageChange={setAuditLogsPage}
+            />
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-4">

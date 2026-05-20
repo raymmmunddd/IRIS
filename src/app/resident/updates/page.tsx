@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Bell, Briefcase, CheckCircle2, Clock, FileText, Settings } from "lucide-react";
 import { ResidentNav } from "@/components/ResidentNav";
@@ -9,6 +9,7 @@ import { ResidentSidebar } from "@/components/resident/sidebar";
 import { PageHeader } from "@/components/ui/page-header";
 import { type ResidentNotif, loadNotifs, saveNotifs } from "@/components/NotificationBell";
 import { getAuthUser } from "@/lib/auth";
+import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime";
 
 const CATEGORY_ICON = {
   case: Briefcase,
@@ -24,7 +25,7 @@ function getCategoryIcon(category: string) {
 export default function UpdatesPage() {
   const [notifs, setNotifs] = useState<ResidentNotif[]>(loadNotifs);
 
-  useEffect(() => {
+  const loadNotifications = useCallback(() => {
     const user = getAuthUser();
     if (!user) {
       return;
@@ -37,6 +38,12 @@ export default function UpdatesPage() {
       })
       .catch(() => setNotifs(loadNotifs()));
   }, []);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
+
+  useSupabaseRealtime(["notifications"], loadNotifications);
 
   const unread = notifs.filter((n) => !n.read).length;
   const allRead = unread === 0;

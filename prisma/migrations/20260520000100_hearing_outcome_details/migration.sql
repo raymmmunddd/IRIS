@@ -1,0 +1,3 @@
+ALTER TABLE "hearings"
+ADD COLUMN IF NOT EXISTS "agreement_type" TEXT,
+ADD COLUMN IF NOT EXISTS "follow_up_date" TIMESTAMP(3);

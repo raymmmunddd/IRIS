@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getResidentChatThreadData, sendCaseChatMessageData } from "@/lib/case-chat-data"
+import { attachResidentCaseEvidenceData, getResidentChatThreadData, sendCaseChatMessageData } from "@/lib/case-chat-data"
 
 export async function GET(request: Request) {
   try {
@@ -25,6 +25,26 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const contentType = request.headers.get("content-type") ?? ""
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData()
+      const file = formData.get("file")
+      if (!(file instanceof File) || file.size === 0) {
+        return NextResponse.json({ success: false, message: "Evidence file is required", data: null }, { status: 400 })
+      }
+      const data = await attachResidentCaseEvidenceData({
+        caseId: String(formData.get("caseId") ?? ""),
+        email: String(formData.get("email") ?? ""),
+        file,
+      })
+
+      if (!data) {
+        return NextResponse.json({ success: false, message: "Unable to attach evidence", data: null }, { status: 400 })
+      }
+
+      return NextResponse.json({ success: true, message: "Evidence attached", data }, { status: 201 })
+    }
+
     const body = await request.json()
     const data = await sendCaseChatMessageData({
       caseId: body.caseId,

@@ -1,28 +1,22 @@
 ﻿"use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
     ArrowLeft, X, CheckCircle2, FileText, Image as ImageIcon,
     MapPin, Phone, User, Calendar, MessageSquare, Save,
-    ShieldCheck, Check
+    ShieldCheck, Check, Send, Shield
 } from "lucide-react"
 import { toast } from "sonner"
 import type { CaseRecord } from "@/lib/types"
+import { getAuthUser } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 import { TimelineDisplay } from "./timeline-display"
 import { EvidenceViewer } from "./evidence-viewer"
 import { OfficerSelector } from "./officer-selector"
 import { StatusSelector } from "./status-selector"
 import { Button } from "@/components/ui/button"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime"
 
 interface CaseDetailPanelProps {
   caseData: CaseRecord
@@ -32,20 +26,41 @@ interface CaseDetailPanelProps {
   officers?: string[]
 }
 
+type CaseChatThread = {
+  caseId: string
+  caseNumber: string
+  title: string
+  complainant: string
+  officer: string
+  status: string
+  messages: {
+    id: string
+    from: "officer" | "complainant"
+    text: string
+    time: string
+  }[]
+}
+
 export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, officers = ["Unassigned"] }: CaseDetailPanelProps) {
     const [internalNotes, setInternalNotes] = useState("")
     const [isSavingNotes, setIsSavingNotes] = useState(false)
     const [showEvidenceViewer, setShowEvidenceViewer] = useState(false)
     const [activeEvidenceIndex, setActiveEvidenceIndex] = useState(0)
     const [quickOfficer, setQuickOfficer] = useState(caseData.assignedOfficer || "Unassigned")
-    const [requestInfoOpen, setRequestInfoOpen] = useState(false)
-    const [requestMessage, setRequestMessage] = useState("")
-    const [isSendingRequest, setIsSendingRequest] = useState(false)
+    const [chatOpen, setChatOpen] = useState(false)
+    const [chatThread, setChatThread] = useState<CaseChatThread | null>(null)
+    const [chatInput, setChatInput] = useState("")
+    const [isChatLoading, setIsChatLoading] = useState(false)
+    const chatBottomRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         setQuickOfficer(caseData.assignedOfficer || "Unassigned")
     }, [caseData.assignedOfficer])
-  
+
+    useEffect(() => {
+        if (chatOpen) setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50)
+    }, [chatOpen, chatThread?.messages.length])
+
   // Tag Styles Helper
   const getPriorityStyle = (p: string) => {
     switch(p) {
@@ -129,31 +144,46 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, o
         }
     }
 
-    const sendRequestInfo = async () => {
-        if (!requestMessage.trim()) {
-            toast.error("Write what information you need first")
-            return
-        }
-
-        setIsSendingRequest(true)
+    const openCaseChat = async () => {
+        setChatOpen(true)
+        setIsChatLoading(true)
         try {
-            const response = await fetch(`/api/cases/${encodeURIComponent(caseData.id)}/request-info`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: requestMessage.trim() }),
-            })
+            const response = await fetch(`/api/cases/${encodeURIComponent(caseData.id)}/chat`)
             const result = await response.json()
-            if (!result.success) throw new Error(result.message || "Unable to send request")
-            toast.success("Information request sent")
-            setRequestMessage("")
-            setRequestInfoOpen(false)
-            onUpdate?.()
+            if (!result.success) throw new Error(result.message || "Unable to open case chat")
+            setChatThread(result.data)
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Unable to request information")
+            toast.error(error instanceof Error ? error.message : "Unable to open case chat")
         } finally {
-            setIsSendingRequest(false)
+            setIsChatLoading(false)
         }
     }
+
+    const sendAdminChatMessage = async () => {
+        if (!chatInput.trim()) return
+
+        const message = chatInput.trim()
+        setChatInput("")
+        try {
+            const response = await fetch(`/api/cases/${encodeURIComponent(caseData.id)}/chat`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: getAuthUser()?.email,
+                    message,
+                }),
+            })
+            const result = await response.json()
+            if (!result.success) throw new Error(result.message || "Unable to send message")
+            setChatThread(result.data)
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Unable to send message")
+        }
+    }
+
+    useSupabaseRealtime(["case_chat_messages", "evidence"], () => {
+        if (chatOpen) openCaseChat()
+    })
 
     return (
         <div className={cn(
@@ -324,6 +354,20 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, o
               {/* Internal Notes */}
                              <div className="bg-card rounded-xl border border-border shadow-sm p-6">
                 <h2 className="text-base font-semibold text-foreground mb-4">Internal Notes</h2>
+                {caseData.internalNotes?.length ? (
+                    <div className="mb-4 space-y-2">
+                        {caseData.internalNotes.map((note) => (
+                            <div key={note.id} className="rounded-lg border border-border bg-muted/30 p-3">
+                                <p className="text-sm text-foreground">{note.note}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    {note.author} - {note.createdAt}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="mb-4 text-sm text-muted-foreground">No internal notes yet.</p>
+                )}
                 <Textarea
                     value={internalNotes}
                     onChange={(event) => setInternalNotes(event.target.value)}
@@ -430,7 +474,7 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, o
                         </button>
 
                         <button
-                            onClick={() => setRequestInfoOpen(true)}
+                            onClick={openCaseChat}
                             disabled={caseData.status === "Closed"}
                             className="w-full flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors text-left group disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -503,30 +547,83 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, o
                 />
             )}
 
-            <Dialog open={requestInfoOpen} onOpenChange={setRequestInfoOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Request Information</DialogTitle>
-                        <DialogDescription>
-                            Send a case update notification to {caseData.fullName}.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <Textarea
-                        value={requestMessage}
-                        onChange={(event) => setRequestMessage(event.target.value)}
-                        placeholder="Example: Please upload a clearer photo of the incident location."
-                        className="min-h-28"
-                    />
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setRequestInfoOpen(false)} disabled={isSendingRequest}>
-                            Cancel
-                        </Button>
-                        <Button onClick={sendRequestInfo} disabled={isSendingRequest || !requestMessage.trim()}>
-                            {isSendingRequest ? "Sending..." : "Send Request"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            {chatOpen && (
+                <div className="fixed bottom-5 right-5 z-[70] flex h-[460px] w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+                    <div className="flex items-center justify-between border-b border-border bg-[#0f172a] px-4 py-3 text-white">
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold">{chatThread?.complainant ?? caseData.fullName}</p>
+                            <p className="truncate text-xs text-white/65">{chatThread?.caseNumber ?? caseData.caseNumber}</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setChatOpen(false)}
+                            className="rounded-lg p-1.5 text-white/70 hover:bg-white/10 hover:text-white"
+                            aria-label="Close chat"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+
+                    <div className="border-b border-border bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
+                        Shared case chat with resident and assigned officer
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto px-4 py-3">
+                        {isChatLoading ? (
+                            <div className="space-y-3">
+                                <div className="h-10 w-2/3 animate-pulse rounded-2xl bg-muted" />
+                                <div className="ml-auto h-10 w-3/4 animate-pulse rounded-2xl bg-muted" />
+                                <div className="h-10 w-1/2 animate-pulse rounded-2xl bg-muted" />
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {chatThread?.messages.length === 0 && (
+                                    <div className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                                        No messages yet.
+                                    </div>
+                                )}
+                                {chatThread?.messages.map((message) => {
+                                    const isOfficer = message.from === "officer"
+                                    return (
+                                        <div key={message.id} className={`flex gap-2 ${isOfficer ? "flex-row-reverse" : "flex-row"}`}>
+                                            <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${isOfficer ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>
+                                                {isOfficer ? <Shield className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
+                                            </div>
+                                            <div className={`max-w-[76%] ${isOfficer ? "text-right" : "text-left"}`}>
+                                                <div className={`rounded-2xl px-3 py-2 text-sm ${isOfficer ? "rounded-tr-sm bg-primary text-white" : "rounded-tl-sm border border-border bg-background"}`}>
+                                                    {message.text}
+                                                </div>
+                                                <p className="mt-1 text-[10px] text-muted-foreground">{message.time}</p>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                                <div ref={chatBottomRef} />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="border-t border-border bg-card p-3">
+                        <div className="flex gap-2">
+                            <input
+                                value={chatInput}
+                                onChange={(event) => setChatInput(event.target.value)}
+                                onKeyDown={(event) => {
+                                    if (event.key === "Enter" && !event.shiftKey) {
+                                        event.preventDefault()
+                                        sendAdminChatMessage()
+                                    }
+                                }}
+                                placeholder="Message this case thread..."
+                                className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            />
+                            <Button size="icon" onClick={sendAdminChatMessage} disabled={!chatInput.trim()}>
+                                <Send className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
     </div>
   )
 }

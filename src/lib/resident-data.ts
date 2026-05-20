@@ -171,7 +171,7 @@ export async function getResidentCasesData(email: string) {
   if (!resident) return []
 
   const cases = await prisma.case.findMany({
-    where: { complainantId: resident.id, isArchived: false },
+    where: { complainantId: resident.id },
     include: caseInclude,
     orderBy: { dateSubmitted: "desc" },
   })

@@ -1,5 +1,6 @@
 import { AuditAction, Prisma, UserRole } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
+import { enqueueTask } from "@/lib/task-queue"
 
 type AuditTarget = {
   table: string
@@ -26,22 +27,26 @@ export async function writeAuditLog(input: WriteAuditLogInput) {
   const actorId = input.actorId ?? (await getSystemActorId())
   if (!actorId) return null
 
-  return prisma.auditLog.create({
-    data: {
-      actorId,
-      action: input.action,
-      targetTable: input.target.table,
-      targetId: input.target.id,
-      changes: (input.changes ?? {}) as Prisma.InputJsonValue,
-    },
-  })
+  return enqueueTask("audit-log", () =>
+    prisma.auditLog.create({
+      data: {
+        actorId,
+        action: input.action,
+        targetTable: input.target.table,
+        targetId: input.target.id,
+        changes: (input.changes ?? {}) as Prisma.InputJsonValue,
+      },
+    }),
+  )
 }
 
-export async function getAuditLogsData(limit = 50) {
+export async function getAuditLogsData(limit = 50, page = 1) {
+  const skip = Math.max(0, page - 1) * limit
   const logs = await prisma.auditLog
     .findMany({
       orderBy: { loggedAt: "desc" },
       take: limit,
+      skip,
     })
     .catch((error) => {
       console.warn("Audit logs are unavailable:", error)

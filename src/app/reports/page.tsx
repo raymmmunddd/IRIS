@@ -111,7 +111,7 @@ export default function ReportsPage() {
         <div className="mt-4 sm:mt-6 flex flex-col gap-4 sm:gap-6">
            {/* KeyInsights spans full width naturally in flex-col */}
            <KeyInsights data={reportsData?.keyInsights} />
-           <OfficerResponseAnalysis officers={reportsData?.officerPerformance} />
+           {/* <OfficerResponseAnalysis officers={reportsData?.officerPerformance} /> */}
         </div>
       </main>
     </div>

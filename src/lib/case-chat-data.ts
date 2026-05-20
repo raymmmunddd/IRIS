@@ -1,4 +1,8 @@
-import { CaseStatus, Prisma, UserRole } from "@/generated/prisma/client"
+import { mkdir, writeFile } from "node:fs/promises"
+import path from "node:path"
+import { randomUUID } from "node:crypto"
+import { AuditAction, CaseStatus, Prisma, UserRole } from "@/generated/prisma/client"
+import { writeAuditLog } from "@/lib/audit-logs"
 import { prisma } from "@/lib/prisma"
 
 const activeChatStatuses: CaseStatus[] = [
@@ -8,6 +12,15 @@ const activeChatStatuses: CaseStatus[] = [
   CaseStatus.ASSIGNED,
   CaseStatus.SCHEDULED,
   CaseStatus.ONGOING,
+]
+
+const closedChatStatuses: CaseStatus[] = [
+  CaseStatus.RESOLVED,
+  CaseStatus.UNRESOLVED,
+  CaseStatus.DISMISSED,
+  CaseStatus.ARCHIVED,
+  CaseStatus.REJECTED,
+  CaseStatus.REFERRED,
 ]
 
 const threadInclude = {
@@ -45,10 +58,29 @@ function relativeTime(date: Date | string | null | undefined) {
 function mapMessage(message: ChatCase["chatMessages"][number]) {
   return {
     id: message.id,
-    from: message.senderRole === "officer" ? "officer" : "complainant",
+    from: message.senderRole === "complainant" ? "complainant" : "officer",
     text: message.message,
     time: formatTime(message.createdAt),
   }
+}
+
+function isProgressQuestion(message: string) {
+  return /\b(progress|status|update|what happened|details?|result|resolved|closed)\b/i.test(message)
+}
+
+function canDiscussProgress(status: CaseStatus) {
+  return closedChatStatuses.includes(status)
+}
+
+async function getAdminActorId(email?: string) {
+  const admin = await prisma.user.findFirst({
+    where: email
+      ? { email: email.trim().toLowerCase(), role: UserRole.ADMIN, isArchived: false }
+      : { role: UserRole.ADMIN, isArchived: false },
+    select: { id: true },
+  })
+
+  return admin?.id ?? null
 }
 
 function mapThread(item: ChatCase) {
@@ -109,27 +141,95 @@ export async function getResidentChatThreadData(input: { caseId: string; email: 
   return mapThread(item)
 }
 
+export async function getAdminCaseChatThreadData(caseId: string) {
+  const item = await findChatCase(caseId)
+  return item ? mapThread(item) : null
+}
+
 export async function sendCaseChatMessageData(input: {
   caseId: string
-  email: string
-  role: "resident" | "officer"
+  role: "resident" | "officer" | "admin"
+  email?: string
   message: string
 }) {
   const item = await findChatCase(input.caseId)
   if (!item || !input.message.trim()) return null
 
-  const email = input.email.trim().toLowerCase()
+  const email = input.email?.trim().toLowerCase() ?? ""
   const isResident = input.role === "resident" && item.complainant.email === email
   const isOfficer = input.role === "officer" && item.assignedOfficer?.user.email === email
+  const adminActorId = input.role === "admin" ? await getAdminActorId(email) : null
+  const isAdmin = input.role === "admin" && Boolean(adminActorId)
 
-  if (!isResident && !isOfficer) return null
+  if (!isResident && !isOfficer && !isAdmin) return null
 
   await prisma.caseChatMessage.create({
     data: {
       caseId: item.id,
-      senderId: isOfficer ? item.assignedOfficer!.userId : item.complainantId,
-      senderRole: isOfficer ? "officer" : "complainant",
+      senderId: isOfficer ? item.assignedOfficer!.userId : isAdmin ? adminActorId! : item.complainantId,
+      senderRole: isResident ? "complainant" : input.role,
       message: input.message.trim(),
+    },
+  })
+
+  if (isResident && isProgressQuestion(input.message) && !canDiscussProgress(item.status)) {
+    await prisma.caseChatMessage.create({
+      data: {
+        caseId: item.id,
+        senderId: item.assignedOfficer?.userId ?? (await getAdminActorId()) ?? item.complainantId,
+        senderRole: "officer",
+        message: "This case is still in progress, so progress details are not available in chat yet. Once the case is closed, you may ask for the final details or resolution summary.",
+      },
+    })
+  }
+
+  const updated = await findChatCase(item.id)
+  return updated ? mapThread(updated) : null
+}
+
+export async function attachResidentCaseEvidenceData(input: {
+  caseId: string
+  email: string
+  file: File
+}) {
+  const item = await findChatCase(input.caseId)
+  const email = input.email.trim().toLowerCase()
+  if (!item || item.complainant.email !== email || !item.assignedOfficerId) return null
+
+  const originalName = input.file.name || "evidence"
+  const extension = path.extname(originalName)
+  const safeBase = path.basename(originalName, extension).replace(/[^a-zA-Z0-9-_]/g, "-").slice(0, 60) || "evidence"
+  const fileName = `${Date.now()}-${randomUUID()}-${safeBase}${extension}`
+  const uploadDir = path.join(process.cwd(), "public", "uploads", "evidence")
+  await mkdir(uploadDir, { recursive: true })
+  await writeFile(path.join(uploadDir, fileName), Buffer.from(await input.file.arrayBuffer()))
+
+  const fileUrl = `/uploads/evidence/${encodeURIComponent(fileName)}`
+  const evidence = await prisma.evidence.create({
+    data: {
+      caseId: item.id,
+      fileUrl,
+      fileType: input.file.type || "application/octet-stream",
+    },
+  })
+
+  await writeAuditLog({
+    actorId: item.complainantId,
+    action: AuditAction.CREATE,
+    target: { table: "evidence", id: evidence.id },
+    changes: {
+      caseId: item.id,
+      fileName: originalName,
+      fileType: input.file.type,
+    },
+  })
+
+  await prisma.caseChatMessage.create({
+    data: {
+      caseId: item.id,
+      senderId: item.complainantId,
+      senderRole: "complainant",
+      message: `Attached evidence: ${originalName}`,
     },
   })
 

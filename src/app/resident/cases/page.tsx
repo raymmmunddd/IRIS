@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -10,6 +10,7 @@ import {
   Clock,
   FileText,
   MessageSquare,
+  Paperclip,
   Plus,
   Search,
   Send,
@@ -20,6 +21,7 @@ import { ResidentSidebar } from "@/components/resident/sidebar";
 import { ResidentNav } from "@/components/ResidentNav";
 import { getAuthUser } from "@/lib/auth";
 import { PageHeader } from "@/components/ui/page-header";
+import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime";
 
 type CaseStatus = "Pending" | "Under Review" | "Scheduled" | "In Progress" | "Resolved" | "Closed" | "Dismissed";
 
@@ -117,9 +119,11 @@ export default function MyCasesPage() {
   const [activeThread, setActiveThread] = useState<ChatThread | null>(null);
   const [chatInput, setChatInput] = useState("");
   const [chatError, setChatError] = useState("");
+  const [isAttaching, setIsAttaching] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  const loadCases = useCallback(() => {
     const user = getAuthUser();
     if (!user) return;
 
@@ -132,6 +136,32 @@ export default function MyCasesPage() {
       })
       .catch(() => setCases(FALLBACK_CASES));
   }, []);
+
+  const loadActiveThread = useCallback(async () => {
+    const user = getAuthUser();
+    if (!user || !activeThread) return;
+
+    const response = await fetch(`/api/resident/cases/chat?caseId=${encodeURIComponent(activeThread.caseId)}&email=${encodeURIComponent(user.email)}`);
+    const result = await response.json();
+    if (result.success && result.data) {
+      setActiveThread(result.data);
+    }
+  }, [activeThread]);
+
+  const refreshRealtimeData = useCallback(() => {
+    if (activeThread) {
+      loadActiveThread();
+      return;
+    }
+
+    loadCases();
+  }, [activeThread, loadActiveThread, loadCases]);
+
+  useEffect(() => {
+    loadCases();
+  }, [loadCases]);
+
+  useSupabaseRealtime(["cases", "hearings", "case_chat_messages", "evidence"], refreshRealtimeData);
 
   useEffect(() => {
     if (!activeThread) return;
@@ -182,6 +212,31 @@ export default function MyCasesPage() {
       setActiveThread(result.data);
       setChatInput("");
     }
+  };
+
+  const attachEvidence = async (file?: File) => {
+    const user = getAuthUser();
+    if (!user || !activeThread || !file) return;
+
+    const formData = new FormData();
+    formData.append("caseId", activeThread.caseId);
+    formData.append("email", user.email);
+    formData.append("file", file);
+
+    setIsAttaching(true);
+    const response = await fetch("/api/resident/cases/chat", {
+      method: "POST",
+      body: formData,
+    });
+    const result = await response.json();
+    setIsAttaching(false);
+
+    if (result.success && result.data) {
+      setActiveThread(result.data);
+    } else {
+      setChatError(result.message ?? "Unable to attach evidence.");
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleChatKey = (event: React.KeyboardEvent) => {
@@ -276,6 +331,22 @@ export default function MyCasesPage() {
               <div className="flex-shrink-0 border-t border-border bg-card px-4 py-3">
                 <div className="mx-auto flex w-full max-w-md items-center gap-2">
                   <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept="image/*,.pdf,.doc,.docx,.txt"
+                    onChange={(event) => attachEvidence(event.target.files?.[0])}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isAttaching}
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition hover:bg-muted disabled:opacity-40"
+                    aria-label="Attach evidence"
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </button>
+                  <input
                     value={chatInput}
                     onChange={(event) => setChatInput(event.target.value)}
                     onKeyDown={handleChatKey}
@@ -284,7 +355,7 @@ export default function MyCasesPage() {
                   />
                   <button
                     onClick={sendMessage}
-                    disabled={!chatInput.trim()}
+                    disabled={!chatInput.trim() || isAttaching}
                     className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--primary)] text-white transition hover:bg-[var(--primary-hover)] disabled:opacity-40"
                   >
                     <Send className="h-4 w-4" />

@@ -214,6 +214,8 @@ model Hearing {
   scheduledTime       String          @map("scheduled_time")
   location            String
   notes               String?
+  agreementType       String?         @map("agreement_type")
+  followUpDate        DateTime?       @map("follow_up_date")
   complainantAttended Boolean         @default(false) @map("complainant_attended")
   respondentAttended  Boolean         @default(false) @map("respondent_attended")
   outcome             HearingOutcome? 

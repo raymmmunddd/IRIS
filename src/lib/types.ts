@@ -33,6 +33,13 @@ export interface OfficerHistoryEntry {
   assignedBy?: string;
 }
 
+export interface InternalNote {
+  id: string;
+  note: string;
+  author: string;
+  createdAt: string;
+}
+
 export interface CaseRecord {
   id: string;
   caseNumber: string;
@@ -53,6 +60,7 @@ export interface CaseRecord {
   incidentDate: string;
   evidence: number;
   evidenceFiles: EvidenceFile[];
+  internalNotes?: InternalNote[];
   statusHistory?: StatusHistoryEntry[];
   assignedOfficerHistory?: OfficerHistoryEntry[];
   aiAnalysis?: {

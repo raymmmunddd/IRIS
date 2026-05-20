@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Bell, Clock } from "lucide-react";
 import { getAuthUser } from "@/lib/auth";
+import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime";
 
 export interface ResidentNotif {
   id: number | string;
@@ -61,9 +62,20 @@ function saveNotifs(notifs: ResidentNotif[]) {
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [notifs, setNotifs] = useState<ResidentNotif[]>(loadNotifs);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 16 });
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const updateMenuPosition = useCallback(() => {
+    const rect = ref.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    setMenuPosition({
+      top: rect.bottom + 8,
+      right: Math.max(16, window.innerWidth - rect.right),
+    });
+  }, []);
+
+  const loadNotifications = useCallback(() => {
     const user = getAuthUser();
     if (!user) {
       return;
@@ -78,6 +90,12 @@ export function NotificationBell() {
   }, []);
 
   useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
+
+  useSupabaseRealtime(["notifications"], loadNotifications);
+
+  useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
@@ -86,6 +104,18 @@ export function NotificationBell() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    window.addEventListener("resize", updateMenuPosition);
+    window.addEventListener("scroll", updateMenuPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updateMenuPosition);
+      window.removeEventListener("scroll", updateMenuPosition, true);
+    };
+  }, [open, updateMenuPosition]);
 
   const unread = notifs.filter((n) => !n.read).length;
   const recent = notifs.slice(0, 3);
@@ -107,7 +137,10 @@ export function NotificationBell() {
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          updateMenuPosition();
+          setOpen((v) => !v);
+        }}
         className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur transition hover:bg-white/25"
         aria-label="Notifications"
       >
@@ -120,7 +153,10 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 z-50 w-80 rounded-2xl border border-border bg-card shadow-xl shadow-black/10">
+        <div
+          className="fixed z-[100] w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-border bg-card shadow-xl shadow-black/10"
+          style={{ top: menuPosition.top, right: menuPosition.right }}
+        >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <div>

@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -15,6 +15,7 @@ import {
 import { getAuthUser, getRoleLandingPath, isRoleAuthorized } from "@/lib/auth";
 import { BpatSidebar } from "@/components/bpat/sidebar";
 import { PageHeader } from "@/components/ui/page-header";
+import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime";
 
 interface ChatMessage {
   id: string;
@@ -45,7 +46,7 @@ export default function CaseChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  const loadThreads = useCallback(() => {
     const user = getAuthUser();
     if (!user) {
       router.push("/login");
@@ -64,6 +65,13 @@ export default function CaseChatPage() {
       })
       .catch(() => undefined);
   }, [router]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(loadThreads, 0);
+    return () => window.clearTimeout(timeout);
+  }, [loadThreads]);
+
+  useSupabaseRealtime(["cases", "case_chat_messages"], loadThreads);
 
   const activeThread = threads.find((thread) => thread.caseId === activeCase) ?? null;
   const activeMessageCount = activeThread?.messages.length;

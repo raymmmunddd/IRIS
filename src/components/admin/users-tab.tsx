@@ -10,8 +10,10 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Users, X } from "lucide-react";
+import { Check, ShieldAlert, Users, X } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState } from "react";
 
 type AdminUser = {
   id: string
@@ -24,17 +26,28 @@ type AdminUser = {
 
 interface UsersTabProps {
   users?: AdminUser[]
+  pagination?: { page: number; pageSize: number; total: number; totalPages: number }
+  onPageChange?: (page: number) => void
   onUpdated?: () => void
 }
 
-export function UsersTab({ users = [], onUpdated }: UsersTabProps) {
+export function UsersTab({ users = [], pagination, onPageChange, onUpdated }: UsersTabProps) {
+  const [confirmAction, setConfirmAction] = useState<{ user: AdminUser; status: AdminUser["status"] } | null>(null)
+  const [isUpdating, setIsUpdating] = useState(false)
+
   async function updateStatus(id: string, status: AdminUser["status"]) {
-    await fetch(`/api/admin/users/${encodeURIComponent(id)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    })
-    onUpdated?.()
+    setIsUpdating(true)
+    try {
+      await fetch(`/api/admin/users/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      setConfirmAction(null)
+      onUpdated?.()
+    } finally {
+      setIsUpdating(false)
+    }
   }
 
   const pendingCount = users.filter((user) => user.status === "Pending").length
@@ -102,18 +115,18 @@ export function UsersTab({ users = [], onUpdated }: UsersTabProps) {
                                 <Button size="sm" variant="outline" className="h-8 gap-1 rounded-lg" onClick={() => updateStatus(user.id, "Verified")}>
                                     <Check className="h-4 w-4" /> Approve
                                 </Button>
-                                <Button size="sm" variant="destructive" className="h-8 gap-1 rounded-lg" onClick={() => updateStatus(user.id, "Suspended")}>
+                                <Button size="sm" variant="destructive" className="h-8 gap-1 rounded-lg" onClick={() => setConfirmAction({ user, status: "Suspended" })}>
                                     <X className="h-4 w-4" /> Reject
                                 </Button>
                             </>
                         )}
                         {user.status === "Verified" && (
-                              <Button size="sm" variant="secondary" className="h-8 rounded-lg" onClick={() => updateStatus(user.id, "Suspended")}>
+                              <Button size="sm" variant="secondary" className="h-8 rounded-lg" onClick={() => setConfirmAction({ user, status: "Suspended" })}>
                                 Suspend
                             </Button>
                         )}
                         {user.status === "Suspended" && (
-                              <Button size="sm" variant="default" className="h-8 rounded-lg bg-slate-900" onClick={() => updateStatus(user.id, "Verified")}>
+                              <Button size="sm" variant="default" className="h-8 rounded-lg bg-slate-900" onClick={() => setConfirmAction({ user, status: "Verified" })}>
                                 Reinstate
                             </Button>
                         )}
@@ -123,8 +136,63 @@ export function UsersTab({ users = [], onUpdated }: UsersTabProps) {
               ))}
             </TableBody>
           </Table>
+          {pagination && pagination.totalPages > 1 && (
+            <div className="mt-4 flex flex-col gap-2 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                Page {pagination.page} of {pagination.totalPages} - {pagination.total} users
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPageChange?.(Math.max(1, pagination.page - 1))}
+                  disabled={pagination.page <= 1}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPageChange?.(Math.min(pagination.totalPages, pagination.page + 1))}
+                  disabled={pagination.page >= pagination.totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+              <ShieldAlert className="h-5 w-5" />
+            </div>
+            <DialogTitle>
+              {confirmAction?.status === "Suspended" ? "Suspend account?" : "Reinstate account?"}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmAction?.status === "Suspended"
+                ? `${confirmAction.user.name} will lose access until an admin reinstates the account.`
+                : `${confirmAction?.user.name} will regain access to IRIS.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmAction(null)} disabled={isUpdating}>
+              Cancel
+            </Button>
+            <Button
+              variant={confirmAction?.status === "Suspended" ? "destructive" : "default"}
+              onClick={() => confirmAction && updateStatus(confirmAction.user.id, confirmAction.status)}
+              disabled={isUpdating}
+            >
+              {isUpdating ? "Saving..." : confirmAction?.status === "Suspended" ? "Suspend" : "Reinstate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

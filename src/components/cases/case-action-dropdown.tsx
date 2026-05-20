@@ -71,7 +71,7 @@ export function CaseActionDropdown({ isOpen, onToggle, onClose, onAction, mode =
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-52 rounded-xl border border-border bg-card py-1 shadow-lg">
+        <div className="absolute right-0 top-full z-[80] mt-1 w-52 rounded-xl border border-border bg-card py-1 shadow-xl">
           {visibleActions.map((action) => (
             <button
               key={action.key}

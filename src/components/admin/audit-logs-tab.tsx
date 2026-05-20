@@ -26,9 +26,11 @@ type AdminAuditLog = {
 
 interface AuditLogsTabProps {
   logs?: AdminAuditLog[]
+  pagination?: { page: number; pageSize: number; total: number; totalPages: number }
+  onPageChange?: (page: number) => void
 }
 
-export function AuditLogsTab({ logs = [] }: AuditLogsTabProps) {
+export function AuditLogsTab({ logs = [], pagination, onPageChange }: AuditLogsTabProps) {
   const [filterDate, setFilterDate] = useState("")
 
   const filteredLogs = useMemo(() => {
@@ -120,6 +122,31 @@ export function AuditLogsTab({ logs = [] }: AuditLogsTabProps) {
               </TableBody>
             </Table>
           </div>
+          {pagination && pagination.totalPages > 1 && (
+            <div className="mt-4 flex flex-col gap-2 border-t px-4 pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-0">
+              <span>
+                Page {pagination.page} of {pagination.totalPages} - {pagination.total} logs
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPageChange?.(Math.max(1, pagination.page - 1))}
+                  disabled={pagination.page <= 1}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPageChange?.(Math.min(pagination.totalPages, pagination.page + 1))}
+                  disabled={pagination.page >= pagination.totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

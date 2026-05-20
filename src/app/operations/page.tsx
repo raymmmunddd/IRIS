@@ -1,7 +1,7 @@
 "use client"
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Users, Calendar } from "lucide-react"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -10,6 +10,7 @@ import { DashboardSidebar } from "@/components/dashboard/sidebar"
 
 import { OfficersTab } from "@/components/operations/officers-tab"
 import { MediationTab } from "@/components/operations/mediation-tab"
+import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime"
 
 export default function OperationsPage() {
   const [activeTab, setActiveTab] = useState("officers")
@@ -20,7 +21,7 @@ export default function OperationsPage() {
   }>({ officers: [], mediationSessions: [], assignableCases: [] })
   const [mediators, setMediators] = useState<string[]>([])
 
-  async function loadOperations() {
+  const loadOperations = useCallback(async () => {
     try {
       const response = await fetch("/api/operations")
       const result = await response.json()
@@ -31,11 +32,14 @@ export default function OperationsPage() {
     } catch (error) {
       console.error("Failed to load operations data:", error)
     }
-  }
+  }, [])
 
   useEffect(() => {
-    loadOperations()
-  }, [])
+    const timeout = window.setTimeout(loadOperations, 0)
+    return () => window.clearTimeout(timeout)
+  }, [loadOperations])
+
+  useSupabaseRealtime(["cases", "hearings", "officers"], loadOperations)
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

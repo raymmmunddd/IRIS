@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardList, LifeBuoy, Megaphone, Plus } from "lucide-react";
 import { getAuthUser, getRoleLandingPath, isRoleAuthorized } from "@/lib/auth";
@@ -10,6 +10,7 @@ import { ResidentSidebar } from "@/components/resident/sidebar";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ResidentNav } from "@/components/ResidentNav";
 import { PageHeader } from "@/components/ui/page-header";
+import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime";
 
 const fallbackRecentUpdates = [
   {
@@ -49,7 +50,7 @@ export default function ResidentPage() {
   const router = useRouter();
   const [recentUpdates, setRecentUpdates] = useState(fallbackRecentUpdates);
 
-  useEffect(() => {
+  const loadDashboard = useCallback(() => {
     const user = getAuthUser();
 
     if (!user) {
@@ -71,6 +72,12 @@ export default function ResidentPage() {
       })
       .catch(() => setRecentUpdates(fallbackRecentUpdates));
   }, [router]);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
+  useSupabaseRealtime(["cases", "hearings", "notifications"], loadDashboard);
 
   const user = getAuthUser();
 

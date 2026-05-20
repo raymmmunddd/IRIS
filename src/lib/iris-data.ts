@@ -3,6 +3,7 @@ import {
   CaseCategory as DbCaseCategory,
   CasePriority as DbCasePriority,
   CaseStatus as DbCaseStatus,
+  HearingOutcome,
   HearingStage,
   HearingStatus,
   NotificationType,
@@ -55,6 +56,34 @@ const statusFromLabel: Record<CaseStatus, DbCaseStatus> = {
   Closed: DbCaseStatus.DISMISSED,
 }
 
+const categoryFromLabel: Partial<Record<CaseCategory, DbCaseCategory>> = {
+  "Violence or Threats": DbCaseCategory.INJURY,
+  "Harassment & Abuse": DbCaseCategory.VAWC,
+  "Fraud & Scams": DbCaseCategory.OTHER,
+  "Public Disturbance": DbCaseCategory.ORDINANCE_VIOLATION,
+  "Property & Theft": DbCaseCategory.OTHER,
+  "Community Dispute": DbCaseCategory.DISPUTE,
+  "Child & Vulnerable Protection": DbCaseCategory.VAWC,
+}
+
+const priorityFromLabel: Record<CasePriority, DbCasePriority[]> = {
+  High: [DbCasePriority.HIGH, DbCasePriority.URGENT],
+  Medium: [DbCasePriority.MEDIUM],
+  Low: [DbCasePriority.LOW],
+}
+
+const closedStatuses = [
+  DbCaseStatus.RESOLVED,
+  DbCaseStatus.UNRESOLVED,
+  DbCaseStatus.DISMISSED,
+  DbCaseStatus.ARCHIVED,
+  DbCaseStatus.REJECTED,
+  DbCaseStatus.REFERRED,
+]
+
+export const agreementTypes = ["partial agreement", "amicable settlement", "non-settlement"] as const
+export type AgreementType = (typeof agreementTypes)[number]
+
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 const caseInclude = {
@@ -104,6 +133,15 @@ function evidenceType(fileType: string): EvidenceFile["type"] {
   return fileType.toLowerCase().includes("image") ? "image" : "document"
 }
 
+function evidenceName(fileUrl: string) {
+  const raw = fileUrl.split("/").at(-1) || "Evidence file"
+  try {
+    return decodeURIComponent(raw)
+  } catch {
+    return raw
+  }
+}
+
 export function mapCaseRecord(item: CaseWithRelations): CaseRecord {
   const complainant = item.complainant
   const assignedOfficer = item.assignedOfficer?.fullName ?? "Unassigned"
@@ -130,7 +168,7 @@ export function mapCaseRecord(item: CaseWithRelations): CaseRecord {
     evidence: item.evidence.length,
     evidenceFiles: item.evidence.map((file) => ({
       id: file.id,
-      name: file.fileUrl.split("/").at(-1) || "Evidence file",
+      name: evidenceName(file.fileUrl),
       type: evidenceType(file.fileType),
       url: file.fileUrl,
       thumbnail: file.fileUrl,
@@ -154,6 +192,34 @@ export function mapCaseRecord(item: CaseWithRelations): CaseRecord {
     version: 1,
     isArchived: item.isArchived,
   }
+}
+
+async function getCaseNotesData(id: string) {
+  const notes = await prisma.auditLog.findMany({
+    where: {
+      targetTable: "cases",
+      targetId: id,
+    },
+    orderBy: { loggedAt: "desc" },
+  })
+  const actorIds = [...new Set(notes.map((note) => note.actorId))]
+  const users = await prisma.user.findMany({
+    where: { id: { in: actorIds } },
+    select: { id: true, fullName: true, email: true },
+  })
+  const usersById = new Map(users.map((user) => [user.id, user]))
+
+  return notes.map((log) => {
+    const changes = log.changes as { note?: unknown }
+    const author = usersById.get(log.actorId)
+
+    return {
+      id: log.id,
+      note: typeof changes.note === "string" ? changes.note : "",
+      author: author?.fullName ?? author?.email ?? "Admin",
+      createdAt: formatDateTime(log.loggedAt),
+    }
+  }).filter((note) => note.note)
 }
 
 function startOfWeek(date = new Date()) {
@@ -219,13 +285,106 @@ function statusCounts(cases: Array<{ status: DbCaseStatus }>) {
   }
 }
 
-export async function getCasesData() {
-  const cases = await prisma.case.findMany({
-    include: caseInclude,
-    orderBy: { dateSubmitted: "desc" },
-  })
+function getCaseTabWhere(tab: "pending" | "active" | "archive") {
+  if (tab === "pending") {
+    return { status: DbCaseStatus.PENDING, isArchived: false } satisfies Prisma.CaseWhereInput
+  }
 
-  return cases.map(mapCaseRecord)
+  if (tab === "archive") {
+    return {
+      OR: [{ isArchived: true }, { status: { in: closedStatuses } }],
+    } satisfies Prisma.CaseWhereInput
+  }
+
+  return {
+    isArchived: false,
+    status: { notIn: [DbCaseStatus.PENDING, ...closedStatuses] },
+  } satisfies Prisma.CaseWhereInput
+}
+
+function getCaseFilterWhere(input?: {
+  tab?: "pending" | "active" | "archive"
+  status?: CaseStatus | "All"
+  category?: CaseCategory | "All"
+  priority?: CasePriority | "All"
+  search?: string
+}) {
+  const and: Prisma.CaseWhereInput[] = [getCaseTabWhere(input?.tab ?? "pending")]
+
+  if (input?.status && input.status !== "All") {
+    and.push({ status: statusFromLabel[input.status] })
+  }
+
+  if (input?.category && input.category !== "All") {
+    const category = categoryFromLabel[input.category]
+    if (category) and.push({ category })
+  }
+
+  if (input?.priority && input.priority !== "All") {
+    and.push({ priority: { in: priorityFromLabel[input.priority] } })
+  }
+
+  const search = input?.search?.trim()
+  if (search) {
+    and.push({
+      OR: [
+        { id: { contains: search, mode: "insensitive" } },
+        { type: { contains: search, mode: "insensitive" } },
+        { details: { contains: search, mode: "insensitive" } },
+        { complainant: { fullName: { contains: search, mode: "insensitive" } } },
+        { complainant: { email: { contains: search, mode: "insensitive" } } },
+        { assignedOfficer: { fullName: { contains: search, mode: "insensitive" } } },
+      ],
+    })
+  }
+
+  return { AND: and } satisfies Prisma.CaseWhereInput
+}
+
+export async function getCasesData(input?: {
+  page?: number
+  limit?: number
+  tab?: "pending" | "active" | "archive"
+  status?: CaseStatus | "All"
+  category?: CaseCategory | "All"
+  priority?: CasePriority | "All"
+  search?: string
+  sort?: "Newest" | "Oldest" | "Priority"
+}) {
+  const page = Math.max(1, Math.floor(input?.page ?? 1))
+  const limit = Math.min(24, Math.max(1, Math.floor(input?.limit ?? 6)))
+  const where = getCaseFilterWhere(input)
+  const orderBy: Prisma.CaseOrderByWithRelationInput[] =
+    input?.sort === "Oldest"
+      ? [{ dateSubmitted: "asc" }]
+      : input?.sort === "Priority"
+        ? [{ priority: "desc" }, { dateSubmitted: "desc" }]
+        : [{ dateSubmitted: "desc" }]
+
+  const [cases, total, pending, active, archive] = await Promise.all([
+    prisma.case.findMany({
+      where,
+      include: caseInclude,
+      orderBy,
+      take: limit,
+      skip: (page - 1) * limit,
+    }),
+    prisma.case.count({ where }),
+    prisma.case.count({ where: getCaseTabWhere("pending") }),
+    prisma.case.count({ where: getCaseTabWhere("active") }),
+    prisma.case.count({ where: getCaseTabWhere("archive") }),
+  ])
+
+  return {
+    items: cases.map(mapCaseRecord),
+    pagination: {
+      page,
+      pageSize: limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+    counts: { pending, active, archive },
+  }
 }
 
 export async function getCaseData(id: string) {
@@ -234,7 +393,12 @@ export async function getCaseData(id: string) {
     include: caseInclude,
   })
 
-  return item ? mapCaseRecord(item) : null
+  if (!item) return null
+
+  return {
+    ...mapCaseRecord(item),
+    internalNotes: await getCaseNotesData(id),
+  }
 }
 
 export async function updateCaseData(id: string, input: { status?: CaseStatus; assignedOfficer?: string; action?: "restore" }) {
@@ -481,6 +645,9 @@ export async function getOperationsData() {
       scheduledTime: hearing.scheduledTime,
       location: hearing.location,
       status: hearing.status === HearingStatus.COMPLETED ? "Completed" : "Scheduled",
+      outcomeNotes: hearing.notes ?? "",
+      agreementType: hearing.agreementType ?? "",
+      followUpDate: formatDate(hearing.followUpDate),
     })),
     assignableCases: await prisma.case.findMany({
       where: {
@@ -514,18 +681,175 @@ export async function createHearingData(input: {
   if (!targetCase) return null
 
   const officer = input.mediator ? await prisma.officer.findFirst({ where: { fullName: input.mediator } }) : null
-  return prisma.hearing.create({
-    data: {
+  const hearingCount = await prisma.hearing.count({ where: { caseId: targetCase.id } })
+  const actorId = await getSystemActorId()
+
+  const hearing = await prisma.$transaction(async (tx) => {
+    const created = await tx.hearing.create({
+      data: {
+        caseId: targetCase.id,
+        conductedBy: officer?.id,
+        hearingNumber: hearingCount + 1,
+        stage: HearingStage.MEDIATION,
+        scheduledDate: new Date(input.scheduledDate),
+        scheduledTime: input.scheduledTime,
+        location: input.location,
+        status: HearingStatus.SCHEDULED,
+      },
+    })
+
+    await tx.case.update({
+      where: { id: targetCase.id },
+      data: { status: DbCaseStatus.SCHEDULED },
+    })
+
+    if (actorId && targetCase.status !== DbCaseStatus.SCHEDULED) {
+      await tx.caseStatusHistory.create({
+        data: {
+          caseId: targetCase.id,
+          changedBy: actorId,
+          oldStatus: targetCase.status,
+          newStatus: DbCaseStatus.SCHEDULED,
+        },
+      })
+    }
+
+    return created
+  })
+
+  await writeAuditLog({
+    actorId,
+    action: AuditAction.CREATE,
+    target: { table: "hearings", id: hearing.id },
+    changes: {
       caseId: targetCase.id,
-      conductedBy: officer?.id,
-      hearingNumber: 1,
-      stage: HearingStage.MEDIATION,
-      scheduledDate: new Date(input.scheduledDate),
+      scheduledDate: input.scheduledDate,
       scheduledTime: input.scheduledTime,
-      location: input.location,
-      status: HearingStatus.SCHEDULED,
+      mediator: input.mediator,
     },
   })
+
+  return hearing
+}
+
+function getOutcomeStatus(agreementType: AgreementType) {
+  if (agreementType === "amicable settlement") return HearingOutcome.RESOLVED
+  if (agreementType === "non-settlement") return HearingOutcome.UNRESOLVED
+  return HearingOutcome.ADJOURNED
+}
+
+function getCaseStatusAfterOutcome(agreementType: AgreementType, hasFollowUp: boolean) {
+  if (hasFollowUp) return DbCaseStatus.SCHEDULED
+  if (agreementType === "amicable settlement") return DbCaseStatus.RESOLVED
+  if (agreementType === "non-settlement") return DbCaseStatus.UNRESOLVED
+  return DbCaseStatus.ONGOING
+}
+
+export async function recordHearingOutcomeData(input: {
+  hearingId: string
+  outcomeNotes: string
+  agreementType: AgreementType
+  followUpDate?: string
+  followUpTime?: string
+  followUpLocation?: string
+}) {
+  const current = await prisma.hearing.findUnique({
+    where: { id: input.hearingId },
+    include: { case: true },
+  })
+
+  if (!current) return null
+
+  const hasFollowUp = Boolean(input.followUpDate && input.followUpTime && input.followUpLocation)
+  const nextCaseStatus = getCaseStatusAfterOutcome(input.agreementType, hasFollowUp)
+  const actorId = await getSystemActorId()
+  const notes = input.outcomeNotes.trim()
+  const followUpDate = input.followUpDate ? new Date(input.followUpDate) : null
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updated = await tx.hearing.update({
+      where: { id: input.hearingId },
+      data: {
+        status: HearingStatus.COMPLETED,
+        outcome: getOutcomeStatus(input.agreementType),
+        notes,
+        agreementType: input.agreementType,
+        followUpDate,
+      },
+    })
+
+    if (input.agreementType !== "non-settlement") {
+      await tx.settlement.upsert({
+        where: { caseId: current.caseId },
+        update: { agreementText: notes },
+        create: {
+          caseId: current.caseId,
+          agreementText: notes,
+        },
+      })
+    }
+
+    if (hasFollowUp) {
+      const hearingCount = await tx.hearing.count({ where: { caseId: current.caseId } })
+
+      await tx.hearing.create({
+        data: {
+          caseId: current.caseId,
+          conductedBy: current.conductedBy,
+          hearingNumber: hearingCount + 1,
+          stage: HearingStage.MEDIATION,
+          scheduledDate: new Date(input.followUpDate as string),
+          scheduledTime: input.followUpTime as string,
+          location: input.followUpLocation as string,
+          status: HearingStatus.SCHEDULED,
+        },
+      })
+    }
+
+    await tx.case.update({
+      where: { id: current.caseId },
+      data: {
+        status: nextCaseStatus,
+        isArchived: nextCaseStatus === DbCaseStatus.RESOLVED || nextCaseStatus === DbCaseStatus.UNRESOLVED,
+        archivedAt:
+          nextCaseStatus === DbCaseStatus.RESOLVED || nextCaseStatus === DbCaseStatus.UNRESOLVED
+            ? new Date()
+            : null,
+        archivedReason:
+          nextCaseStatus === DbCaseStatus.RESOLVED
+            ? "Resolved through mediation"
+            : nextCaseStatus === DbCaseStatus.UNRESOLVED
+              ? "Unresolved mediation"
+              : null,
+      },
+    })
+
+    if (actorId && current.case.status !== nextCaseStatus) {
+      await tx.caseStatusHistory.create({
+        data: {
+          caseId: current.caseId,
+          changedBy: actorId,
+          oldStatus: current.case.status,
+          newStatus: nextCaseStatus,
+        },
+      })
+    }
+
+    return updated
+  })
+
+  await writeAuditLog({
+    actorId,
+    action: AuditAction.UPDATE,
+    target: { table: "hearings", id: input.hearingId },
+    changes: {
+      caseId: current.caseId,
+      agreementType: input.agreementType,
+      followUpDate: input.followUpDate,
+    },
+  })
+
+  return result
 }
 
 export async function createOfficerData(input: { fullName: string; email: string; roleTitle?: string }) {
@@ -638,11 +962,63 @@ export async function getReportsData() {
   }
 }
 
-export async function getAdminData() {
-  const [users, announcements, auditLogs] = await Promise.all([
-    prisma.user.findMany({ where: { isArchived: false }, orderBy: { createdAt: "desc" } }),
-    prisma.announcement.findMany({ include: { author: true }, orderBy: { publishedAt: "desc" } }),
-    getAuditLogsData(50),
+function pageMeta(page: number, pageSize: number, total: number) {
+  return {
+    page,
+    pageSize,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+  }
+}
+
+function normalizePage(value: number | undefined, fallback = 1) {
+  return Number.isFinite(value) && value && value > 0 ? Math.floor(value) : fallback
+}
+
+function normalizePageSize(value: number | undefined, fallback: number, max = 50) {
+  return Number.isFinite(value) && value && value > 0 ? Math.min(Math.floor(value), max) : fallback
+}
+
+export async function getAdminData(input?: {
+  usersPage?: number
+  usersLimit?: number
+  announcementsPage?: number
+  announcementsLimit?: number
+  auditLogsPage?: number
+  auditLogsLimit?: number
+}) {
+  const usersPage = normalizePage(input?.usersPage)
+  const usersLimit = normalizePageSize(input?.usersLimit, 10)
+  const announcementsPage = normalizePage(input?.announcementsPage)
+  const announcementsLimit = normalizePageSize(input?.announcementsLimit, 3)
+  const auditLogsPage = normalizePage(input?.auditLogsPage)
+  const auditLogsLimit = normalizePageSize(input?.auditLogsLimit, 10)
+
+  const [users, usersTotal, announcements, announcementsTotal, auditLogs, auditLogsTotal] = await Promise.all([
+    prisma.user.findMany({
+      where: { isArchived: false },
+      orderBy: { createdAt: "desc" },
+      take: usersLimit,
+      skip: (usersPage - 1) * usersLimit,
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        street: true,
+        createdAt: true,
+        status: true,
+      },
+    }),
+    prisma.user.count({ where: { isArchived: false } }),
+    prisma.announcement.findMany({
+      include: { author: { select: { fullName: true } } },
+      orderBy: { publishedAt: "desc" },
+      take: announcementsLimit,
+      skip: (announcementsPage - 1) * announcementsLimit,
+    }),
+    prisma.announcement.count(),
+    getAuditLogsData(auditLogsLimit, auditLogsPage),
+    prisma.auditLog.count().catch(() => 0),
   ])
 
   return {
@@ -663,6 +1039,9 @@ export async function getAdminData() {
       isPinned: false,
     })),
     auditLogs,
+    usersPagination: pageMeta(usersPage, usersLimit, usersTotal),
+    announcementsPagination: pageMeta(announcementsPage, announcementsLimit, announcementsTotal),
+    auditLogsPagination: pageMeta(auditLogsPage, auditLogsLimit, auditLogsTotal),
   }
 }
 

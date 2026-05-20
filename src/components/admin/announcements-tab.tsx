@@ -22,10 +22,12 @@ type AdminAnnouncement = {
 
 interface AnnouncementsTabProps {
   announcements?: AdminAnnouncement[]
+  pagination?: { page: number; pageSize: number; total: number; totalPages: number }
+  onPageChange?: (page: number) => void
   onUpdated?: () => void
 }
 
-export function AnnouncementsTab({ announcements = [], onUpdated }: AnnouncementsTabProps) {
+export function AnnouncementsTab({ announcements = [], pagination, onPageChange, onUpdated }: AnnouncementsTabProps) {
   const [isCreating, setIsCreating] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingAnnouncement, setEditingAnnouncement] = useState<AdminAnnouncement | null>(null)
@@ -143,6 +145,32 @@ export function AnnouncementsTab({ announcements = [], onUpdated }: Announcement
         ))}
       </div>
 
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex flex-col gap-2 rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            Page {pagination.page} of {pagination.totalPages} - {pagination.total} announcements
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange?.(Math.max(1, pagination.page - 1))}
+              disabled={pagination.page <= 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange?.(Math.min(pagination.totalPages, pagination.page + 1))}
+              disabled={pagination.page >= pagination.totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -178,7 +206,7 @@ export function AnnouncementsTab({ announcements = [], onUpdated }: Announcement
           <DialogHeader>
             <DialogTitle>Delete Announcement</DialogTitle>
             <DialogDescription>
-              This will remove "{deleteTarget?.title}" from the announcements list.
+              This will remove {deleteTarget?.title ? `"${deleteTarget.title}"` : "this announcement"} from the announcements list.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

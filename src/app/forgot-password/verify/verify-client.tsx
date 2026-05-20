@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, CheckCircle2, KeyRound, Lock, Mail } from "lucide-react"
@@ -17,8 +17,14 @@ export default function VerifyPage() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [devCode, setDevCode] = useState<string | null>(null)
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    if (!emailFromQuery) return
+    setDevCode(sessionStorage.getItem(`iris_password_reset_dev_code:${emailFromQuery.trim().toLowerCase()}`))
+  }, [emailFromQuery])
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     if (!email || !email.includes("@")) {
@@ -30,19 +36,19 @@ export default function VerifyPage() {
       return
     }
 
-    if (code.trim().length < 4) {
+    if (code.trim().length !== 6) {
       toast({
         title: "Verification code required",
-        description: "Enter the code sent to your email.",
+        description: "Enter the 6-digit code sent to your email.",
         variant: "warning",
       })
       return
     }
 
-    if (password.length < 8) {
+    if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
       toast({
-        title: "Password too short",
-        description: "Use at least 8 characters for your new password.",
+        title: "Password is too weak",
+        description: "Use uppercase, lowercase, number, and special character.",
         variant: "warning",
       })
       return
@@ -59,15 +65,32 @@ export default function VerifyPage() {
 
     setIsSubmitting(true)
 
-    window.setTimeout(() => {
-      setIsSubmitting(false)
+    try {
+      const response = await fetch("/api/auth/password-reset/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code, password, confirmPassword }),
+      })
+      const result: { success: boolean; message: string } = await response.json()
+
+      if (!result.success) throw new Error(result.message)
+
+      sessionStorage.removeItem(`iris_password_reset_dev_code:${email.trim().toLowerCase()}`)
       toast({
-        title: "Password reset verified",
+        title: "Password reset",
         description: "You can now sign in with your new password.",
         variant: "success",
       })
       router.push("/login")
-    }, 900)
+    } catch (error) {
+      toast({
+        title: "Reset failed",
+        description: error instanceof Error ? error.message : "Unable to reset password.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -90,6 +113,11 @@ export default function VerifyPage() {
             <p className="mt-1 text-sm text-[var(--iris-text-subtle)]">
               Enter your verification code and choose a new password.
             </p>
+            {devCode && (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                Dev code: {devCode}
+              </p>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -118,7 +146,7 @@ export default function VerifyPage() {
               <input
                 id="code"
                 value={code}
-                onChange={(event) => setCode(event.target.value)}
+                onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
                 className="w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-3 py-2.5 text-center text-sm font-semibold tracking-[0.3em] text-[var(--iris-text)] focus:outline-none"
                 placeholder="000000"
                 disabled={isSubmitting}
@@ -139,7 +167,7 @@ export default function VerifyPage() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   className="w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] py-2.5 pl-9 pr-3 text-sm text-[var(--iris-text)] focus:outline-none"
-                  placeholder="At least 8 characters"
+                  placeholder="Strong new password"
                   disabled={isSubmitting}
                 />
               </div>

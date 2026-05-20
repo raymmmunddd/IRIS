@@ -13,7 +13,7 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
   const [isSending, setIsSending] = useState(false)
 
-  const handleSendCode = (event: React.FormEvent) => {
+  const handleSendCode = async (event: React.FormEvent) => {
     event.preventDefault()
 
     if (!email || !email.includes("@")) {
@@ -27,15 +27,35 @@ export default function ForgotPasswordPage() {
 
     setIsSending(true)
 
-    setTimeout(() => {
-      setIsSending(false)
+    try {
+      const response = await fetch("/api/auth/password-reset/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      const result: { success: boolean; message: string; data?: { devCode?: string } | null } = await response.json()
+
+      if (!result.success) throw new Error(result.message)
+
+      if (result.data?.devCode) {
+        sessionStorage.setItem(`iris_password_reset_dev_code:${email.trim().toLowerCase()}`, result.data.devCode)
+      }
+
       toast({
         title: "Verification sent",
         description: "We sent a verification code to your email.",
         variant: "success",
       })
       router.push(`/forgot-password/verify?email=${encodeURIComponent(email)}`)
-    }, 1200)
+    } catch (error) {
+      toast({
+        title: "Reset failed",
+        description: error instanceof Error ? error.message : "Unable to send verification code.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSending(false)
+    }
   }
 
   return (

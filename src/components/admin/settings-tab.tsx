@@ -183,9 +183,9 @@ export function SettingsTab() {
             </div>
           ))}
 
-          <Button className="rounded-lg bg-slate-900 text-white hover:bg-slate-800" onClick={() => setIsPermissionsOpen(true)}>
+          {/* <Button className="rounded-lg bg-slate-900 text-white hover:bg-slate-800" onClick={() => setIsPermissionsOpen(true)}>
             Manage Permissions
-          </Button>
+          </Button> */}
 
           {statusMessage && <p className="text-sm text-muted-foreground">{statusMessage}</p>}
         </CardContent>

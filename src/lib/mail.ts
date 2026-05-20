@@ -1,9 +1,11 @@
 type SendVerificationEmailInput = {
   to: string
   code: string
+  subject?: string
+  intro?: string
 }
 
-export async function sendVerificationEmail({ to, code }: SendVerificationEmailInput) {
+export async function sendVerificationEmail({ to, code, subject = "Your IRIS verification code", intro = "Use this 6-digit code to finish creating your IRIS account:" }: SendVerificationEmailInput) {
   const apiKey = process.env.RESEND_API_KEY
   const from = process.env.MAIL_FROM ?? "IRIS <onboarding@resend.dev>"
 
@@ -21,11 +23,11 @@ export async function sendVerificationEmail({ to, code }: SendVerificationEmailI
     body: JSON.stringify({
       from,
       to,
-      subject: "Your IRIS verification code",
+      subject,
       html: `
         <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827">
-          <h2>Your IRIS verification code</h2>
-          <p>Use this 6-digit code to finish creating your IRIS account:</p>
+          <h2>${subject}</h2>
+          <p>${intro}</p>
           <p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p>
           <p>This code expires in 10 minutes.</p>
         </div>
@@ -39,4 +41,12 @@ export async function sendVerificationEmail({ to, code }: SendVerificationEmailI
   }
 
   return { sent: true, provider: "resend" as const }
+}
+
+export function sendPasswordResetEmail(input: SendVerificationEmailInput) {
+  return sendVerificationEmail({
+    ...input,
+    subject: "Reset your IRIS password",
+    intro: "Use this 6-digit code to reset your IRIS password:",
+  })
 }

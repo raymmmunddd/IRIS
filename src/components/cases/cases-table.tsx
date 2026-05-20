@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Search, Archive, Clock3, FolderOpen } from "lucide-react"
 import type { CaseRecord, CaseStatus, CaseCategory, CasePriority } from "@/lib/types"
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { ArrowUpDown } from "lucide-react"
+import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime"
 
 const allStatuses: ("All" | CaseStatus)[] = ["All", "Pending", "Under Review", "Mediation", "Resolved", "Closed"]
 const allCategories: ("All" | CaseCategory)[] = [
@@ -52,13 +53,22 @@ const statusStyles: Record<string, string> = {
   Closed: "bg-slate-100 text-slate-600 border border-slate-200",
 }
 
-const priorityWeight: Record<string, number> = {
-  High: 3,
-  Medium: 2,
-  Low: 1,
-}
-
 type CaseAction = "verify" | "assign" | "mediation" | "resolve" | "close" | "restore" | "delete"
+
+type CasesResponse = {
+  items: CaseRecord[]
+  pagination: {
+    page: number
+    pageSize: number
+    total: number
+    totalPages: number
+  }
+  counts: {
+    pending: number
+    active: number
+    archive: number
+  }
+}
 
 const actionTitles: Record<CaseAction, string> = {
   verify: "Verify Case",
@@ -80,23 +90,60 @@ export function CasesTable() {
   const [searchQuery, setSearchQuery] = useState("")
   const [openActionId, setOpenActionId] = useState<string | null>(null)
   const [cases, setCases] = useState<CaseRecord[]>([])
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<CasesResponse["pagination"]>({
+    page: 1,
+    pageSize: 6,
+    total: 0,
+    totalPages: 1,
+  })
+  const [counts, setCounts] = useState<CasesResponse["counts"]>({
+    pending: 0,
+    active: 0,
+    archive: 0,
+  })
+  const [isLoadingCases, setIsLoadingCases] = useState(true)
+  const [loadError, setLoadError] = useState("")
   const [sortBy, setSortBy] = useState<"Newest" | "Oldest" | "Priority">("Newest")
   const [officers, setOfficers] = useState<string[]>(["Unassigned"])
   const [pendingAction, setPendingAction] = useState<{ action: CaseAction; caseItem: CaseRecord } | null>(null)
   const [selectedOfficer, setSelectedOfficer] = useState("")
+  const [mediationDate, setMediationDate] = useState("")
+  const [mediationTime, setMediationTime] = useState("")
+  const [mediationLocation, setMediationLocation] = useState("Barangay East Tapinac Hall")
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
   const [actionError, setActionError] = useState("")
   const router = useRouter()
 
-  async function loadCases() {
+  const loadCases = useCallback(async () => {
     try {
-      const response = await fetch("/api/cases")
+      setLoadError("")
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: "6",
+        tab: activeTab,
+        status: statusFilter,
+        category: categoryFilter,
+        priority: priorityFilter,
+        search: searchQuery,
+        sort: sortBy,
+      })
+      const response = await fetch(`/api/cases?${params.toString()}`)
       const result = await response.json()
-      if (result.success) setCases(result.data)
+      if (!result.success) throw new Error(result.message)
+      const data = result.data as CasesResponse
+      setCases(data.items)
+      setPagination(data.pagination)
+      setCounts(data.counts)
     } catch (error) {
       console.error("Failed to load cases:", error)
+      setLoadError(error instanceof Error ? error.message : "Failed to load cases.")
+    } finally {
+      setIsLoadingCases(false)
     }
-  }
+  }, [activeTab, categoryFilter, page, priorityFilter, searchQuery, sortBy, statusFilter])
+
+  useSupabaseRealtime(["cases", "hearings"], loadCases)
 
   async function updateCase(caseId: string, input: { status?: CaseStatus; assignedOfficer?: string }) {
     const response = await fetch(`/api/cases/${encodeURIComponent(caseId)}`, {
@@ -131,69 +178,7 @@ export function CasesTable() {
     return result.data as CaseRecord
   }
 
-  const filtered = useMemo(() => {
-    const sourceCases = cases.filter((caseItem) => {
-      const archived =
-        caseItem.isArchived ||
-        caseItem.status === "Resolved" ||
-        caseItem.status === "Closed"
-
-      const pending = caseItem.status === "Pending"
-
-      if (activeTab === "pending") return pending
-      if (activeTab === "archive") return archived
-
-      return !pending && !archived
-    })
-
-    let result = sourceCases.filter((c) => {
-      if (statusFilter !== "All" && c.status !== statusFilter) return false
-      if (categoryFilter !== "All" && c.category !== categoryFilter) return false
-      if (priorityFilter !== "All" && c.priority !== priorityFilter) return false
-
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase()
-        return (
-          c.fullName.toLowerCase().includes(q) ||
-          c.shortName.toLowerCase().includes(q) ||
-          c.caseNumber.toLowerCase().includes(q) ||
-          c.assignedOfficer.toLowerCase().includes(q)
-        )
-      }
-
-      return true
-    })
-
-    result = [...result].sort((a, b) => {
-      const dateA = new Date(a.date).getTime()
-      const dateB = new Date(b.date).getTime()
-
-      if (sortBy === "Newest") return dateB - dateA
-      if (sortBy === "Oldest") return dateA - dateB
-
-      if (sortBy === "Priority") {
-        return (
-          (priorityWeight[b.priority] ?? 0) -
-          (priorityWeight[a.priority] ?? 0)
-        )
-      }
-
-      return 0
-    })
-
-    return result
-  }, [
-    cases,
-    statusFilter,
-    categoryFilter,
-    priorityFilter,
-    searchQuery,
-    activeTab,
-    sortBy
-  ])
-
   useEffect(() => {
-    loadCases()
     async function loadOfficers() {
       try {
         const response = await fetch("/api/officers")
@@ -206,6 +191,53 @@ export function CasesTable() {
     loadOfficers()
   }, [])
 
+  useEffect(() => {
+    setPage(1)
+  }, [activeTab, statusFilter, categoryFilter, priorityFilter, searchQuery, sortBy])
+
+  useEffect(() => {
+    let cancelled = false
+    setIsLoadingCases(true)
+    setLoadError("")
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: "6",
+      tab: activeTab,
+      status: statusFilter,
+      category: categoryFilter,
+      priority: priorityFilter,
+      search: searchQuery,
+      sort: sortBy,
+    })
+    const timeout = window.setTimeout(() => {
+      fetch(`/api/cases?${params.toString()}`)
+        .then((response) => response.json())
+        .then((result) => {
+          if (cancelled) return
+          if (!result.success) throw new Error(result.message)
+          const data = result.data as CasesResponse
+          setCases(data.items)
+          setPagination(data.pagination)
+          setCounts(data.counts)
+        })
+        .catch((error) => {
+          if (!cancelled) {
+            console.error("Failed to load cases:", error)
+            setLoadError(error instanceof Error ? error.message : "Failed to load cases.")
+            setCases([])
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoadingCases(false)
+        })
+    }, searchQuery ? 250 : 0)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeout)
+    }
+  }, [activeTab, categoryFilter, page, priorityFilter, searchQuery, sortBy, statusFilter])
+
   function handleAction(action: string, caseItem: CaseRecord) {
     const nextAction = action as CaseAction
     const assignableOfficers = officers.filter((officer) => officer !== "Unassigned")
@@ -213,6 +245,11 @@ export function CasesTable() {
     setSelectedOfficer(
       caseItem.assignedOfficer !== "Unassigned" ? caseItem.assignedOfficer : assignableOfficers[0] ?? "",
     )
+    if (nextAction === "mediation") {
+      setMediationDate(new Date().toISOString().slice(0, 10))
+      setMediationTime("")
+      setMediationLocation("Barangay East Tapinac Hall")
+    }
     setPendingAction({ action: nextAction, caseItem })
     setOpenActionId(null)
   }
@@ -257,7 +294,35 @@ export function CasesTable() {
       }
       input.assignedOfficer = selectedOfficer
     }
-    if (action === "mediation") input.status = "Mediation"
+    if (action === "mediation") {
+      if (!mediationDate || !mediationTime || !mediationLocation.trim()) {
+        setActionError("Choose a hearing date, time, and location before scheduling.")
+        return
+      }
+      try {
+        setIsSubmittingAction(true)
+        const response = await fetch("/api/operations/hearings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            caseId: caseItem.id,
+            mediator: selectedOfficer || undefined,
+            scheduledDate: mediationDate,
+            scheduledTime: mediationTime,
+            location: mediationLocation.trim(),
+          }),
+        })
+        const result = await response.json()
+        if (!result.success) throw new Error(result.message)
+        await loadCases()
+        setPendingAction(null)
+      } catch (error) {
+        setActionError(error instanceof Error ? error.message : "Unable to schedule mediation.")
+      } finally {
+        setIsSubmittingAction(false)
+      }
+      return
+    }
     if (action === "resolve") input.status = "Resolved"
     if (action === "close") input.status = "Closed"
 
@@ -272,21 +337,10 @@ export function CasesTable() {
     }
   }
 
-  const pendingCount = cases.filter(
-    (c) => c.status === "Pending"
-  ).length
-
-  const archiveCount = cases.filter(
-    (c) => c.isArchived || c.status === "Resolved" || c.status === "Closed"
-  ).length
-
-  const activeCount = cases.filter(
-    (c) =>
-      c.status !== "Pending" &&
-      c.status !== "Resolved" &&
-      c.status !== "Closed" &&
-      !c.isArchived
-  ).length
+  const pendingCount = counts.pending
+  const archiveCount = counts.archive
+  const activeCount = counts.active
+  const today = new Date().toISOString().slice(0, 10)
 
   return (
     <>
@@ -467,15 +521,43 @@ export function CasesTable() {
         </Select>
       </div>
 
-      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.map((caseItem) => (
+      {loadError && (
+        <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {loadError}
+        </div>
+      )}
+
+      <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {isLoadingCases && Array.from({ length: 6 }).map((_, index) => (
+          <div key={index} className="h-[220px] animate-pulse rounded-2xl border bg-card p-5 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <div className="h-4 w-32 rounded bg-muted" />
+                <div className="h-3 w-20 rounded bg-muted" />
+              </div>
+              <div className="h-8 w-8 rounded-lg bg-muted" />
+            </div>
+            <div className="mt-5 space-y-2">
+              <div className="h-3 w-full rounded bg-muted" />
+              <div className="h-3 w-3/4 rounded bg-muted" />
+            </div>
+            <div className="mt-5 flex gap-2">
+              <div className="h-6 w-14 rounded-full bg-muted" />
+              <div className="h-6 w-24 rounded-full bg-muted" />
+            </div>
+            <div className="my-5 h-px bg-muted" />
+            <div className="h-3 w-36 rounded bg-muted" />
+          </div>
+        ))}
+
+        {!isLoadingCases && cases.map((caseItem) => (
           <div
             key={caseItem.id}
             onClick={() =>
               router.push(`/cases/case-details/${encodeURIComponent(caseItem.id)}`)
             }
             className={cn(
-              "group relative cursor-pointer overflow-hidden rounded-2xl border bg-card p-5 shadow-sm",
+              "group relative cursor-pointer overflow-visible rounded-2xl border bg-card p-5 shadow-sm",
               "transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg",
 
               // subtle priority border styling
@@ -564,10 +646,26 @@ export function CasesTable() {
         ))}
       </div>
 
-      {/* Empty State */}
-      {filtered.length === 0 && (
-        <div className="col-span-full text-center py-12 text-muted-foreground">
-          No cases found matching your filters.
+      {!isLoadingCases && cases.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-muted-foreground">
+          <p className="text-sm font-semibold">No cases found</p>
+          <p className="mt-1 text-xs">Try changing the tab, filter, or search term.</p>
+        </div>
+      )}
+
+      {!isLoadingCases && pagination.totalPages > 1 && (
+        <div className="mt-5 flex flex-col gap-2 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            Page {pagination.page} of {pagination.totalPages} - {pagination.total} cases
+          </span>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={pagination.page <= 1}>
+              Previous
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setPage((value) => Math.min(pagination.totalPages, value + 1))} disabled={pagination.page >= pagination.totalPages}>
+              Next
+            </Button>
+          </div>
         </div>
       )}
 
@@ -596,10 +694,59 @@ export function CasesTable() {
                 </SelectContent>
               </Select>
             </div>
+          ) : pendingAction?.action === "mediation" ? (
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="hearing-mediator">Mediator</Label>
+                <Select value={selectedOfficer} onValueChange={setSelectedOfficer}>
+                  <SelectTrigger id="hearing-mediator" className="w-full bg-background">
+                    <SelectValue placeholder="Select mediator" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {officers.filter((officer) => officer !== "Unassigned").map((officer) => (
+                      <SelectItem key={officer} value={officer}>
+                        {officer}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="hearing-date">Hearing date</Label>
+                  <input
+                    id="hearing-date"
+                    type="date"
+                    min={today}
+                    value={mediationDate}
+                    onChange={(event) => setMediationDate(event.target.value)}
+                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="hearing-time">Hearing time</Label>
+                  <input
+                    id="hearing-time"
+                    type="time"
+                    value={mediationTime}
+                    onChange={(event) => setMediationTime(event.target.value)}
+                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="hearing-location">Location</Label>
+                <input
+                  id="hearing-location"
+                  value={mediationLocation}
+                  onChange={(event) => setMediationLocation(event.target.value)}
+                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                />
+              </div>
+            </div>
           ) : (
             <p className="text-sm text-muted-foreground">
               {pendingAction?.action === "verify" && "This will move the case into Under Review."}
-              {pendingAction?.action === "mediation" && "This will mark the case for mediation handling."}
               {pendingAction?.action === "resolve" && "This will move the case into the resolved archive."}
               {pendingAction?.action === "close" && "This will close the case and move it into the archive."}
               {pendingAction?.action === "restore" && "This will move the case back to Under Review."}

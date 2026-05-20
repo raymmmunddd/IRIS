@@ -92,6 +92,7 @@ export function OfficersTab({ officers = [], assignableCases = [], onUpdated }: 
   const [selectedOfficer, setSelectedOfficer] = useState<OperationsOfficer | null>(null)
   const [assignOfficer, setAssignOfficer] = useState<OperationsOfficer | null>(null)
   const [selectedCaseId, setSelectedCaseId] = useState("")
+  const [page, setPage] = useState(1)
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
@@ -102,6 +103,9 @@ export function OfficersTab({ officers = [], assignableCases = [], onUpdated }: 
   const avgPerformance = Math.round(
     officers.reduce((sum, o) => sum + o.performance, 0) / Math.max(totalOfficers, 1)
   )
+  const pageSize = 5
+  const totalPages = Math.max(1, Math.ceil(officers.length / pageSize))
+  const pagedOfficers = officers.slice((page - 1) * pageSize, page * pageSize)
 
   async function addOfficer() {
     if (!fullName || !email) {
@@ -241,7 +245,7 @@ export function OfficersTab({ officers = [], assignableCases = [], onUpdated }: 
                 No officers found in the database.
               </div>
             )}
-            {officers.map((officer) => (
+            {pagedOfficers.map((officer) => (
               <div
                 key={officer.id}
                 className="flex flex-col justify-between space-y-4 rounded-lg border border-l-4 border-l-blue-600 bg-card p-4 transition-all hover:shadow-md sm:flex-row sm:items-start sm:space-y-0"
@@ -303,6 +307,19 @@ export function OfficersTab({ officers = [], assignableCases = [], onUpdated }: 
               </div>
             ))}
           </div>
+          {totalPages > 1 && (
+            <div className="mt-4 flex flex-col gap-2 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <span>Page {page} of {totalPages} - {officers.length} officers</span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page <= 1}>
+                  Previous
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page >= totalPages}>
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

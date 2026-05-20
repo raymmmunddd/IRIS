@@ -96,7 +96,7 @@ export default function ResidentReportIntakePage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const [openGuide, setOpenGuide] = useState(true)
+  const [openGuide, setOpenGuide] = useState(false)
   const [openScopeModal, setOpenScopeModal] = useState(false)
   const [openRestrictionModal, setOpenRestrictionModal] =
     useState(false)

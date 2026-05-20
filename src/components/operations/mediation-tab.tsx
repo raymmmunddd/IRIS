@@ -1,9 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import {
-  Calendar,
-} from "lucide-react"
 import { toast } from "sonner"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,6 +28,14 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+type AgreementType = "partial agreement" | "amicable settlement" | "non-settlement"
+
+const agreementOptions: Array<{ label: string; value: AgreementType }> = [
+  { label: "Partial Agreement", value: "partial agreement" },
+  { label: "Amicable Settlement", value: "amicable settlement" },
+  { label: "Non-Settlement", value: "non-settlement" },
+]
+
 export type MediationSession = {
   id: string
   caseId: string
@@ -40,6 +45,9 @@ export type MediationSession = {
   scheduledTime: string
   location: string
   status: "Scheduled" | "Completed"
+  outcomeNotes?: string
+  agreementType?: string
+  followUpDate?: string
 }
 
 interface MediationTabProps {
@@ -51,6 +59,7 @@ interface MediationTabProps {
 export function MediationTab({ sessions = [], mediators = [], onScheduled }: MediationTabProps) {
   const [caseId, setCaseId] = useState("")
   const [mediator, setMediator] = useState("")
+  const [page, setPage] = useState(1)
   const [scheduledDate, setScheduledDate] = useState("")
   const [scheduledTime, setScheduledTime] = useState("")
   const [location, setLocation] = useState("")
@@ -58,10 +67,21 @@ export function MediationTab({ sessions = [], mediators = [], onScheduled }: Med
   const [respondent, setRespondent] = useState("")
   const [noticeOpen, setNoticeOpen] = useState(false)
   const [noticeSessionId, setNoticeSessionId] = useState("")
+  const [outcomeSession, setOutcomeSession] = useState<MediationSession | null>(null)
+  const [outcomeNotes, setOutcomeNotes] = useState("")
+  const [agreementType, setAgreementType] = useState<AgreementType | "">("")
+  const [followUpNeeded, setFollowUpNeeded] = useState(false)
+  const [followUpDate, setFollowUpDate] = useState("")
+  const [followUpTime, setFollowUpTime] = useState("")
+  const [followUpLocation, setFollowUpLocation] = useState("")
+  const [isRecording, setIsRecording] = useState(false)
   const [reportSession, setReportSession] = useState<MediationSession | null>(null)
   const today = new Date().toISOString().slice(0, 10)
   const selectedNoticeSession = sessions.find((session) => session.id === noticeSessionId) ?? sessions[0]
   const noticeParties = selectedNoticeSession?.parties ?? ["[Complainant]", "[Respondent]"]
+  const pageSize = 7
+  const totalPages = Math.max(1, Math.ceil(sessions.length / pageSize))
+  const pagedSessions = sessions.slice((page - 1) * pageSize, page * pageSize)
 
   async function scheduleSession() {
     if (!caseId || !mediator || !scheduledDate || !scheduledTime || !location) {
@@ -95,6 +115,59 @@ export function MediationTab({ sessions = [], mediators = [], onScheduled }: Med
     }
 
     toast.error(result.message || "Unable to schedule mediation")
+  }
+
+  function openOutcomeDialog(session: MediationSession) {
+    setOutcomeSession(session)
+    setOutcomeNotes(session.outcomeNotes ?? "")
+    setAgreementType((session.agreementType as AgreementType) || "")
+    setFollowUpNeeded(false)
+    setFollowUpDate("")
+    setFollowUpTime("")
+    setFollowUpLocation(session.location)
+  }
+
+  async function recordOutcome() {
+    if (!outcomeSession || !outcomeNotes.trim() || !agreementType) {
+      toast.error("Complete the outcome and agreement type")
+      return
+    }
+
+    if (followUpNeeded && (!followUpDate || !followUpTime || !followUpLocation)) {
+      toast.error("Complete the follow-up mediation details")
+      return
+    }
+
+    if (followUpNeeded && followUpDate < today) {
+      toast.error("You cannot schedule follow-up mediation in the past")
+      return
+    }
+
+    setIsRecording(true)
+    const response = await fetch("/api/operations/hearings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        hearingId: outcomeSession.id,
+        outcomeNotes,
+        agreementType,
+        followUpNeeded,
+        followUpDate,
+        followUpTime,
+        followUpLocation,
+      }),
+    })
+    const result = await response.json()
+    setIsRecording(false)
+
+    if (result.success) {
+      toast.success("Outcome recorded successfully")
+      setOutcomeSession(null)
+      onScheduled?.()
+      return
+    }
+
+    toast.error(result.message || "Unable to record outcome")
   }
 
   return (
@@ -238,7 +311,7 @@ export function MediationTab({ sessions = [], mediators = [], onScheduled }: Med
                   </TableCell>
                 </TableRow>
               )}
-              {sessions.map((session) => (
+              {pagedSessions.map((session) => (
                 <TableRow key={session.id}>
                   <TableCell className="font-medium">{session.caseId}</TableCell>
                   <TableCell>
@@ -276,53 +349,98 @@ export function MediationTab({ sessions = [], mediators = [], onScheduled }: Med
                         View Report
                       </Button>
                     ) : (
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button size="sm" className="bg-black hover:bg-black/90 text-white">Record Outcome</Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px]">
-                          <DialogHeader>
-                            <DialogTitle>Record Mediation Outcome</DialogTitle>
-                          </DialogHeader>
-                          <div className="grid gap-4 py-4">
-                            <div className="grid gap-2">
-                              <Label htmlFor="outcome">Outcome</Label>
-                              <Textarea
-                                id="outcome"
-                                placeholder="Describe the outcome of the mediation..."
-                                rows={4}
-                              />
-                            </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="agreement-type">Agreement Type</Label>
-                              <Input
-                                id="agreement-type"
-                                placeholder="e.g., Settlement, Partial Agreement"
-                              />
-                            </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="follow-up">Follow-up Required?</Label>
-                              <Input id="follow-up" type="date" />
-                            </div>
-                          </div>
-                          <div className="flex justify-end">
-                            <Button
-                              onClick={() => toast.success("Outcome recorded successfully")}
-                              className="bg-black hover:bg-black/90 text-white"
-                            >
-                              Save Outcome
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                      <Button size="sm" className="bg-black hover:bg-black/90 text-white" onClick={() => openOutcomeDialog(session)}>
+                        Record Outcome
+                      </Button>
                     )}
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          {totalPages > 1 && (
+            <div className="mt-4 flex flex-col gap-2 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <span>Page {page} of {totalPages} - {sessions.length} sessions</span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page <= 1}>
+                  Previous
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page >= totalPages}>
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!outcomeSession} onOpenChange={(open) => !open && setOutcomeSession(null)}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Record Mediation Outcome</DialogTitle>
+            <DialogDescription>{outcomeSession?.caseId}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="outcome">Outcome</Label>
+              <Textarea
+                id="outcome"
+                value={outcomeNotes}
+                onChange={(event) => setOutcomeNotes(event.target.value)}
+                placeholder="Describe the agreement, unresolved issues, and next steps."
+                rows={4}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="agreement-type">Agreement Type</Label>
+              <Select value={agreementType} onValueChange={(value) => setAgreementType(value as AgreementType)}>
+                <SelectTrigger id="agreement-type">
+                  <SelectValue placeholder="Select agreement type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {agreementOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <label className="flex items-center gap-3 rounded-lg border p-3 text-sm">
+              <input
+                type="checkbox"
+                checked={followUpNeeded}
+                onChange={(event) => setFollowUpNeeded(event.target.checked)}
+              />
+              Schedule follow-up mediation
+            </label>
+            {followUpNeeded && (
+              <div className="grid gap-4 rounded-lg border bg-muted/30 p-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="follow-up-date">Date</Label>
+                    <Input id="follow-up-date" type="date" min={today} value={followUpDate} onChange={(event) => setFollowUpDate(event.target.value)} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="follow-up-time">Time</Label>
+                    <Input id="follow-up-time" type="time" value={followUpTime} onChange={(event) => setFollowUpTime(event.target.value)} />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="follow-up-location">Location</Label>
+                  <Input id="follow-up-location" value={followUpLocation} onChange={(event) => setFollowUpLocation(event.target.value)} />
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOutcomeSession(null)} disabled={isRecording}>Cancel</Button>
+            <Button onClick={recordOutcome} disabled={isRecording} className="bg-black hover:bg-black/90 text-white">
+              {isRecording ? "Saving..." : "Save Outcome"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!reportSession} onOpenChange={(open) => !open && setReportSession(null)}>
         <DialogContent className="sm:max-w-xl">
@@ -352,9 +470,15 @@ export function MediationTab({ sessions = [], mediators = [], onScheduled }: Med
               </div>
               <div className="rounded-lg border p-4">
                 <p className="font-semibold">Outcome Summary</p>
-                <p className="mt-2 text-muted-foreground">
-                  This completed mediation session is on record. Outcome notes can be expanded once recorded outcomes are persisted.
-                </p>
+                <div className="mt-2 space-y-2 text-muted-foreground">
+                  <p>{reportSession.outcomeNotes || "No outcome notes recorded."}</p>
+                  {reportSession.agreementType && (
+                    <p><span className="font-medium text-foreground">Agreement:</span> {reportSession.agreementType}</p>
+                  )}
+                  {reportSession.followUpDate && reportSession.followUpDate !== "Not set" && (
+                    <p><span className="font-medium text-foreground">Follow-up:</span> {reportSession.followUpDate}</p>
+                  )}
+                </div>
               </div>
             </div>
           )}
