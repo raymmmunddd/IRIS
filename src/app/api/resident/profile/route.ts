@@ -30,6 +30,7 @@ export async function PATCH(request: Request) {
       fullName: body.fullName,
       phone: body.phone,
       street: body.street,
+      photoUrl: body.photoUrl,
     })
 
     if (!data) {

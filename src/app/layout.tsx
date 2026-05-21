@@ -1,26 +1,11 @@
-import type { Metadata } from "next";
-import { Inter, Poppins, JetBrains_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import { Toaster } from "@/components/ui/toaster";
+import { PwaRegistrar } from "@/components/PwaRegistrar";
 import "leaflet/dist/leaflet.css";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-const poppins = Poppins({
-  variable: "--font-poppins",
-  weight: ["400", "500", "600", "700"],
-  subsets: ["latin"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
+  manifest: "/manifest.webmanifest",
   title: "IRIS | Barangay East Tapinac",
   description:
     "Incident Reporting and Information System for Barangay East Tapinac",
@@ -39,6 +24,16 @@ export const metadata: Metadata = {
       { url: "/EastTapinac.png", type: "image/png" },
     ],
   },
+  appleWebApp: {
+    capable: true,
+    title: "IRIS",
+    statusBarStyle: "default",
+  },
+  applicationName: "IRIS",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1E4FA3",
 };
 
 export default function RootLayout({
@@ -47,10 +42,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${poppins.variable} ${jetbrainsMono.variable} antialiased font-sans`}
+        className="antialiased font-sans"
       >
         {children}
         <Toaster />
+        <PwaRegistrar />
       </body>
     </html>
   );

@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { ResidentSidebar } from "@/components/resident/sidebar";
 import { ResidentNav } from "@/components/ResidentNav";
-import { getAuthUser } from "@/lib/auth";
+import { getAuthUser, logout, saveAuthUser } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -32,6 +32,8 @@ interface ResidentProfile {
   phone: string;
   street: string;
   photoUrl: string;
+  passwordLastUpdated?: string | null;
+  twoFactorEnabled?: boolean;
 }
 
 const PROFILE_KEY = "iris_resident_profile";
@@ -103,16 +105,18 @@ export default function ResidentAccountPage() {
   const [showPw, setShowPw] = useState(false);
   const [pwMessage, setPwMessage] = useState("");
   const [pwSuccess, setPwSuccess] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [isSavingSecurity, setIsSavingSecurity] = useState(false);
 
   // Security
   const initialSecurity = loadSecurity();
-  const [lastUpdated, setLastUpdated] = useState(initialSecurity.passwordLastUpdated);
-  const [twoFactor, setTwoFactor] = useState(initialSecurity.twoFactorEnabled);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(initialSecurity.passwordLastUpdated);
+  const [twoFactor, setTwoFactor] = useState(Boolean(initialSecurity.twoFactorEnabled));
 
   // Email change
   const [newEmail, setNewEmail] = useState("");
   const [emailCode, setEmailCode] = useState("");
-  const [generatedCode, setGeneratedCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [showEmailForm, setShowEmailForm] = useState(false);
@@ -124,7 +128,14 @@ export default function ResidentAccountPage() {
       .then((response) => response.json())
       .then((result) => {
         if (result.success && result.data) {
-          setProfile((current) => ({ ...result.data, photoUrl: current.photoUrl }));
+          setProfile(result.data);
+          setLastUpdated(result.data.passwordLastUpdated);
+          setTwoFactor(Boolean(result.data.twoFactorEnabled));
+          saveProfile(result.data);
+          saveSecurity({
+            passwordLastUpdated: result.data.passwordLastUpdated,
+            twoFactorEnabled: Boolean(result.data.twoFactorEnabled),
+          });
         }
       })
       .catch(() => undefined);
@@ -143,14 +154,29 @@ export default function ResidentAccountPage() {
     setProfile((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
+    setIsSavingProfile(true);
     saveProfile(profile);
-    fetch("/api/resident/profile", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(profile),
-    }).catch(() => undefined);
-    toast({ title: "Profile saved", description: "Your information has been updated." });
+    try {
+      const response = await fetch("/api/resident/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profile),
+      });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.message);
+      setProfile(result.data);
+      saveProfile(result.data);
+      toast({ title: "Profile saved", description: "Your information has been updated." });
+    } catch (error) {
+      toast({
+        title: "Profile saved locally",
+        description: error instanceof Error ? error.message : "We will keep your changes on this device until the connection returns.",
+        variant: "warning",
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,64 +191,130 @@ export default function ResidentAccountPage() {
     e.target.value = "";
   };
 
-  const handlePasswordSave = () => {
+  const handlePasswordSave = async () => {
     setPwMessage("");
     setPwSuccess(false);
     if (!currentPw || !newPw || !confirmPw) {
       setPwMessage("Please fill in all password fields.");
       return;
     }
-    if (newPw.length < 8) {
-      setPwMessage("New password must be at least 8 characters.");
+    if (newPw.length < 8 || !/[A-Z]/.test(newPw) || !/[a-z]/.test(newPw) || !/\d/.test(newPw) || !/[^A-Za-z0-9]/.test(newPw)) {
+      setPwMessage("Password must include uppercase, lowercase, number, and special character.");
       return;
     }
     if (newPw !== confirmPw) {
       setPwMessage("Passwords do not match.");
       return;
     }
-    const now = new Date().toISOString();
-    const sec = { passwordLastUpdated: now, twoFactorEnabled: twoFactor };
-    saveSecurity(sec);
-    setLastUpdated(now);
-    setCurrentPw("");
-    setNewPw("");
-    setConfirmPw("");
-    setPwSuccess(true);
-    setPwMessage("Password updated successfully.");
+    setIsSavingPassword(true);
+    try {
+      const response = await fetch("/api/resident/account/security", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: profile.email,
+          currentPassword: currentPw,
+          newPassword: newPw,
+          confirmPassword: confirmPw,
+        }),
+      });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.message);
+      saveSecurity(result.data);
+      setLastUpdated(result.data.passwordLastUpdated);
+      setTwoFactor(Boolean(result.data.twoFactorEnabled));
+      setCurrentPw("");
+      setNewPw("");
+      setConfirmPw("");
+      setPwSuccess(true);
+      setPwMessage("Password updated successfully.");
+    } catch (error) {
+      setPwMessage(error instanceof Error ? error.message : "Unable to update password.");
+    } finally {
+      setIsSavingPassword(false);
+    }
   };
 
-  const handleToggle2FA = () => {
+  const handleToggle2FA = async () => {
     const next = !twoFactor;
     setTwoFactor(next);
-    saveSecurity({ passwordLastUpdated: lastUpdated, twoFactorEnabled: next });
-    toast({
-      title: next ? "2FA Enabled" : "2FA Disabled",
-      description: next
-        ? "Two-factor authentication is now active."
-        : "Two-factor authentication has been turned off.",
-    });
-  };
-
-  const sendCode = () => {
-    if (!newEmail.includes("@")) return;
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    setGeneratedCode(code);
-    setCodeSent(true);
-    setCooldown(30);
-    toast({ title: "Code sent", description: `Demo code: ${code}` });
-  };
-
-  const confirmEmail = () => {
-    if (emailCode !== generatedCode) {
-      toast({ title: "Invalid code", description: "The code does not match.", variant: "destructive" });
-      return;
+    setIsSavingSecurity(true);
+    try {
+      const response = await fetch("/api/resident/account/security", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: profile.email, twoFactorEnabled: next }),
+      });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.message);
+      saveSecurity(result.data);
+      setLastUpdated(result.data.passwordLastUpdated);
+      setTwoFactor(Boolean(result.data.twoFactorEnabled));
+      toast({
+        title: next ? "2FA Enabled" : "2FA Disabled",
+        description: next
+          ? "Every login now requires an emailed verification code."
+          : "Two-factor authentication has been turned off.",
+      });
+    } catch (error) {
+      setTwoFactor(!next);
+      toast({
+        title: "Security update failed",
+        description: error instanceof Error ? error.message : "Unable to update two-factor authentication.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingSecurity(false);
     }
-    setProfile((prev) => ({ ...prev, email: newEmail }));
-    setShowEmailForm(false);
-    setNewEmail("");
-    setEmailCode("");
-    setCodeSent(false);
-    toast({ title: "Email updated", description: "Your email address has been changed." });
+  };
+
+  const sendCode = async () => {
+    if (!newEmail.includes("@")) return;
+    try {
+      const response = await fetch("/api/resident/account/email/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: profile.email, nextEmail: newEmail }),
+      });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.message);
+      setCodeSent(true);
+      setCooldown(30);
+      toast({ title: "Code sent", description: "Check the new email address for your verification code." });
+    } catch (error) {
+      toast({
+        title: "Unable to send code",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const confirmEmail = async () => {
+    try {
+      const response = await fetch("/api/resident/account/email/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: profile.email, code: emailCode }),
+      });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.message);
+      setProfile(result.data);
+      const authUser = getAuthUser();
+      if (authUser) saveAuthUser({ ...authUser, email: result.data.email });
+      saveProfile(result.data);
+      setShowEmailForm(false);
+      setNewEmail("");
+      setEmailCode("");
+      setCodeSent(false);
+      toast({ title: "Email updated", description: "Your email address has been changed." });
+    } catch (error) {
+      toast({
+        title: "Invalid code",
+        description: error instanceof Error ? error.message : "The code does not match.",
+        variant: "destructive",
+      });
+    }
   };
 
   const initials =
@@ -233,8 +325,8 @@ export default function ResidentAccountPage() {
       .slice(0, 2)
       .toUpperCase() || "R";
 
-  const passwordAgeLabel = formatPasswordAge(lastUpdated);
-  const passwordHealthy = lastUpdated !== "Never";
+  const passwordAgeLabel = formatPasswordAge(lastUpdated || "Never");
+  const passwordHealthy = Boolean(lastUpdated && lastUpdated !== "Never");
 
   const TABS: Array<{ id: TabId; label: string; icon: typeof User }> = [
     { id: "profile", label: "Profile", icon: User },
@@ -391,10 +483,11 @@ export default function ResidentAccountPage() {
 
                     <button
                       onClick={handleSaveProfile}
+                      disabled={isSavingProfile}
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--primary-hover)]"
                     >
                       <Save className="h-4 w-4" />
-                      Save Profile
+                      {isSavingProfile ? "Saving..." : "Save Profile"}
                     </button>
                   </div>
                 </div>
@@ -465,13 +558,17 @@ export default function ResidentAccountPage() {
                     )}
                   </div>
 
-                  <Link
-                    href="/login"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      logout();
+                      window.location.href = "/login";
+                    }}
                     className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100"
                   >
                     <LogOut className="h-4 w-4" />
                     Sign Out
-                  </Link>
+                  </button>
                 </div>
               </div>
             )}
@@ -520,10 +617,11 @@ export default function ResidentAccountPage() {
 
                   <button
                     onClick={handlePasswordSave}
+                    disabled={isSavingPassword}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--primary-hover)]"
                   >
                     <Save className="h-4 w-4" />
-                    Update Password
+                    {isSavingPassword ? "Updating..." : "Update Password"}
                   </button>
                 </div>
 
@@ -542,13 +640,14 @@ export default function ResidentAccountPage() {
                     </div>
                     <button
                       onClick={handleToggle2FA}
+                      disabled={isSavingSecurity}
                       className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                         twoFactor
                           ? "border border-border text-muted-foreground hover:bg-muted"
                           : "bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)]"
                       }`}
                     >
-                      {twoFactor ? "Disable" : "Enable"}
+                      {isSavingSecurity ? "Saving..." : twoFactor ? "Disable" : "Enable"}
                     </button>
                   </div>
 

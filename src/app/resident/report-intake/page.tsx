@@ -10,7 +10,9 @@ import {
   Gavel,
   Info,
   MapPin,
+  Paperclip,
   ShieldAlert,
+  X,
 } from "lucide-react"
 
 import { useToast } from "@/hooks/use-toast"
@@ -59,6 +61,18 @@ function formatDateInput(date: Date) {
   return `${year}-${month}-${day}`
 }
 
+function addDays(date: Date, days: number) {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`
+}
+
 export default function ResidentReportIntakePage() {
   const router = useRouter()
   const { toast } = useToast()
@@ -71,9 +85,12 @@ export default function ResidentReportIntakePage() {
     useState<(GeoPoint & { address: string; street: string; purok: number }) | null>(null)
   const [isLocating, setIsLocating] = useState(false)
   const [incidentDate, setIncidentDate] = useState("")
+  const [dateMode, setDateMode] =
+    useState<"today" | "yesterday" | "custom">("custom")
   const [category, setCategory] =
     useState<CaseCategory>("Community Dispute")
   const [details, setDetails] = useState("")
+  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([])
   const [estimatedClaimAmount, setEstimatedClaimAmount] = useState("")
 
   const [respondentWithinBarangay, setRespondentWithinBarangay] =
@@ -101,6 +118,7 @@ export default function ResidentReportIntakePage() {
   const [openRestrictionModal, setOpenRestrictionModal] =
     useState(false)
   const todayInput = formatDateInput(new Date())
+  const yesterdayInput = formatDateInput(addDays(new Date(), -1))
 
   useEffect(() => {
     const user = getAuthUser()
@@ -248,7 +266,7 @@ export default function ResidentReportIntakePage() {
       return
     }
 
-    let created: { id: string } | null = null
+    let created: { id: string; dbId?: string } | null = null
     let submitError = "Unable to save report. Please try again."
 
     try {
@@ -279,9 +297,8 @@ export default function ResidentReportIntakePage() {
       created = null
     }
 
-    setIsSubmitting(false)
-
     if (!created) {
+      setIsSubmitting(false)
       toast({
         title: "Submission failed",
         description: submitError,
@@ -290,12 +307,57 @@ export default function ResidentReportIntakePage() {
       return
     }
 
+    let uploadedCount = 0
+    if (evidenceFiles.length > 0 && created.dbId) {
+      for (const file of evidenceFiles) {
+        try {
+          const formData = new FormData()
+          formData.append("caseId", created.dbId)
+          formData.append("email", email)
+          formData.append("file", file)
+
+          const uploadResponse = await fetch("/api/resident/cases/evidence", {
+            method: "POST",
+            body: formData,
+          })
+          const uploadResult = await uploadResponse.json()
+          if (!uploadResult.success) {
+            throw new Error(uploadResult.message || "The case was filed, but one evidence file was not attached.")
+          }
+          uploadedCount += 1
+        } catch (error) {
+          setIsSubmitting(false)
+          toast({
+            title: "Evidence upload failed",
+            description: error instanceof Error ? error.message : "The case was filed, but one evidence file was not attached.",
+            variant: "destructive",
+          })
+          return
+        }
+      }
+    }
+
+    setIsSubmitting(false)
+
     toast({
       title: "Report filed",
-      description: `${created.id} was filed successfully.`,
+      description: uploadedCount
+        ? `${created.id} was filed with ${uploadedCount} evidence file${uploadedCount === 1 ? "" : "s"}.`
+        : `${created.id} was filed successfully.`,
     })
 
     router.push("/resident")
+  }
+
+  const selectIncidentDate = (mode: "today" | "yesterday" | "custom") => {
+    setDateMode(mode)
+    if (mode === "today") setIncidentDate(todayInput)
+    if (mode === "yesterday") setIncidentDate(yesterdayInput)
+  }
+
+  const addEvidenceFiles = (files: FileList | null) => {
+    if (!files?.length) return
+    setEvidenceFiles((current) => [...current, ...Array.from(files)])
   }
 
   const captureIncidentLocation = () => {
@@ -449,13 +511,35 @@ export default function ResidentReportIntakePage() {
                         Incident Date *
                       </span>
 
+                      <div className="grid grid-cols-3 gap-2">
+                        {([
+                          ["today", "Today"],
+                          ["yesterday", "Yesterday"],
+                          ["custom", "Custom"],
+                        ] as const).map(([mode, label]) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => selectIncidentDate(mode)}
+                            className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+                              dateMode === mode
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-background text-muted-foreground hover:bg-muted"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+
                       <input
                         type="date"
                         value={incidentDate}
                         max={todayInput}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          setDateMode("custom")
                           setIncidentDate(event.target.value)
-                        }
+                        }}
                         className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm"
                       />
                     </label>
@@ -533,6 +617,56 @@ export default function ResidentReportIntakePage() {
                       and who was involved.
                     </p>
                   </label>
+
+                  <div className="space-y-3 rounded-2xl border border-border bg-background p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Submit Evidence</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Optional photos, screenshots, PDFs, or documents. The report is saved first, then evidence is attached.
+                        </p>
+                      </div>
+
+                      <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-medium text-primary hover:bg-muted">
+                        <Paperclip className="h-4 w-4" />
+                        Add files
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*,.pdf,.doc,.docx,.txt"
+                          className="hidden"
+                          onChange={(event) => {
+                            addEvidenceFiles(event.target.files)
+                            event.target.value = ""
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    {evidenceFiles.length > 0 && (
+                      <div className="grid gap-2">
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          {evidenceFiles.length} file{evidenceFiles.length === 1 ? "" : "s"} ready to upload
+                        </p>
+                        {evidenceFiles.map((file, index) => (
+                          <div key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center justify-between rounded-xl border border-border bg-card px-3 py-2 text-sm">
+                            <span className="min-w-0">
+                              <span className="block truncate">{file.name}</span>
+                              <span className="text-xs text-muted-foreground">{file.type || "File"} - {formatFileSize(file.size)}</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setEvidenceFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                              className="ml-3 rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                              aria-label={`Remove ${file.name}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
                   <label className="space-y-2 block">
                     <span className="text-sm font-medium">

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, FileText, Image as ImageIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { EvidenceFile } from "@/lib/types"
@@ -11,84 +11,63 @@ interface EvidenceViewerProps {
   initialIndex?: number
 }
 
-const mockEvidenceFiles: EvidenceFile[] = [
-  {
-    id: "1",
-    name: "Scene-Photo-01.jpg",
-    type: "image" as const,
-    size: "2.4 MB",
-    uploadedAt: "2024-02-15 10:30 AM",
-    url: "https://images.unsplash.com/photo-1579274455863-834f5619b7d2?w=1200&h=800&fit=crop",
-    thumbnail: "https://images.unsplash.com/photo-1579274455863-834f5619b7d2?w=100&h=100&fit=crop",
-  },
-  {
-    id: "2",
-    name: "Witness-Statement.pdf",
-    type: "document" as const,
-    size: "450 KB",
-    uploadedAt: "2024-02-15 11:00 AM",
-    url: "#",
-    thumbnail: "",
-  },
-  {
-    id: "3",
-    name: "Scene-Photo-02.jpg",
-    type: "image" as const,
-    size: "3.1 MB",
-    uploadedAt: "2024-02-15 11:15 AM",
-    url: "https://images.unsplash.com/photo-1516534775068-bb4d910b3d82?w=1200&h=800&fit=crop",
-    thumbnail: "https://images.unsplash.com/photo-1516534775068-bb4d910b3d82?w=100&h=100&fit=crop",
-  },
-  {
-    id: "4",
-    name: "Incident-Report.pdf",
-    type: "document" as const,
-    size: "680 KB",
-    uploadedAt: "2024-02-15 02:30 PM",
-    url: "#",
-    thumbnail: "",
-  },
-  {
-    id: "5",
-    name: "Scene-Photo-03.jpg",
-    type: "image" as const,
-    size: "2.8 MB",
-    uploadedAt: "2024-02-16 09:00 AM",
-    url: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=1200&h=800&fit=crop",
-    thumbnail: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=100&h=100&fit=crop",
-  },
-]
-
 export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0 }: EvidenceViewerProps) {
-  const files = providedFiles && providedFiles.length > 0 ? providedFiles : mockEvidenceFiles
+  const files = providedFiles ?? []
   const [currentIndex, setCurrentIndex] = useState(Math.min(initialIndex, files.length - 1))
   const [zoom, setZoom] = useState(1)
-  const current = files[currentIndex]
+  const [documentPreview, setDocumentPreview] = useState<{ url: string; text: string } | null>(null)
+  const safeIndex = Math.min(Math.max(currentIndex, 0), Math.max(files.length - 1, 0))
+  const current = files[safeIndex]
+  const filePath = current?.url.split("?")[0] ?? ""
+  const canFrameDocument = /\.(pdf)$/i.test(filePath)
+  const canExtractText = /\.(txt|doc|docx)$/i.test(filePath)
+  const isWordFile = /\.(doc|docx)$/i.test(filePath)
 
-  useEffect(() => {
-    setCurrentIndex(Math.min(initialIndex, files.length - 1))
-    setZoom(1)
-  }, [initialIndex, files.length])
-
-  const goNext = useCallback(() => {
+  const goNext = () => {
+    if (!files.length) return
     setCurrentIndex((i) => (i + 1) % files.length)
     setZoom(1)
-  }, [files.length])
+  }
 
-  const goPrev = useCallback(() => {
+  const goPrev = () => {
+    if (!files.length) return
     setCurrentIndex((i) => (i - 1 + files.length) % files.length)
     setZoom(1)
-  }, [files.length])
+  }
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose()
-      if (e.key === "ArrowRight") goNext()
-      if (e.key === "ArrowLeft") goPrev()
+      if (e.key === "ArrowRight" && files.length) {
+        setCurrentIndex((i) => (i + 1) % files.length)
+        setZoom(1)
+      }
+      if (e.key === "ArrowLeft" && files.length) {
+        setCurrentIndex((i) => (i - 1 + files.length) % files.length)
+        setZoom(1)
+      }
     }
     window.addEventListener("keydown", handleKey)
     return () => window.removeEventListener("keydown", handleKey)
-  }, [onClose, goNext, goPrev])
+  }, [onClose, files.length])
+
+  useEffect(() => {
+    if (!current || !canExtractText) return
+
+    let cancelled = false
+    fetch(`/api/files/preview?url=${encodeURIComponent(current.url)}`)
+      .then((response) => response.json())
+      .then((result) => {
+        if (!cancelled && result.success) setDocumentPreview({ url: current.url, text: result.data.text })
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [current, canExtractText])
+
+  if (!current) return null
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col">
@@ -110,7 +89,7 @@ export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0
         </div>
         <div className="flex items-center gap-1">
           <span className="mr-2 rounded-md bg-primary-foreground/10 px-2 py-0.5 text-xs font-medium text-primary-foreground">
-            {currentIndex + 1} / {files.length}
+            {safeIndex + 1} / {files.length}
           </span>
           <button
             onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
@@ -169,11 +148,45 @@ export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0
               style={{ transform: `scale(${zoom})`, maxHeight: "calc(100vh - 180px)", objectFit: "contain" }}
               draggable={false}
             />
+          ) : canFrameDocument ? (
+            <iframe
+              src={current.url}
+              title={current.name}
+              className="h-[min(72vh,760px)] w-[min(86vw,980px)] rounded-lg bg-card shadow-2xl"
+            />
+          ) : canExtractText ? (
+            <div className="h-[min(72vh,760px)] w-[min(86vw,860px)] overflow-auto rounded-lg bg-card p-6 text-card-foreground shadow-2xl">
+              <div className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">{isWordFile ? "Word document preview" : "Text preview"}</p>
+                  <p className="text-xs text-muted-foreground">{current.name}</p>
+                </div>
+                <a
+                  href={current.url}
+                  download={current.name}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Download
+                </a>
+              </div>
+              {documentPreview?.url !== current.url ? (
+                <div className="space-y-2">
+                  <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+                  <div className="h-4 w-full animate-pulse rounded bg-muted" />
+                  <div className="h-4 w-4/5 animate-pulse rounded bg-muted" />
+                </div>
+              ) : (
+                <pre className="whitespace-pre-wrap break-words text-sm leading-6">{documentPreview?.text || "Preview unavailable for this file."}</pre>
+              )}
+            </div>
           ) : (
             <div className="flex flex-col items-center gap-4 rounded-2xl bg-card p-10 shadow-2xl">
               <FileText className="h-16 w-16 text-muted-foreground" />
               <p className="text-sm font-medium text-card-foreground">{current.name}</p>
-              <p className="text-xs text-muted-foreground">{current.size}</p>
+              <p className="max-w-sm text-center text-xs text-muted-foreground">
+                {isWordFile ? "Preview is unavailable for this file. Download it to open in Word." : current.size}
+              </p>
               <a
                 href={current.url}
                 download={current.name}
@@ -206,7 +219,7 @@ export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0
               onClick={() => { setCurrentIndex(index); setZoom(1) }}
               className={cn(
                 "relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 transition-all",
-                index === currentIndex
+                index === safeIndex
                   ? "border-accent ring-2 ring-accent/30 scale-110"
                   : "border-primary-foreground/20 opacity-60 hover:opacity-100 hover:border-primary-foreground/40"
               )}

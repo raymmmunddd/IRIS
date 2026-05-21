@@ -25,6 +25,8 @@ export default function LoginClient({
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
 
   const router = useRouter();
 
@@ -55,14 +57,26 @@ export default function LoginClient({
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, code: requiresTwoFactor ? verificationCode : undefined }),
       });
 
       const result: {
         success: boolean;
         message: string;
         data: AuthUser | null;
+        requiresTwoFactor?: boolean;
       } = await response.json();
+
+      if (result.success && result.requiresTwoFactor && !result.data) {
+        setRequiresTwoFactor(true);
+        setIsLoading(false);
+        toast({
+          title: "Verification code sent",
+          description: "Enter the 6-digit code sent to your email.",
+          variant: "success",
+        });
+        return;
+      }
 
       if (!result.success || !result.data) {
         throw new Error(result.message);
@@ -271,22 +285,41 @@ export default function LoginClient({
               </div>
 
               {/* REMEMBER */}
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                Remember Me
-              </label>
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                  />
+                  Remember Me
+                </label>
+                <Link href="/forgot-password" className="font-semibold text-[var(--iris-primary)] hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
+
+              {requiresTwoFactor && (
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+                  <input
+                    inputMode="numeric"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="6-digit email code"
+                    disabled={isLoading}
+                    className="h-12 w-full rounded-2xl border px-10"
+                  />
+                </div>
+              )}
 
               {/* SUBMIT */}
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || (requiresTwoFactor && verificationCode.length < 6)}
                 className="w-full rounded-xl bg-[var(--iris-primary)] py-2.5 text-white font-semibold"
               >
-                {isLoading ? "Signing in..." : "Sign in"}
+                {isLoading ? "Signing in..." : requiresTwoFactor ? "Verify and sign in" : "Sign in"}
               </button>
 
             </form>

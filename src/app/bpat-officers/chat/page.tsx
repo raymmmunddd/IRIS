@@ -7,6 +7,7 @@ import Link from "next/link";
 import {
   ArrowLeft,
   ChevronRight,
+  FileText,
   MessageSquare,
   Send,
   Shield,
@@ -16,6 +17,8 @@ import { getAuthUser, getRoleLandingPath, isRoleAuthorized } from "@/lib/auth";
 import { BpatSidebar } from "@/components/bpat/sidebar";
 import { PageHeader } from "@/components/ui/page-header";
 import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime";
+import { EvidenceViewer } from "@/components/cases/evidence-viewer";
+import type { EvidenceFile } from "@/lib/types";
 
 interface ChatMessage {
   id: string;
@@ -35,6 +38,7 @@ interface CaseThread {
   lastTime: string;
   unread: number;
   messages: ChatMessage[];
+  evidenceFiles: EvidenceFile[];
 }
 
 export default function CaseChatPage() {
@@ -43,6 +47,8 @@ export default function CaseChatPage() {
   const [activeCase, setActiveCase] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [userEmail, setUserEmail] = useState("");
+  const [activeEvidenceIndex, setActiveEvidenceIndex] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -75,6 +81,10 @@ export default function CaseChatPage() {
 
   const activeThread = threads.find((thread) => thread.caseId === activeCase) ?? null;
   const activeMessageCount = activeThread?.messages.length;
+  const pageSize = 5;
+  const totalPages = Math.max(1, Math.ceil(threads.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedThreads = threads.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   useEffect(() => {
     if (!activeThread) return;
@@ -180,6 +190,24 @@ export default function CaseChatPage() {
                 </div>
               </div>
 
+              {activeThread.evidenceFiles?.length > 0 && (
+                <div className="flex-shrink-0 border-b border-border bg-background px-4 py-2">
+                  <div className="mx-auto flex w-full max-w-md gap-2 overflow-x-auto">
+                    {activeThread.evidenceFiles.map((file, index) => (
+                      <button
+                        key={file.id}
+                        type="button"
+                        onClick={() => setActiveEvidenceIndex(index)}
+                        className="inline-flex max-w-[220px] shrink-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-left text-xs hover:bg-muted"
+                      >
+                        <FileText className="h-4 w-4 text-[var(--primary)]" />
+                        <span className="min-w-0 truncate">{file.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex-1 overflow-y-auto px-4 py-4">
                 <div className="mx-auto w-full max-w-md space-y-3">
                   {activeThread.messages.map((message) => {
@@ -241,6 +269,13 @@ export default function CaseChatPage() {
               </div>
             </div>
           </main>
+          {activeEvidenceIndex !== null && (
+            <EvidenceViewer
+              files={activeThread.evidenceFiles}
+              initialIndex={activeEvidenceIndex}
+              onClose={() => setActiveEvidenceIndex(null)}
+            />
+          )}
         </div>
       </div>
     );
@@ -309,7 +344,7 @@ export default function CaseChatPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                {threads.map((thread) => (
+                {pagedThreads.map((thread) => (
                   <button
                     key={thread.caseNumber}
                     onClick={() => setActiveCase(thread.caseId)}
@@ -345,6 +380,29 @@ export default function CaseChatPage() {
                     </div>
                   </button>
                 ))}
+              </div>
+            )}
+            {threads.length > pageSize && (
+              <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
+                <span>Page {currentPage} of {totalPages}</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((value) => Math.max(1, value - 1))}
+                    disabled={currentPage <= 1}
+                    className="rounded-lg border border-border px-3 py-1.5 font-semibold disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                    disabled={currentPage >= totalPages}
+                    className="rounded-lg border border-border px-3 py-1.5 font-semibold disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             )}
           </div>

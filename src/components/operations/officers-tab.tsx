@@ -93,10 +93,10 @@ export function OfficersTab({ officers = [], assignableCases = [], onUpdated }: 
   const [assignOfficer, setAssignOfficer] = useState<OperationsOfficer | null>(null)
   const [selectedCaseId, setSelectedCaseId] = useState("")
   const [page, setPage] = useState(1)
+  const [selectedOfficerCasesPage, setSelectedOfficerCasesPage] = useState(1)
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
-  const [roleTitle, setRoleTitle] = useState("BPAT_OFFICER")
   const totalOfficers = officers.length
   const totalActiveCases = officers.reduce((sum, o) => sum + o.activeCases, 0)
   const totalResolvedCases = officers.reduce((sum, o) => sum + o.resolvedCases, 0)
@@ -106,6 +106,12 @@ export function OfficersTab({ officers = [], assignableCases = [], onUpdated }: 
   const pageSize = 5
   const totalPages = Math.max(1, Math.ceil(officers.length / pageSize))
   const pagedOfficers = officers.slice((page - 1) * pageSize, page * pageSize)
+  const selectedOfficerCases = selectedOfficer?.cases ?? []
+  const selectedOfficerCasesTotalPages = Math.max(1, Math.ceil(selectedOfficerCases.length / pageSize))
+  const pagedSelectedOfficerCases = selectedOfficerCases.slice(
+    (selectedOfficerCasesPage - 1) * pageSize,
+    selectedOfficerCasesPage * pageSize
+  )
 
   async function addOfficer() {
     if (!fullName || !email) {
@@ -116,7 +122,7 @@ export function OfficersTab({ officers = [], assignableCases = [], onUpdated }: 
     const response = await fetch("/api/operations/officers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fullName, email, roleTitle }),
+      body: JSON.stringify({ fullName, email }),
     })
     const result = await response.json()
     if (!result.success) {
@@ -127,7 +133,6 @@ export function OfficersTab({ officers = [], assignableCases = [], onUpdated }: 
     toast.success("Officer added")
     setFullName("")
     setEmail("")
-    setRoleTitle("BPAT_OFFICER")
     setIsAddOpen(false)
     onUpdated?.()
   }
@@ -200,7 +205,7 @@ export function OfficersTab({ officers = [], assignableCases = [], onUpdated }: 
       {/* Officers List */}
       <Card className="col-span-4 rounded-xl border border-border shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between pb-4">
-          <CardTitle className="text-base font-semibold">BPAT Members</CardTitle>
+          <CardTitle className="text-base font-semibold">Officers</CardTitle>
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="bg-black hover:bg-black/90 text-white gap-2">
@@ -220,18 +225,6 @@ export function OfficersTab({ officers = [], assignableCases = [], onUpdated }: 
                 <div className="grid gap-2">
                   <Label htmlFor="officer-email">Email</Label>
                   <Input id="officer-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Role</Label>
-                  <Select value={roleTitle} onValueChange={setRoleTitle}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="BPAT_OFFICER">BPAT Officer</SelectItem>
-                      <SelectItem value="LUPON_MEMBER">Lupon Member</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
                 <Button onClick={addOfficer} className="bg-black text-white hover:bg-black/90">Save Officer</Button>
               </div>
@@ -296,7 +289,7 @@ export function OfficersTab({ officers = [], assignableCases = [], onUpdated }: 
                     Avg: {officer.avgResponseTime}
                   </Badge>
                   <div className="flex w-full gap-2 sm:w-auto">
-                    <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => setSelectedOfficer(officer)}>
+                    <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => { setSelectedOfficer(officer); setSelectedOfficerCasesPage(1) }}>
                       View Cases
                     </Button>
                     <Button size="sm" className="flex-1 sm:flex-none bg-black hover:bg-black/90 text-white" onClick={() => setAssignOfficer(officer)}>
@@ -329,7 +322,7 @@ export function OfficersTab({ officers = [], assignableCases = [], onUpdated }: 
             <DialogTitle>{selectedOfficer?.fullName} Cases</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            {selectedOfficer?.cases?.length ? selectedOfficer.cases.map((caseItem) => (
+            {selectedOfficerCases.length ? pagedSelectedOfficerCases.map((caseItem) => (
               <div key={caseItem.id} className="rounded-lg border p-3">
                 <p className="text-sm font-semibold">{caseItem.caseNumber}</p>
                 <p className="text-sm text-muted-foreground">{caseItem.title}</p>
@@ -340,6 +333,19 @@ export function OfficersTab({ officers = [], assignableCases = [], onUpdated }: 
               </div>
             )) : (
               <p className="py-6 text-center text-sm text-muted-foreground">No cases assigned.</p>
+            )}
+            {selectedOfficerCases.length > pageSize && (
+              <div className="flex items-center justify-between border-t pt-3 text-sm text-muted-foreground">
+                <span>Page {selectedOfficerCasesPage} of {selectedOfficerCasesTotalPages}</span>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setSelectedOfficerCasesPage((value) => Math.max(1, value - 1))} disabled={selectedOfficerCasesPage <= 1}>
+                    Previous
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setSelectedOfficerCasesPage((value) => Math.min(selectedOfficerCasesTotalPages, value + 1))} disabled={selectedOfficerCasesPage >= selectedOfficerCasesTotalPages}>
+                    Next
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
         </DialogContent>

@@ -146,6 +146,33 @@ export async function loginUserData(input: { email: string; password: string; ro
   } satisfies AuthUser
 }
 
+export async function validateLoginCredentialsData(input: { email: string; password: string; role?: UserRole }) {
+  if (!input.email || !input.password) return null
+
+  const roleFilter = input.role ? { role: toDbRole(input.role) } : {}
+  const user = await prisma.user.findFirst({
+    where: {
+      email: input.email.trim().toLowerCase(),
+      status: UserStatus.ACTIVE,
+      isArchived: false,
+      ...roleFilter,
+    },
+  })
+
+  if (!user) return null
+  if (!verifyPassword(input.password, user.password)) return null
+
+  return {
+    authUser: {
+      id: user.id,
+      email: user.email,
+      createdAt: user.createdAt.toISOString(),
+      role: toClientRole(user.role),
+    } satisfies AuthUser,
+    twoFactorEnabled: user.twoFactorEnabled,
+  }
+}
+
 export async function emailExists(email: string) {
   const existing = await prisma.user.findUnique({
     where: { email: email.trim().toLowerCase() },

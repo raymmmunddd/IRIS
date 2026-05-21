@@ -16,6 +16,7 @@ import { prisma } from "@/lib/prisma"
 import { getAuditLogsData, getSystemActorId, writeAuditLog } from "@/lib/audit-logs"
 import { analyzeStoredCase } from "@/lib/ai-case-analysis"
 import { findEastTapinacStreet } from "@/lib/east-tapinac-geo"
+import { formatCaseNumber } from "@/lib/case-naming"
 import type { CaseCategory, CasePriority, CaseRecord, CaseStatus, EvidenceFile } from "@/lib/types"
 
 const categoryLabels: Record<DbCaseCategory, CaseCategory> = {
@@ -125,7 +126,11 @@ function shortName(fullName: string) {
   return `${parts[0][0]}. ${parts.at(-1)}`
 }
 
-function caseNumber(id: string, date: Date) {
+function caseNumber(id: string, date: Date, descriptor?: string | null) {
+  return formatCaseNumber(id, date, descriptor)
+}
+
+function legacyCaseNumber(id: string, date: Date) {
   return `IRIS-${date.getFullYear()}-${id.slice(0, 8).toUpperCase()}`
 }
 
@@ -149,7 +154,7 @@ export function mapCaseRecord(item: CaseWithRelations): CaseRecord {
 
   return {
     id: item.id,
-    caseNumber: caseNumber(item.id, item.dateSubmitted),
+    caseNumber: caseNumber(item.id, item.dateSubmitted, item.type),
     fullName: complainant.fullName,
     shortName: shortName(complainant.fullName),
     category: categoryLabels[item.category],
@@ -627,7 +632,7 @@ export async function getOperationsData() {
         avgResponseTime: "No SLA data",
         cases: officer.cases.map((item) => ({
           id: item.id,
-          caseNumber: caseNumber(item.id, item.dateSubmitted),
+          caseNumber: caseNumber(item.id, item.dateSubmitted, item.type),
           title: item.type,
           status: statusLabels[item.status],
           priority: priorityLabels[item.priority],
@@ -636,7 +641,7 @@ export async function getOperationsData() {
     }),
     mediationSessions: hearings.map((hearing) => ({
       id: hearing.id,
-      caseId: caseNumber(hearing.case.id, hearing.case.dateSubmitted),
+      caseId: caseNumber(hearing.case.id, hearing.case.dateSubmitted, hearing.case.type),
       parties: [hearing.case.complainant.fullName, hearing.case.respondent?.fullName ?? hearing.case.respondentName ?? "Respondent"].filter(Boolean),
       mediator: hearing.officer?.fullName ?? "Unassigned",
       scheduledDate: formatDate(hearing.scheduledDate),
@@ -655,7 +660,20 @@ export async function getOperationsData() {
       orderBy: { dateSubmitted: "desc" },
     }).then((items) => items.map((item) => ({
       id: item.id,
-      caseNumber: caseNumber(item.id, item.dateSubmitted),
+      caseNumber: caseNumber(item.id, item.dateSubmitted, item.type),
+      title: item.type,
+      status: statusLabels[item.status],
+    }))),
+    mediationCases: await prisma.case.findMany({
+      where: {
+        isArchived: false,
+        status: { notIn: closedStatuses },
+      },
+      select: { id: true, type: true, status: true, dateSubmitted: true },
+      orderBy: { dateSubmitted: "desc" },
+    }).then((items) => items.map((item) => ({
+      id: item.id,
+      caseNumber: caseNumber(item.id, item.dateSubmitted, item.type),
       title: item.type,
       status: statusLabels[item.status],
     }))),
@@ -673,7 +691,10 @@ export async function createHearingData(input: {
 
   if (!targetCase && input.caseId.startsWith("IRIS-")) {
     const cases = await prisma.case.findMany()
-    targetCase = cases.find((item) => caseNumber(item.id, item.dateSubmitted) === input.caseId) ?? null
+    targetCase = cases.find((item) =>
+      caseNumber(item.id, item.dateSubmitted, item.type) === input.caseId ||
+      legacyCaseNumber(item.id, item.dateSubmitted) === input.caseId
+    ) ?? null
   }
 
   if (!targetCase) return null
@@ -712,6 +733,14 @@ export async function createHearingData(input: {
       })
     }
 
+    await tx.notification.create({
+      data: {
+        userId: targetCase.complainantId,
+        type: NotificationType.HEARING_SCHEDULED,
+        message: `Mediation scheduled for ${caseNumber(targetCase.id, targetCase.dateSubmitted, targetCase.type)} on ${formatDate(input.scheduledDate)} at ${input.scheduledTime}, ${input.location}.`,
+      },
+    })
+
     return created
   })
 
@@ -728,6 +757,49 @@ export async function createHearingData(input: {
   })
 
   return hearing
+}
+
+export async function sendMediationNoticeData(hearingId: string) {
+  const hearing = await prisma.hearing.findUnique({
+    where: { id: hearingId },
+    include: {
+      case: {
+        include: {
+          complainant: true,
+          respondent: true,
+        },
+      },
+      officer: true,
+    },
+  })
+
+  if (!hearing) return null
+
+  const caseLabel = caseNumber(hearing.case.id, hearing.case.dateSubmitted, hearing.case.type)
+  const message = `Notice of mediation for ${caseLabel}: please appear on ${formatDate(hearing.scheduledDate)} at ${hearing.scheduledTime}, ${hearing.location}. Mediator: ${hearing.officer?.fullName ?? "Unassigned"}.`
+  const userIds = [hearing.case.complainantId, hearing.case.respondentId].filter(Boolean) as string[]
+
+  if (userIds.length === 0) return null
+
+  const result = await prisma.notification.createMany({
+    data: userIds.map((userId) => ({
+      userId,
+      type: NotificationType.HEARING_SCHEDULED,
+      message,
+    })),
+  })
+
+  await writeAuditLog({
+    action: AuditAction.CREATE,
+    target: { table: "notifications", id: hearing.id },
+    changes: {
+      hearingId,
+      caseId: hearing.case.id,
+      noticeRecipients: userIds.length,
+    },
+  })
+
+  return { sent: result.count, message }
 }
 
 function getOutcomeStatus(agreementType: AgreementType) {
@@ -802,6 +874,14 @@ export async function recordHearingOutcomeData(input: {
           status: HearingStatus.SCHEDULED,
         },
       })
+
+      await tx.notification.create({
+        data: {
+          userId: current.case.complainantId,
+          type: NotificationType.HEARING_SCHEDULED,
+          message: `Follow-up mediation scheduled for ${caseNumber(current.case.id, current.case.dateSubmitted, current.case.type)} on ${formatDate(input.followUpDate)} at ${input.followUpTime}, ${input.followUpLocation}.`,
+        },
+      })
     }
 
     await tx.case.update({
@@ -850,12 +930,12 @@ export async function recordHearingOutcomeData(input: {
   return result
 }
 
-export async function createOfficerData(input: { fullName: string; email: string; roleTitle?: string }) {
+export async function createOfficerData(input: { fullName: string; email: string }) {
   const user = await prisma.user.create({
     data: {
       fullName: input.fullName,
       email: input.email,
-      role: input.roleTitle?.includes("LUPON") ? UserRole.LUPON : UserRole.BPAT_OFFICER,
+      role: UserRole.BPAT_OFFICER,
       status: UserStatus.ACTIVE,
     },
   })
@@ -864,7 +944,7 @@ export async function createOfficerData(input: { fullName: string; email: string
     data: {
       userId: user.id,
       fullName: input.fullName,
-      roleTitle: input.roleTitle === "LUPON_MEMBER" ? OfficerRoleTitle.LUPON_MEMBER : OfficerRoleTitle.BPAT_OFFICER,
+      roleTitle: OfficerRoleTitle.BPAT_OFFICER,
     },
   })
 }
@@ -914,7 +994,7 @@ export async function getReportsData() {
     if (lat !== null && lat !== undefined && lng !== null && lng !== undefined) {
       current.points.push({
         id: item.id,
-        label: caseNumber(item.id, item.dateSubmitted),
+        label: caseNumber(item.id, item.dateSubmitted, item.type),
         name: street,
         lat,
         lng,

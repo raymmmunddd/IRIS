@@ -7,7 +7,6 @@ export async function POST(request: Request) {
     const data = await createOfficerData({
       fullName: body.fullName,
       email: body.email,
-      roleTitle: body.roleTitle,
     })
     return NextResponse.json({ success: true, message: "Officer created", data }, { status: 201 })
   } catch (error) {

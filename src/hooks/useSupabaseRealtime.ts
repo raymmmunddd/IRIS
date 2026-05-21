@@ -46,6 +46,7 @@ export function useSupabaseRealtime(tables: RealtimeTable[], onChange: () => voi
     if (!supabase || !tableKey) return
 
     let refreshTimer: number | null = null
+    let fallbackTimer: number | null = null
     const channel = supabase.channel(`iris-realtime-${tableKey}-${channelId++}`)
     const tableNames = tableKey.split("|").filter(Boolean) as RealtimeTable[]
 
@@ -58,10 +59,18 @@ export function useSupabaseRealtime(tables: RealtimeTable[], onChange: () => voi
       channel.on("postgres_changes", { event: "*", schema: "public", table }, refresh)
     })
 
-    channel.subscribe()
+    const fallbackMs = tableNames.includes("case_chat_messages") ? 4000 : 12000
+    fallbackTimer = window.setInterval(refresh, fallbackMs)
+
+    channel.subscribe((status) => {
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+        refresh()
+      }
+    })
 
     return () => {
       if (refreshTimer) window.clearTimeout(refreshTimer)
+      if (fallbackTimer) window.clearInterval(fallbackTimer)
       supabase.removeChannel(channel)
     }
   }, [tableKey])

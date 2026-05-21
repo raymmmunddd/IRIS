@@ -1,20 +1,52 @@
 import { NextResponse } from "next/server"
 import { AuditAction } from "@/generated/prisma/client"
-import { loginUserData } from "@/lib/auth-data"
+import { validateLoginCredentialsData } from "@/lib/auth-data"
 import { createUserActivityData } from "@/lib/admin-account-data"
 import { writeAuditLog } from "@/lib/audit-logs"
+import { createLoginVerificationCode, verifyLoginCode } from "@/lib/auth-verification"
+import { sendVerificationEmail } from "@/lib/mail"
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const data = await loginUserData({
+    const login = await validateLoginCredentialsData({
       email: body.email,
       password: body.password,
     })
 
-    if (!data) {
+    if (!login) {
       return NextResponse.json({ success: false, message: "Invalid email or password.", data: null }, { status: 401 })
     }
+
+    if (login.twoFactorEnabled) {
+      if (!body.code) {
+        const code = createLoginVerificationCode(login.authUser.email)
+        await sendVerificationEmail({
+          to: login.authUser.email,
+          code,
+          subject: "Your IRIS login verification code",
+          intro: "Use this 6-digit code to finish signing in to IRIS:",
+        })
+
+        return NextResponse.json({
+          success: true,
+          message: "Verification code sent",
+          data: null,
+          requiresTwoFactor: true,
+        })
+      }
+
+      if (!verifyLoginCode(login.authUser.email, String(body.code))) {
+        return NextResponse.json({
+          success: false,
+          message: "Invalid or expired verification code.",
+          data: null,
+          requiresTwoFactor: true,
+        }, { status: 401 })
+      }
+    }
+
+    const data = login.authUser
 
     const loginLabel = data.role === "official" ? "Admin login" : data.role === "bpat" ? "Officer login" : "Resident login"
     const [activityResult, auditResult] = await Promise.allSettled([

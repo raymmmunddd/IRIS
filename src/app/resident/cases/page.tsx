@@ -22,6 +22,8 @@ import { ResidentNav } from "@/components/ResidentNav";
 import { getAuthUser } from "@/lib/auth";
 import { PageHeader } from "@/components/ui/page-header";
 import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime";
+import { EvidenceViewer } from "@/components/cases/evidence-viewer";
+import type { EvidenceFile } from "@/lib/types";
 
 type CaseStatus = "Pending" | "Under Review" | "Scheduled" | "In Progress" | "Resolved" | "Closed" | "Dismissed";
 
@@ -52,6 +54,7 @@ interface ChatThread {
   officer: string;
   status: string;
   messages: ChatMessage[];
+  evidenceFiles: EvidenceFile[];
 }
 
 const STATUS_STYLES: Record<CaseStatus, string> = {
@@ -120,6 +123,8 @@ export default function MyCasesPage() {
   const [chatInput, setChatInput] = useState("");
   const [chatError, setChatError] = useState("");
   const [isAttaching, setIsAttaching] = useState(false);
+  const [activeEvidenceIndex, setActiveEvidenceIndex] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -176,6 +181,10 @@ export default function MyCasesPage() {
       c.id.toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
   });
+  const pageSize = 4;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedCases = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const openChat = async (caseItem: ResidentCase) => {
     const user = getAuthUser();
@@ -197,6 +206,8 @@ export default function MyCasesPage() {
   const sendMessage = async () => {
     const user = getAuthUser();
     if (!user || !activeThread || !chatInput.trim()) return;
+    const message = chatInput.trim();
+    setChatInput("");
 
     const response = await fetch("/api/resident/cases/chat", {
       method: "POST",
@@ -204,13 +215,15 @@ export default function MyCasesPage() {
       body: JSON.stringify({
         caseId: activeThread.caseId,
         email: user.email,
-        message: chatInput.trim(),
+        message,
       }),
     });
     const result = await response.json();
     if (result.success && result.data) {
       setActiveThread(result.data);
-      setChatInput("");
+    } else {
+      setChatInput(message);
+      setChatError(result.message ?? "Unable to send message.");
     }
   };
 
@@ -301,6 +314,24 @@ export default function MyCasesPage() {
                 </div>
               </div>
 
+              {activeThread.evidenceFiles?.length > 0 && (
+                <div className="flex-shrink-0 border-b border-border bg-background px-4 py-2">
+                  <div className="mx-auto flex w-full max-w-md gap-2 overflow-x-auto">
+                    {activeThread.evidenceFiles.map((file, index) => (
+                      <button
+                        key={file.id}
+                        type="button"
+                        onClick={() => setActiveEvidenceIndex(index)}
+                        className="inline-flex max-w-[220px] shrink-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-left text-xs hover:bg-muted"
+                      >
+                        <FileText className="h-4 w-4 text-[var(--primary)]" />
+                        <span className="min-w-0 truncate">{file.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex-1 overflow-y-auto px-4 py-4">
                 <div className="mx-auto w-full max-w-md space-y-3">
                   {activeThread.messages.length === 0 && (
@@ -364,6 +395,13 @@ export default function MyCasesPage() {
               </div>
             </div>
           </main>
+          {activeEvidenceIndex !== null && (
+            <EvidenceViewer
+              files={activeThread.evidenceFiles}
+              initialIndex={activeEvidenceIndex}
+              onClose={() => setActiveEvidenceIndex(null)}
+            />
+          )}
         </div>
       </div>
     );
@@ -432,7 +470,10 @@ export default function MyCasesPage() {
                       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <input
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => {
+                          setSearch(e.target.value);
+                          setPage(1);
+                        }}
                         placeholder="Search by case ID or title..."
                         className="w-full rounded-xl border border-border bg-background py-2.5 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
                       />
@@ -441,7 +482,10 @@ export default function MyCasesPage() {
                       {FILTERS.map((f) => (
                         <button
                           key={f}
-                          onClick={() => setFilter(f)}
+                          onClick={() => {
+                            setFilter(f);
+                            setPage(1);
+                          }}
                           className={`flex-shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
                             filter === f
                               ? "border-[var(--primary)] bg-[var(--primary)] text-white"
@@ -469,7 +513,7 @@ export default function MyCasesPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filtered.map((c) => (
+                    {pagedCases.map((c) => (
                       <article
                         key={c.id}
                         onClick={() => openChat(c)}
@@ -516,6 +560,29 @@ export default function MyCasesPage() {
                         )}
                       </article>
                     ))}
+                  </div>
+                )}
+                {filtered.length > pageSize && (
+                  <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
+                    <span>Page {currentPage} of {totalPages}</span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPage((value) => Math.max(1, value - 1))}
+                        disabled={currentPage <= 1}
+                        className="rounded-lg border border-border px-3 py-1.5 font-semibold disabled:opacity-40"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                        disabled={currentPage >= totalPages}
+                        className="rounded-lg border border-border px-3 py-1.5 font-semibold disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
                 )}
               </section>

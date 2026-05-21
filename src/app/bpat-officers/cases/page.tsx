@@ -79,6 +79,7 @@ export default function OfficerOpenCasesPage() {
   const [search, setSearch] = useState("");
   const [claiming, setClaiming] = useState<string | null>(null);
   const [selectedCase, setSelectedCase] = useState<OpenCase | null>(null);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const user = getAuthUser();
@@ -143,6 +144,10 @@ export default function OfficerOpenCasesPage() {
         item.street.toLowerCase().includes(search.toLowerCase())
     )
     .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
+  const pageSize = 4;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedCases = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const unassignedCount = cases.filter((item) => !item.assignedTo).length;
 
@@ -193,7 +198,7 @@ export default function OfficerOpenCasesPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filtered.map((item) => {
+                    {pagedCases.map((item) => {
                       const isClaiming = claiming === item.id;
 
                       return (
@@ -257,6 +262,29 @@ export default function OfficerOpenCasesPage() {
                     })}
                   </div>
                 )}
+                {filtered.length > pageSize && (
+                  <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
+                    <span>Page {currentPage} of {totalPages}</span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPage((value) => Math.max(1, value - 1))}
+                        disabled={currentPage <= 1}
+                        className="rounded-lg border border-border px-3 py-1.5 font-semibold disabled:opacity-40"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                        disabled={currentPage >= totalPages}
+                        className="rounded-lg border border-border px-3 py-1.5 font-semibold disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </section>
 
               <aside className="order-1 space-y-4 lg:order-2">
@@ -279,7 +307,10 @@ export default function OfficerOpenCasesPage() {
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                       value={search}
-                      onChange={(event) => setSearch(event.target.value)}
+                      onChange={(event) => {
+                        setSearch(event.target.value);
+                        setPage(1);
+                      }}
                       placeholder="Search by title, ID, or street..."
                       className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
                     />
@@ -292,7 +323,10 @@ export default function OfficerOpenCasesPage() {
                     {FILTERS.map((item) => (
                       <button
                         key={item}
-                        onClick={() => setFilter(item)}
+                        onClick={() => {
+                          setFilter(item);
+                          setPage(1);
+                        }}
                         className={`flex-shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
                           filter === item
                             ? "border-[var(--primary)] bg-[var(--primary)] text-white"

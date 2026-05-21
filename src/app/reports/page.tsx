@@ -11,8 +11,7 @@ import { AIPriorityDistribution } from "@/components/reports/priority-distributi
 import { StreetMap, type StreetHeatStat } from "@/components/reports/street-map"
 import { ResolutionStatusOverview } from "@/components/reports/resolution-overview"
 import { KeyInsights } from "@/components/reports/key-insights"
-import { OfficerResponseAnalysis } from "@/components/reports/officer-performance"
-import { FileText } from "lucide-react"
+import { Download, FileText } from "lucide-react"
 
 type ReportsData = {
   reportStats?: {
@@ -69,6 +68,41 @@ export default function ReportsPage() {
     loadReports()
   }, [])
 
+  const exportReportsCsv = () => {
+    if (!reportsData) return
+
+    const rows: string[][] = [["Section", "Name", "Value", "Detail"]]
+    const addRow = (section: string, name: string, value: string | number, detail = "") => {
+      rows.push([section, name, String(value), detail])
+    }
+
+    if (reportsData.reportStats) {
+      addRow("Stats", "Total Cases", reportsData.reportStats.totalCases)
+      addRow("Stats", "Resolution Rate", `${reportsData.reportStats.resolutionRate}%`)
+      addRow("Stats", "Active Officers", reportsData.reportStats.activeOfficers)
+    }
+
+    reportsData.monthlyTrend?.forEach((item) => addRow("Monthly Trend", item.month, item.cases))
+    reportsData.categoryBreakdown?.forEach((item) => addRow("Category Breakdown", item.name, `${item.value}%`))
+    reportsData.priorityDistribution?.forEach((item) => addRow("Priority Distribution", item.name, item.value))
+    reportsData.streetStats?.forEach((item) => addRow("Street Stats", item.name, item.cases, `${item.urgent} urgent`))
+    reportsData.officerPerformance?.forEach((item) => addRow("Officer Performance", item.fullName, `${item.performance}%`, `${item.activeCases} active, ${item.resolvedCases} resolved`))
+
+    if (reportsData.keyInsights) {
+      addRow("Key Insights", "Top Street", reportsData.keyInsights.topStreet, `${reportsData.keyInsights.topStreetCount} cases`)
+      addRow("Key Insights", "Top Category", reportsData.keyInsights.topCategory, `${reportsData.keyInsights.topCategoryCount} cases`)
+    }
+
+    const csv = rows.map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(",")).join("\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `iris-reports-${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <div className="hidden lg:flex h-screen shrink-0">
@@ -80,6 +114,17 @@ export default function ReportsPage() {
           title="Reports & Analytics"
           description="View key insights on incident trends, resolutions, and operational performance."
           icon={<FileText className="h-5 w-5 text-white" />}
+          actionSlot={
+            <button
+              type="button"
+              onClick={exportReportsCsv}
+              disabled={!reportsData}
+              className="inline-flex items-center gap-2 rounded-lg border border-white/25 bg-white/15 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/20 disabled:opacity-50"
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </button>
+          }
         />
 
         <div className="mt-4 sm:mt-6">

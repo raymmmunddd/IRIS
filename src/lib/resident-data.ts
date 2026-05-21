@@ -11,6 +11,7 @@ import { analyzeResidentReport } from "@/lib/ai-case-analysis"
 import { getAdminSettingsData } from "@/lib/admin-settings-data"
 import { writeAuditLog } from "@/lib/audit-logs"
 import { prisma } from "@/lib/prisma"
+import { formatCaseNumber } from "@/lib/case-naming"
 import {
   describeEastTapinacLocation,
   findEastTapinacStreet,
@@ -112,8 +113,8 @@ function relativeTime(date: Date | string | null | undefined) {
   return formatDate(date)
 }
 
-function caseNumber(id: string, date: Date) {
-  return `IRIS-${date.getFullYear()}-${id.slice(0, 8).toUpperCase()}`
+function caseNumber(id: string, date: Date, descriptor?: string | null) {
+  return formatCaseNumber(id, date, descriptor)
 }
 
 function notificationTitle(type: NotificationType) {
@@ -132,7 +133,7 @@ function mapResidentCase(item: ResidentCaseWithRelations) {
         : item.details
 
   return {
-    id: caseNumber(item.id, item.dateSubmitted),
+    id: caseNumber(item.id, item.dateSubmitted, item.type),
     dbId: item.id,
     title: item.type,
     category: categoryLabels[item.category],
@@ -184,14 +185,21 @@ export async function getResidentDashboardData(email: string) {
     getResidentCasesData(email),
     getResidentNotificationsData(email, 3),
   ])
+  const caseUpdates = cases.slice(0, 3).map((item) => ({
+    title: `${item.title} #${item.id}`,
+    detail: item.detail,
+    status: item.status,
+    when: item.lastUpdate,
+  }))
+  const notificationUpdates = notifications.map((item) => ({
+    title: item.title,
+    detail: item.message,
+    status: item.read ? "Read" : "New",
+    when: item.time,
+  }))
 
   return {
-    recentUpdates: cases.slice(0, 3).map((item) => ({
-      title: `${item.title} #${item.id}`,
-      detail: item.detail,
-      status: item.status,
-      when: item.lastUpdate,
-    })),
+    recentUpdates: [...notificationUpdates, ...caseUpdates].slice(0, 5),
     notifications,
   }
 }
@@ -287,7 +295,7 @@ export async function createResidentCaseData(input: {
     data: {
       userId: resident.id,
       type: NotificationType.CASE_UPDATE,
-      message: `${caseNumber(created.id, created.dateSubmitted)} was submitted for barangay review.`,
+      message: `${caseNumber(created.id, created.dateSubmitted, created.type)} was submitted for barangay review.`,
     },
   })
 
@@ -297,7 +305,7 @@ export async function createResidentCaseData(input: {
       action: AuditAction.CREATE,
       target: { table: "cases", id: created.id },
       changes: {
-        caseNumber: caseNumber(created.id, created.dateSubmitted),
+        caseNumber: caseNumber(created.id, created.dateSubmitted, created.type),
         category: created.category,
         priority: created.priority,
         status: created.status,
@@ -378,6 +386,8 @@ export async function getResidentProfileData(email: string) {
       phone: "",
       street: "",
       photoUrl: "",
+      passwordLastUpdated: null,
+      twoFactorEnabled: false,
     }
   }
 
@@ -386,23 +396,36 @@ export async function getResidentProfileData(email: string) {
     email: resident.email,
     phone: resident.contact ?? "",
     street: resident.street ?? "",
-    photoUrl: "",
+    photoUrl: resident.photoUrl ?? "",
+    passwordLastUpdated: resident.passwordLastUpdated?.toISOString() ?? null,
+    twoFactorEnabled: resident.twoFactorEnabled,
   }
 }
 
 export async function updateResidentProfileData(
   email: string,
-  input: { fullName?: string; phone?: string; street?: string }
+  input: { fullName?: string; phone?: string; street?: string; photoUrl?: string }
 ) {
   const resident = await findResidentByEmail(email)
   if (!resident) return null
 
-  return prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: resident.id },
     data: {
       fullName: input.fullName,
       contact: input.phone,
       street: input.street,
+      photoUrl: input.photoUrl,
     },
   })
+
+  return {
+    fullName: updated.fullName,
+    email: updated.email,
+    phone: updated.contact ?? "",
+    street: updated.street ?? "",
+    photoUrl: updated.photoUrl ?? "",
+    passwordLastUpdated: updated.passwordLastUpdated?.toISOString() ?? null,
+    twoFactorEnabled: updated.twoFactorEnabled,
+  }
 }

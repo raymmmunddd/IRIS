@@ -16,6 +16,14 @@ import { OfficerSelector } from "./officer-selector"
 import { StatusSelector } from "./status-selector"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime"
 
 interface CaseDetailPanelProps {
@@ -41,6 +49,13 @@ type CaseChatThread = {
   }[]
 }
 
+type QuickAction = {
+    label: string
+    description: string
+    status: CaseRecord["status"]
+    successMessage: string
+}
+
 export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, officers = ["Unassigned"] }: CaseDetailPanelProps) {
     const [internalNotes, setInternalNotes] = useState("")
     const [isSavingNotes, setIsSavingNotes] = useState(false)
@@ -51,6 +66,7 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, o
     const [chatThread, setChatThread] = useState<CaseChatThread | null>(null)
     const [chatInput, setChatInput] = useState("")
     const [isChatLoading, setIsChatLoading] = useState(false)
+    const [pendingQuickAction, setPendingQuickAction] = useState<QuickAction | null>(null)
     const chatBottomRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -156,6 +172,16 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, o
             toast.error(error instanceof Error ? error.message : "Unable to open case chat")
         } finally {
             setIsChatLoading(false)
+        }
+    }
+
+    const confirmQuickAction = async () => {
+        if (!pendingQuickAction) return
+        try {
+            await updateCase({ status: pendingQuickAction.status }, pendingQuickAction.successMessage)
+            setPendingQuickAction(null)
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Unable to update case")
         }
     }
 
@@ -319,10 +345,14 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, o
                                         {evidenceFiles.map((file, index) => (
                                             <div key={file.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors group">
                                                 <div className="flex items-center gap-3">
-                                                    <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center",
+                                                    <div className={cn("h-12 w-12 overflow-hidden rounded-lg border flex items-center justify-center",
                                                         file.type === "image" ? "bg-blue-50 text-blue-600" : "bg-orange-50 text-orange-600")}
                                                     >
-                                                        {file.type === "image" ? <ImageIcon className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+                                                        {file.type === "image" ? (
+                                                            <img src={file.thumbnail || file.url} alt={file.name} className="h-full w-full object-cover" />
+                                                        ) : (
+                                                            <FileText className="h-5 w-5" />
+                                                        )}
                                                     </div>
                                                     <div>
                                                         <p className="text-sm font-medium text-foreground">{file.name}</p>
@@ -465,7 +495,12 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, o
                     <h2 className="text-base font-semibold text-foreground mb-4">Quick Actions</h2>
                     <div className="space-y-3">
                         <button
-                            onClick={() => handleStatusChange("Under Review")}
+                            onClick={() => setPendingQuickAction({
+                                label: "Verify Case",
+                                description: "Move this case into review so the barangay can validate and process it.",
+                                status: "Under Review",
+                                successMessage: "Case moved to review",
+                            })}
                             disabled={caseData.status === "Closed"}
                             className="w-full flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors text-left group disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -507,7 +542,12 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, o
                         </div>
 
                         <button
-                            onClick={() => handleStatusChange("Mediation")}
+                            onClick={() => setPendingQuickAction({
+                                label: "Schedule Mediation",
+                                description: "Mark this case for mediation. You can create the actual hearing schedule in Operations.",
+                                status: "Mediation",
+                                successMessage: "Case marked for mediation",
+                            })}
                             disabled={caseData.status === "Closed"}
                             className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -516,7 +556,12 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, o
                         </button>
 
                         <button
-                            onClick={() => handleStatusChange("Resolved")}
+                            onClick={() => setPendingQuickAction({
+                                label: "Mark as Resolved",
+                                description: "Close this case as resolved and archive it from active handling.",
+                                status: "Resolved",
+                                successMessage: "Case marked as resolved",
+                            })}
                             disabled={caseData.status === "Closed"}
                             className="w-full flex items-center justify-center gap-2 p-3 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm mt-2 disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -524,7 +569,12 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, o
                             <span className="text-sm font-semibold">Mark as Resolved</span>
                         </button>
                         <button
-                            onClick={() => handleStatusChange("Closed")}
+                            onClick={() => setPendingQuickAction({
+                                label: "Close Case",
+                                description: "Close this case without marking it resolved. It will move out of active handling.",
+                                status: "Closed",
+                                successMessage: "Case closed",
+                            })}
                             disabled={caseData.status === "Closed"}
                             className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -546,6 +596,23 @@ export function CaseDetailPanel({ caseData, onClose, onUpdate, isPage = false, o
                     initialIndex={activeEvidenceIndex}
                 />
             )}
+
+            <Dialog open={!!pendingQuickAction} onOpenChange={(open) => !open && setPendingQuickAction(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{pendingQuickAction?.label}</DialogTitle>
+                        <DialogDescription>{pendingQuickAction?.description}</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setPendingQuickAction(null)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={confirmQuickAction}>
+                            Confirm
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {chatOpen && (
                 <div className="fixed bottom-5 right-5 z-[70] flex h-[460px] w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">

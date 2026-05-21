@@ -18,7 +18,8 @@ export default function OperationsPage() {
     officers: Parameters<typeof OfficersTab>[0]["officers"]
     mediationSessions: Parameters<typeof MediationTab>[0]["sessions"]
     assignableCases: Parameters<typeof OfficersTab>[0]["assignableCases"]
-  }>({ officers: [], mediationSessions: [], assignableCases: [] })
+    mediationCases: Parameters<typeof MediationTab>[0]["cases"]
+  }>({ officers: [], mediationSessions: [], assignableCases: [], mediationCases: [] })
   const [mediators, setMediators] = useState<string[]>([])
 
   const loadOperations = useCallback(async () => {
@@ -76,7 +77,7 @@ export default function OperationsPage() {
               <OfficersTab officers={operationsData.officers} assignableCases={operationsData.assignableCases} onUpdated={loadOperations} />
             </TabsContent>
             <TabsContent value="mediation">
-              <MediationTab sessions={operationsData.mediationSessions} mediators={mediators} onScheduled={loadOperations} />
+              <MediationTab sessions={operationsData.mediationSessions} cases={operationsData.mediationCases} mediators={mediators} onScheduled={loadOperations} />
             </TabsContent>
           </Tabs>
         </div>

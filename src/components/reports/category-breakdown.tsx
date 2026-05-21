@@ -47,9 +47,9 @@ export function CategoryBreakdown({ data }: CategoryBreakdownProps) {
         <span className="ml-2 text-[10px] sm:text-xs font-normal text-muted-foreground">(This Week)</span>
       </h3>
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 min-h-0">
-          <ResponsiveContainer width="100%" height={chartHeight}>
-            <PieChart>
+        <div className="flex flex-1 min-h-0 items-center justify-center">
+          <ResponsiveContainer width={isMobile ? "100%" : "86%"} height={chartHeight}>
+            <PieChart margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
               <Pie
                 data={chartData}
                 cx="50%"

@@ -146,9 +146,9 @@
   --color-muted-foreground: var(--text-secondary);
   --color-primary: var(--primary);
   --color-primary-foreground: #ffffff;
-  --font-sans: var(--font-inter);
-  --font-heading: var(--font-poppins);
-  --font-mono: var(--font-jetbrains-mono);
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-heading: Arial, Helvetica, sans-serif;
+  --font-mono: "Courier New", monospace;
 }
 
 body {

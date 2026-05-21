@@ -52,21 +52,22 @@ export type MediationSession = {
 
 interface MediationTabProps {
   sessions?: MediationSession[]
+  cases?: Array<{ id: string; caseNumber: string; title: string; status: string }>
   mediators?: string[]
   onScheduled?: () => void
 }
 
-export function MediationTab({ sessions = [], mediators = [], onScheduled }: MediationTabProps) {
+export function MediationTab({ sessions = [], cases = [], mediators = [], onScheduled }: MediationTabProps) {
   const [caseId, setCaseId] = useState("")
   const [mediator, setMediator] = useState("")
   const [page, setPage] = useState(1)
   const [scheduledDate, setScheduledDate] = useState("")
   const [scheduledTime, setScheduledTime] = useState("")
   const [location, setLocation] = useState("")
-  const [complainant, setComplainant] = useState("")
-  const [respondent, setRespondent] = useState("")
+  const [isScheduling, setIsScheduling] = useState(false)
   const [noticeOpen, setNoticeOpen] = useState(false)
   const [noticeSessionId, setNoticeSessionId] = useState("")
+  const [isSendingNotice, setIsSendingNotice] = useState(false)
   const [outcomeSession, setOutcomeSession] = useState<MediationSession | null>(null)
   const [outcomeNotes, setOutcomeNotes] = useState("")
   const [agreementType, setAgreementType] = useState<AgreementType | "">("")
@@ -94,12 +95,14 @@ export function MediationTab({ sessions = [], mediators = [], onScheduled }: Med
       return
     }
 
+    setIsScheduling(true)
     const response = await fetch("/api/operations/hearings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ caseId, mediator, scheduledDate, scheduledTime, location }),
     })
     const result = await response.json()
+    setIsScheduling(false)
 
     if (result.success) {
       toast.success("Mediation scheduled successfully")
@@ -108,8 +111,6 @@ export function MediationTab({ sessions = [], mediators = [], onScheduled }: Med
       setScheduledDate("")
       setScheduledTime("")
       setLocation("")
-      setComplainant("")
-      setRespondent("")
       onScheduled?.()
       return
     }
@@ -170,6 +171,27 @@ export function MediationTab({ sessions = [], mediators = [], onScheduled }: Med
     toast.error(result.message || "Unable to record outcome")
   }
 
+  async function sendNoticeToResidents() {
+    if (!selectedNoticeSession) return
+
+    setIsSendingNotice(true)
+    const response = await fetch("/api/operations/hearings/notice", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hearingId: selectedNoticeSession.id }),
+    })
+    const result = await response.json()
+    setIsSendingNotice(false)
+
+    if (result.success) {
+      toast.success("Notice sent to resident notifications")
+      onScheduled?.()
+      return
+    }
+
+    toast.error(result.message || "Unable to send notice")
+  }
+
   return (
     <div className="space-y-6">
       {/* Mediation Actions */}
@@ -185,7 +207,18 @@ export function MediationTab({ sessions = [], mediators = [], onScheduled }: Med
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
                 <Label htmlFor="case-id">Case ID</Label>
-                <Input id="case-id" placeholder="Paste database case ID" value={caseId} onChange={(event) => setCaseId(event.target.value)} />
+                <Select value={caseId} onValueChange={setCaseId}>
+                  <SelectTrigger id="case-id">
+                    <SelectValue placeholder="Select case" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[90] bg-background">
+                    {cases.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.caseNumber} - {item.title} ({item.status})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="mediator">Mediator</Label>
@@ -214,20 +247,10 @@ export function MediationTab({ sessions = [], mediators = [], onScheduled }: Med
                 <Label htmlFor="location">Location</Label>
                 <Input id="location" placeholder="Barangay Hall - Conference Room" value={location} onChange={(event) => setLocation(event.target.value)} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="complainant">Complainant</Label>
-                  <Input id="complainant" value={complainant} onChange={(event) => setComplainant(event.target.value)} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="respondent">Respondent</Label>
-                  <Input id="respondent" value={respondent} onChange={(event) => setRespondent(event.target.value)} />
-                </div>
-              </div>
             </div>
             <div className="flex justify-end">
-              <Button onClick={scheduleSession} className="bg-black hover:bg-black/90 text-white">
-                Schedule Session
+              <Button onClick={scheduleSession} disabled={isScheduling} className="bg-black hover:bg-black/90 text-white">
+                {isScheduling ? "Scheduling..." : "Schedule Session"}
               </Button>
             </div>
           </DialogContent>
@@ -277,6 +300,9 @@ export function MediationTab({ sessions = [], mediators = [], onScheduled }: Med
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setNoticeOpen(false)}>Close</Button>
+              <Button variant="outline" onClick={sendNoticeToResidents} disabled={!selectedNoticeSession || isSendingNotice}>
+                {isSendingNotice ? "Sending..." : "Send to Notifications"}
+              </Button>
               <Button onClick={() => window.print()} disabled={!selectedNoticeSession}>
                 Print Notice
               </Button>

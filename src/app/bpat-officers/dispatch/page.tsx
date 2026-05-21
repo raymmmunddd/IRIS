@@ -64,6 +64,7 @@ export default function DispatchBoardPage() {
   const [filter, setFilter] = useState<CaseStatus | "All">("All");
   const [assignedCases, setAssignedCases] = useState<AssignedCase[]>([]);
   const [selectedCase, setSelectedCase] = useState<AssignedCase | null>(null);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const user = getAuthUser();
@@ -85,6 +86,10 @@ export default function DispatchBoardPage() {
   }, [router]);
 
   const filtered = filter === "All" ? assignedCases : assignedCases.filter((item) => item.status === filter);
+  const pageSize = 4;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedCases = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const statusCounts = {
     All: assignedCases.length,
@@ -140,7 +145,7 @@ export default function DispatchBoardPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filtered.map((item) => (
+                    {pagedCases.map((item) => (
                       <article
                         key={item.id}
                         onClick={() => setSelectedCase(item)}
@@ -188,6 +193,29 @@ export default function DispatchBoardPage() {
                     ))}
                   </div>
                 )}
+                {filtered.length > pageSize && (
+                  <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
+                    <span>Page {currentPage} of {totalPages}</span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPage((value) => Math.max(1, value - 1))}
+                        disabled={currentPage <= 1}
+                        className="rounded-lg border border-border px-3 py-1.5 font-semibold disabled:opacity-40"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                        disabled={currentPage >= totalPages}
+                        className="rounded-lg border border-border px-3 py-1.5 font-semibold disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </section>
 
               <aside className="order-1 space-y-4 lg:order-2">
@@ -210,7 +238,10 @@ export default function DispatchBoardPage() {
                     {(["All", "Assigned", "In Progress", "Pending Review"] as const).map((item) => (
                       <button
                         key={item}
-                        onClick={() => setFilter(item)}
+                        onClick={() => {
+                          setFilter(item);
+                          setPage(1);
+                        }}
                         className={`flex-shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
                           filter === item
                             ? "border-[var(--primary)] bg-[var(--primary)] text-white"
