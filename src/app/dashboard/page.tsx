@@ -66,11 +66,9 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex h-screen overflow-hidden bg-background">
-        <div className="hidden lg:flex h-screen shrink-0">
-          <DashboardSidebar />
-        </div>
+        <DashboardSidebar />
 
-        <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main className="min-w-0 flex-1 overflow-y-auto p-4 pt-20 sm:p-6 sm:pt-24 lg:p-8 lg:pt-8">
           <PageHeaderSkeleton />
           <DashboardSkeleton />
         </main>
@@ -80,11 +78,9 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <div className="hidden lg:flex h-screen shrink-0">
-        <DashboardSidebar />
-      </div>
+      <DashboardSidebar />
 
-      <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+      <main className="min-w-0 flex-1 overflow-y-auto p-4 pt-20 sm:p-6 sm:pt-24 lg:p-8 lg:pt-8">
         <PageHeader
           title="Dashboard"
           description="Monitor barangay incidents, case resolutions, reports, and operational activities in real time."
@@ -92,31 +88,25 @@ export default function DashboardPage() {
 
         <StatCards data={dashboardData?.stats} />
 
-{/* ANALYTICS + OPERATIONAL ROW 1 */}
-<div className="mt-4 sm:mt-6 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
-  
-  {/* LEFT: Monthly Trend */}
-  <div className="lg:col-span-2">
-    <MonthlyTrendChart data={dashboardData?.monthlyTrend} />
-  </div>
+        {/* ANALYTICS + OPERATIONAL ROW 1 */}
+        <div className="mt-4 sm:mt-6 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <MonthlyTrendChart data={dashboardData?.monthlyTrend} />
+          </div>
 
-  {/* RIGHT: Incident Category */}
-  <IncidentCategoryChart data={dashboardData?.categoryBreakdown} />
-</div>
+          <IncidentCategoryChart data={dashboardData?.categoryBreakdown} />
+        </div>
 
-{/* ANALYTICS + OPERATIONAL ROW 2 (MATCHED HEIGHT ROW) */}
-<div className="mt-4 sm:mt-6 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3 items-stretch">
+        {/* ANALYTICS + OPERATIONAL ROW 2 */}
+        <div className="mt-4 sm:mt-6 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3 items-stretch">
+          <div className="lg:col-span-2 h-full">
+            <RecentCases data={dashboardData?.recentCases} />
+          </div>
 
-  {/* LEFT: Recent Cases (MATCHES Monthly Trend WIDTH) */}
-  <div className="lg:col-span-2 h-full">
-    <RecentCases data={dashboardData?.recentCases} />
-  </div>
-
-  {/* RIGHT: Operational Pulse (Side Stats) */}
-  <div className="h-full">
-    <SideStatCards data={dashboardData?.sideStats} />
-  </div>
-</div>
+          <div className="h-full">
+            <SideStatCards data={dashboardData?.sideStats} />
+          </div>
+        </div>
       </main>
     </div>
   )

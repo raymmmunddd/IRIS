@@ -18,17 +18,16 @@ export default function CasesPage() {
   }, [router])
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <div className="hidden lg:flex h-screen shrink-0">
-        <DashboardSidebar />
-      </div>
+    <div className="flex h-screen bg-background">
+      <DashboardSidebar />
 
-      <main className="relative min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+      <main className="relative min-w-0 flex-1 overflow-y-auto overflow-x-visible p-4 pt-20 sm:p-6 sm:pt-24 lg:p-8 lg:pt-8">
         <PageHeader
           title="Case Management"
           description="Review, track, and manage all incident reports from filing to resolution."
           icon={<Briefcase className="h-5 w-5 text-white" />}
         />
+
         <CasesTable />
       </main>
     </div>

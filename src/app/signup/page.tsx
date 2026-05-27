@@ -159,30 +159,80 @@ export default function SignupPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [middleName, setMiddleName] = useState("");
+
   const [suffix, setSuffix] = useState("");
   const [suffixOpen, setSuffixOpen] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [street, setStreet] = useState("");
-  const [contact, setContact] = useState("");
+
   const [gender, setGender] = useState<"" | "MALE" | "FEMALE">("")
   const [genderOpen, setGenderOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const role: UserRole = "resident";
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [location, setLocation] = useState<(GeoPoint & { address: string; street: string; purok: number }) | null>(null);
+  const [contact, setContact] = useState("");
+  
   const [legalDoc, setLegalDoc] = useState<"terms" | "privacy" | null>(null);
   const [legalAccepted, setLegalAccepted] = useState(false);
   const [legalScrolledToEnd, setLegalScrolledToEnd] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
+
   const [verificationOpen, setVerificationOpen] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+
   const [devCode, setDevCode] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [streetFocused, setStreetFocused] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const role: UserRole = "resident";
+
+  const checks = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    number: /\d/.test(password),
+    special: /[^A-Za-z0-9]/.test(password),
+  };
+
+  const passwordScore =
+    Number(checks.length) +
+    Number(checks.uppercase) +
+    Number(checks.lowercase) +
+    Number(checks.number) +
+    Number(checks.special);
+
+  const strength = {
+    score:
+      passwordScore <= 1
+        ? 1
+        : passwordScore <= 3
+        ? 2
+        : passwordScore === 4
+        ? 3
+        : 4,
+
+    label:
+      passwordScore <= 1
+        ? "Weak"
+        : passwordScore <= 3
+        ? "Fair"
+        : passwordScore === 4
+        ? "Strong"
+        : "Very Strong",
+  };
+
+  const [step, setStep] = useState(1);
+
+  const totalSteps = 4;
+
+  const nextStep = () => {
+    if (step < totalSteps) setStep((prev) => prev + 1);
+  };
+
+  const prevStep = () => {
+    if (step > 1) setStep((prev) => prev - 1);
+  };
 
   const buildFullName = () => {
     const parts = [firstName, middleName, lastName, suffix]
@@ -191,12 +241,69 @@ export default function SignupPage() {
     return parts.join(" ");
   };
 
+  const [isLocating, setIsLocating] = useState(false);
+
+  const captureLocation = async () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Not supported",
+        description: "Geolocation is not supported in this browser.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLocating(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+
+          const response = await fetch("/api/location/resolve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ latitude, longitude }),
+          });
+
+          const result = await response.json();
+
+          if (!result.success) throw new Error(result.message);
+
+          setLocation(result.data);
+        } catch (err) {
+          toast({
+            title: "Location failed",
+            description:
+              err instanceof Error ? err.message : "Unable to resolve location.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsLocating(false);
+        }
+      },
+      (err) => {
+        setIsLocating(false);
+        toast({
+          title: "Permission denied",
+          description: err.message,
+          variant: "destructive",
+        });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  };
+
   const requestVerificationCode = async () => {
     const fullName = buildFullName();
     const response = await fetch("/api/auth/signup/request-verification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fullName, email, password, confirmPassword, role, street, contact, gender }),
+      body: JSON.stringify({ fullName, email, password, role, street, contact, gender }),
     });
     const result: { success: boolean; message: string; data?: { devCode?: string } } = await response.json();
 
@@ -211,20 +318,11 @@ export default function SignupPage() {
     const fullName = buildFullName();
 
     const normalizedContact = contact.trim();
-    if (!firstName.trim() || !lastName.trim() || !fullName || !email || !password || !confirmPassword || !street || !normalizedContact || normalizedContact === "+63" || !gender) {
+    if (!firstName.trim() || !lastName.trim() || !fullName || !email || !password || !street || !normalizedContact || normalizedContact === "+63" || !gender) {
       toast({
         title: "Missing fields",
         description: "Please fill in all required fields.",
         variant: "warning",
-      });
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast({
-        title: "Password mismatch",
-        description: "Passwords do not match.",
-        variant: "destructive",
       });
       return;
     }
@@ -317,24 +415,8 @@ export default function SignupPage() {
     resident: {
       title: "Join Us!",
       body: "Report incidents, track status updates, and stay informed with IRIS. Your community updates are just a click away.",
-    },
-    official: {
-      title: "Welcome, Admin! 👋",
-      body: "Verify cases, schedule assignments, and monitor reports efficiently. IRIS keeps your dashboard and community operations organized.",
-    },
-    bpat: {
-      title: "Hello, BPAT Officer! 👋",
-      body: "Log mediation updates, manage field cases, and respond to AI-flagged reports. IRIS helps you act quickly and keep every case moving.",
-    },
+    }
   } as const;
-
-  const checks = {
-    length: password.length >= 8,
-    uppercase: /[A-Z]/.test(password),
-    lowercase: /[a-z]/.test(password),
-    number: /\d/.test(password),
-    special: /[^A-Za-z0-9]/.test(password),
-  };
 
   const isPasswordValid =
     checks.length &&
@@ -342,15 +424,6 @@ export default function SignupPage() {
     checks.lowercase &&
     checks.number &&
     checks.special;
-
-  const streetSuggestions = useMemo(() => getStreetSuggestions(street), [street]);
-  const showStreetSuggestions = streetFocused && streetSuggestions.length > 0;
-  const streetQuery = normalizeStreetQuery(street).toLowerCase();
-
-  const handleStreetSelect = (streetName: string) => {
-    setStreet(streetName);
-    setStreetFocused(false);
-  };
 
   const openLegalDoc = (doc: "terms" | "privacy") => {
     setLegalAccepted(false);
@@ -406,14 +479,41 @@ export default function SignupPage() {
   } as const;
 
   return (
+  <>
+  {/* MAIN LAYOUT */}
     <div className="min-h-screen lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] bg-[var(--iris-bg)] text-[var(--iris-text)] auth-page-enter">
-      <section className="auth-hero-enter relative hidden lg:flex items-center justify-center overflow-hidden bg-[radial-gradient(120%_120%_at_0%_0%,rgba(255,255,255,0.2)_0%,rgba(255,255,255,0)_45%),linear-gradient(135deg,#1E4FA3,#173E82,#0B1A3A)] p-10 xl:p-14">
-        <div className="auth-hero-radial absolute inset-0 opacity-40" />
+
+    {/* LEFT HERO */}
+      <section
+          className="auth-hero-enter relative hidden lg:flex items-center justify-center overflow-hidden p-8 xl:p-10"
+          style={{
+            background: `
+              radial-gradient(
+                120% 120% at 0% 0%,
+                rgba(255,255,255,0.10) 0%,
+                rgba(255,255,255,0) 60%
+              ),
+              radial-gradient(
+                120% 120% at 100% 100%,
+                rgba(59,130,246,0.12) 0%,
+                rgba(59,130,246,0) 65%
+              ),
+              linear-gradient(
+                135deg,
+                var(--sidebar-bg) 0%,
+                var(--primary-hover) 35%,
+                var(--primary-hover) 55%,
+                rgba(15, 23, 42, 0.95) 100%
+              )
+            `,
+          }}
+        >
+      <div className="auth-hero-radial absolute inset-0 opacity-40" />
         <div className="auth-hero-linear absolute inset-0 opacity-80" />
         <div className="absolute -left-24 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-[var(--secondary)]/20 blur-3xl" />
+        <div className="absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-[var(--primary)]/10 blur-3xl" />
         <div className="relative z-10 flex h-full w-full max-w-2xl flex-col justify-between text-white">
-          <div className="space-y-7">
+          <div className="space-y-5">
             <div className="flex items-center justify-between gap-3">
             {/* Barangay Logo */}
             <div className="flex items-center gap-3">
@@ -459,16 +559,30 @@ export default function SignupPage() {
         </div>
       </section>
 
-      <section className="auth-panel-enter flex min-h-screen items-start justify-center px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
-        <div className="w-full max-w-xl space-y-3 md:max-w-2xl">
-          <div className="text-sm">
-            <Link href="/" className="inline-flex items-center gap-2 font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">
-              <ArrowLeft className="h-4 w-4" />
-              Go Back to Homepage
-            </Link>
-          </div>
+      <section className="flex min-h-screen items-center justify-center px-4 py-5 sm:px-6 lg:px-8">
+        <div
+          className="
+            w-full max-w-md
+            overflow-hidden
+            rounded-3xl
+            border border-[var(--iris-border)]
+            bg-[var(--iris-surface)]/96
+            shadow-[0_24px_70px_rgba(15,23,42,0.14)]
+            backdrop-blur-xl
+          "
+        >
 
-          <div className="space-y-4 rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)]/95 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.12)] backdrop-blur sm:p-6">
+          <div className="px-5 py-5 sm:px-6">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-[var(--iris-border)]">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Go back to Homepage
+              </Link>
+            </div>
+
             <div className="space-y-2 text-center">
               <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--iris-primary-light)] text-[var(--iris-primary)]">
                 <UserPlus className="h-5 w-5" />
@@ -477,383 +591,480 @@ export default function SignupPage() {
               <p className="text-sm text-[var(--iris-text-subtle)]">Access your account to report or monitor incidents.</p>
             </div>
 
-            <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
-              <div className="relative">
-                <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                <label htmlFor="firstName" className="sr-only">First name</label>
-                <input
-                  id="firstName"
-                  type="text"
-                  autoComplete="given-name"
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="First Name"
-                  disabled={isLoading}
-                />
-              </div>
+            {/* PROGRESS STEP */}
+            <div className="mt-5">
+              <div className="flex items-center justify-between">
+                {[
+                  { number: 1, title: "Personal" },
+                  { number: 2, title: "Contact" },
+                  { number: 3, title: "Address" },
+                  { number: 4, title: "Security" },
+                ].map((item, index) => {
+                  const active = step === item.number;
+                  const completed = step > item.number;
 
-              <div className="relative">
-                <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                <label htmlFor="lastName" className="sr-only">Last name</label>
-                <input
-                  id="lastName"
-                  type="text"
-                  autoComplete="family-name"
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Last Name"
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div className="relative">
-                <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                <label htmlFor="middleName" className="sr-only">Middle name</label>
-                <input
-                  id="middleName"
-                  type="text"
-                  autoComplete="additional-name"
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                  value={middleName}
-                  onChange={(e) => setMiddleName(e.target.value)}
-                  placeholder="Middle Name"
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div className="relative">
-                <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-
-                <button
-                  type="button"
-                  onClick={() => setSuffixOpen((prev) => !prev)}
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-left text-sm text-[var(--iris-text)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                  disabled={isLoading}
-                >
-                  {suffix || "No suffix"}
-                </button>
-
-                <svg
-                  className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
-                </svg>
-
-                {suffixOpen && (
-                  <div
-                    role="listbox"
-                    className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-[var(--iris-border)] bg-white shadow-[0_14px_40px_rgba(15,23,42,0.15)]"
-                  >
-                    <button
-                      type="button"
-                      role="option"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        setSuffix("");
-                        setSuffixOpen(false);
-                      }}
-                      className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
+                  return (
+                    <div
+                      key={item.number}
+                      className="relative flex flex-1 items-center"
                     >
-                      No suffix
-                    </button>
-                    {SUFFIX_OPTIONS.map((option) => (
+                      {/* CONNECTOR */}
+                      {index < 3 && (
+                        <div className="absolute left-1/2 top-4 h-[2px] w-full -translate-y-1/2 bg-[var(--iris-border)]">
+                          <div
+                            className={cn(
+                              "h-full transition-all duration-300",
+                              completed
+                                ? "bg-[var(--iris-primary)]"
+                                : "bg-transparent"
+                            )}
+                          />
+                        </div>
+                      )}
+
+                      {/* STEP */}
+                      <div className="relative z-10 flex w-full flex-col items-center">
+                        <div
+                          className={cn(
+                            "flex h-8 w-8 items-center justify-center rounded-full border text-xs font-bold transition-all duration-300",
+                            completed
+                              ? "border-[var(--iris-primary)] bg-[var(--iris-primary)] text-white"
+                              : active
+                              ? "border-[var(--iris-primary)] bg-[var(--iris-primary-light)] text-[var(--iris-primary)]"
+                              : "border-[var(--iris-border)] bg-white text-[var(--iris-text-subtle)]"
+                          )}
+                        >
+                          {completed ? (
+                            <CheckCircle2 className="h-4 w-4" />
+                          ) : (
+                            item.number
+                          )}
+                        </div>
+
+                        <span
+                          className={cn(
+                            "mt-1 text-[11px] font-medium",
+                            active || completed
+                              ? "text-[var(--iris-text)]"
+                              : "text-[var(--iris-text-subtle)]"
+                          )}
+                        >
+                          {item.title}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+          <form
+            className="mt-5 space-y-4"
+            onSubmit={handleSubmit}
+          >
+            {/* STEP 1 — PERSONAL INFO */}
+            {step === 1 && (
+              <div className="grid gap-4 sm:grid-cols-2">
+
+                {/* FIRST NAME */}
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+
+                  <label htmlFor="firstName" className="sr-only">
+                    First name
+                  </label>
+
+                  <input
+                    id="firstName"
+                    type="text"
+                    autoComplete="given-name"
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="First Name"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                {/* LAST NAME */}
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+
+                  <label htmlFor="lastName" className="sr-only">
+                    Last name
+                  </label>
+
+                  <input
+                    id="lastName"
+                    type="text"
+                    autoComplete="family-name"
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Last Name"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                {/* MIDDLE NAME */}
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+
+                  <label htmlFor="middleName" className="sr-only">
+                    Middle name
+                  </label>
+
+                  <input
+                    id="middleName"
+                    type="text"
+                    autoComplete="additional-name"
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    value={middleName}
+                    onChange={(e) => setMiddleName(e.target.value)}
+                    placeholder="Middle Name"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                {/* SUFFIX */}
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+
+                  <button
+                    type="button"
+                    onClick={() => setSuffixOpen((prev) => !prev)}
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-left text-sm text-[var(--iris-text)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    disabled={isLoading}
+                  >
+                    {suffix || "No suffix"}
+                  </button>
+
+                  <svg
+                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
+                  </svg>
+
+                  {suffixOpen && (
+                    <div
+                      role="listbox"
+                      className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-[var(--iris-border)] bg-white shadow-[0_14px_40px_rgba(15,23,42,0.15)]"
+                    >
                       <button
-                        key={option}
                         type="button"
                         role="option"
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
-                          setSuffix(option);
+                          setSuffix("");
                           setSuffixOpen(false);
                         }}
                         className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
                       >
-                        {option}
+                        No suffix
                       </button>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                <label htmlFor="email" className="sr-only">Email</label>
-                <input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email"
-                  disabled={isLoading}
-                />
-              </div>
+                      {SUFFIX_OPTIONS.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          role="option"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setSuffix(option);
+                            setSuffixOpen(false);
+                          }}
+                          className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-              <div className="relative">
-                <Phone className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                <label htmlFor="contact" className="sr-only">Contact</label>
-                <input
-                  id="contact"
-                  type="tel"
-                  autoComplete="tel"
-                  inputMode="tel"
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                  value={contact}
-                  onChange={(e) => setContact(formatPhilippinesContact(e.target.value))}
-                  onFocus={() => {
-                    if (!contact.trim()) setContact("+63");
-                  }}
-                  onBlur={() => {
-                    if (contact.trim() === "+63") setContact("");
-                  }}
-                  placeholder="Phone Number"
-                  disabled={isLoading}
-                />
-              </div>
+                {/* GENDER */}
+                <div className="relative sm:col-span-2">
+                  <UserCheck className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
 
-              <div className="relative">
-                <UserCheck className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-
-                <button
-                  type="button"
-                  onClick={() => setGenderOpen((prev) => !prev)}
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-left text-sm text-[var(--iris-text)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                  disabled={isLoading}
-                >
-                  {gender === "" ? "Select Gender" : gender === "MALE" ? "Male" : "Female"}
-                </button>
-
-                <svg
-                  className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
-                </svg>
-
-                {genderOpen && (
-                  <div
-                    role="listbox"
-                    className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-[var(--iris-border)] bg-white shadow-[0_14px_40px_rgba(15,23,42,0.15)]"
+                  <button
+                    type="button"
+                    onClick={() => setGenderOpen((prev) => !prev)}
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-left text-sm text-[var(--iris-text)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    disabled={isLoading}
                   >
-                    <button
-                      type="button"
-                      role="option"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        setGender("MALE");
-                        setGenderOpen(false);
-                      }}
-                      className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
-                    >
-                      Male
-                    </button>
+                    {gender === ""
+                      ? "Select Gender"
+                      : gender === "MALE"
+                      ? "Male"
+                      : "Female"}
+                  </button>
 
-                    <button
-                      type="button"
-                      role="option"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        setGender("FEMALE");
-                        setGenderOpen(false);
-                      }}
-                      className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
-                    >
-                      Female
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="relative">
-                <MapPin className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                <label htmlFor="street" className="sr-only">Street</label>
-                <input
-                  id="street"
-                  type="text"
-                  autoComplete="street-address"
-                  aria-autocomplete="list"
-                  aria-expanded={showStreetSuggestions}
-                  aria-controls="street-suggestions"
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                  value={street}
-                  onChange={(e) => setStreet(e.target.value)}
-                  onFocus={() => setStreetFocused(true)}
-                  onBlur={() => {
-                    setTimeout(() => {
-                      const match = findStreetMatch(street);
-                        if (match) {
-                          setStreet(match.name);
-                        }
-                      setStreetFocused(false);
-                    }, 120);
-                  }}
-                  placeholder="Street"
-                  disabled={isLoading}
-                />
-                {showStreetSuggestions && (
-                  <div
-                    id="street-suggestions"
-                    role="listbox"
-                    className="absolute left-0 right-0 top-full z-20 mt-2 max-h-64 overflow-auto rounded-2xl border border-[var(--iris-border)] bg-white shadow-[0_14px_40px_rgba(15,23,42,0.15)]"
+                  <svg
+                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
                   >
-                    {streetSuggestions.map((streetName) => (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
+                  </svg>
+
+                  {genderOpen && (
+                    <div
+                      role="listbox"
+                      className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-[var(--iris-border)] bg-white shadow-[0_14px_40px_rgba(15,23,42,0.15)]"
+                    >
                       <button
-                        key={streetName}
                         type="button"
                         role="option"
-                        aria-selected={streetQuery === streetName.toLowerCase()}
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => handleStreetSelect(streetName)}
-                        className="flex w-full flex-col gap-1 px-4 py-3 text-left transition hover:bg-[var(--iris-primary-light)]/40 focus:bg-[var(--iris-primary-light)]/50 focus:outline-none"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setGender("MALE");
+                          setGenderOpen(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
                       >
-                        <span className="text-sm font-semibold text-[var(--iris-text)]">{streetName}</span>
-                        <span className="text-xs text-[var(--iris-text-subtle)]">{EAST_TAPINAC_BARANGAY}</span>
+                        Male
                       </button>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                
-                <label htmlFor="password" className="sr-only">
-                  Password
-                </label>
-
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onFocus={() => setPasswordFocused(true)}
-                  onBlur={() => setPasswordFocused(false)}
-                  placeholder="Password"
-                  disabled={isLoading}
-                />
-
-                {password.length > 0 && isPasswordValid ? (
-                  <CheckCircle2 className="pointer-events-none absolute right-10 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
-                ) : null}
-
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--iris-text-subtle)] hover:text-[var(--iris-primary)]"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
+                      <button
+                        type="button"
+                        role="option"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setGender("FEMALE");
+                          setGenderOpen(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
+                      >
+                        Female
+                      </button>
+                    </div>
                   )}
-                </button>
+                </div>
+              </div>
+            )}
 
-                {passwordFocused && password.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] shadow-[0_20px_60px_rgba(15,23,42,0.15)] p-3">
-                    <p className="mb-2 text-xs font-semibold text-[var(--iris-text)]">
-                      Password must contain:
-                    </p>
+            {/* STEP 2 — CONTACT INFO */}
+            {step === 2 && (
+              <div className="space-y-4">
 
-                    <div className="space-y-1 text-xs">
-                      <div className={checks.length ? "text-emerald-600" : "text-[var(--iris-text-subtle)]"}>
-                        • At least 8 characters
+                {/* EMAIL */}
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+
+                  <label htmlFor="email" className="sr-only">
+                    Email
+                  </label>
+
+                  <input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Email"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                {/* CONTACT */}
+                <div className="relative">
+                  <Phone className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+
+                  <label htmlFor="contact" className="sr-only">
+                    Contact
+                  </label>
+
+                  <input
+                    id="contact"
+                    type="tel"
+                    autoComplete="tel"
+                    inputMode="tel"
+                    className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    value={contact}
+                    onChange={(e) =>
+                      setContact(formatPhilippinesContact(e.target.value))
+                    }
+                    onFocus={() => {
+                      if (!contact.trim()) setContact("+63");
+                    }}
+                    onBlur={() => {
+                      if (contact.trim() === "+63") setContact("");
+                    }}
+                    placeholder="Phone Number"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3 — ADDRESS */}
+            {step === 3 && (
+              <div className="space-y-4">
+
+                <div className="rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] p-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 rounded-xl bg-[var(--iris-primary-light)] p-2 text-[var(--iris-primary)]">
+                        <MapPin className="h-4 w-4" />
                       </div>
 
-                      <div className={checks.uppercase ? "text-emerald-600" : "text-[var(--iris-text-subtle)]"}>
-                        • One uppercase letter
-                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-[var(--iris-text)]">
+                          Street & Purok
+                        </p>
 
-                      <div className={checks.lowercase ? "text-emerald-600" : "text-[var(--iris-text-subtle)]"}>
-                        • One lowercase letter
-                      </div>
-
-                      <div className={checks.number ? "text-emerald-600" : "text-[var(--iris-text-subtle)]"}>
-                        • One number
-                      </div>
-
-                      <div className={checks.special ? "text-emerald-600" : "text-[var(--iris-text-subtle)]"}>
-                        • One special character
+                        <p className="text-xs leading-relaxed text-[var(--iris-text-subtle)]">
+                          {location
+                            ? `${location.street} • Purok ${location.purok}`
+                            : "Use your location to detect your street and purok"}
+                        </p>
                       </div>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={captureLocation}
+                      disabled={isLoading || isLocating}
+                      className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-[var(--iris-border)] bg-white px-4 text-sm font-semibold text-[var(--iris-primary)] transition hover:bg-[var(--iris-primary-light)]/50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <MapPin className="h-4 w-4" />
+                      {isLocating
+                        ? "Detecting..."
+                        : location
+                        ? "Update location"
+                        : "Detect location"}
+                    </button>
+
                   </div>
-                )}
-              </div>
+                </div>
 
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                <label htmlFor="confirmPassword" className="sr-only">Confirm password</label>
-                <input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm Password"
-                  disabled={isLoading}
-                />
-                {confirmPassword.length > 0 && confirmPassword === password ? (
-                  <CheckCircle2 className="pointer-events-none absolute right-10 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--iris-text-subtle)] hover:text-[var(--iris-primary)]"
-                  aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
-                >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
               </div>
+            )}
 
-              <div className="rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-primary-light)]/15 p-3 md:col-span-2">
-                <div className="space-y-2 text-sm text-[var(--iris-text)]">
-                  <label className="flex items-start gap-2">
+            {/* STEP 4 — SECURITY */}
+            {step === 4 && (
+              <div className="space-y-4">
+
+                {/* PASSWORD */}
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
+
+                    <label htmlFor="password" className="sr-only">
+                      Password
+                    </label>
+
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Password"
+                      disabled={isLoading}
+                    />
+
+                    {password.length > 0 && isPasswordValid ? (
+                      <CheckCircle2 className="pointer-events-none absolute right-10 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--iris-text-subtle)] hover:text-[var(--iris-primary)]"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+
+                  {password.length > 0 && (
+                    <div className="rounded-2xl border border-[var(--iris-border)] bg-white/95 p-3 shadow-[0_14px_40px_rgba(15,23,42,0.12)] backdrop-blur">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-xs font-semibold text-[var(--iris-text)]">
+                          Password Strength
+                        </span>
+
+                        <span
+                          className={cn(
+                            "text-xs font-bold",
+                            strength.score <= 2 && "text-red-500",
+                            strength.score === 3 && "text-amber-500",
+                            strength.score >= 4 && "text-emerald-600"
+                          )}
+                        >
+                          {strength.label}
+                        </span>
+                      </div>
+
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4].map((level) => (
+                          <div
+                            key={level}
+                            className={cn(
+                              "h-1.5 flex-1 rounded-full transition-all duration-300",
+                              strength.score >= level
+                                ? strength.score <= 2
+                                  ? "bg-red-500"
+                                  : strength.score === 3
+                                  ? "bg-amber-500"
+                                  : "bg-emerald-500"
+                                : "bg-[var(--iris-border)]"
+                            )}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* AGREEMENT CARD */}
+                <div className="rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-primary-light)]/25 p-4">
+                  <label className="flex items-start gap-3 text-sm text-[var(--iris-text)]">
                     <input
                       type="checkbox"
-                      className="mt-0.5 h-4 w-4 rounded border-[#D1D5DB] text-[var(--iris-primary)] focus:ring-[var(--iris-primary)] accent-[var(--iris-primary)]"
-                      checked={privacyAccepted}
-                      onChange={() => handleAgreementToggle("privacy")}
+                      className="mt-0.5 h-4 w-4 rounded border-[var(--iris-border)] text-[var(--iris-primary)] focus:ring-[var(--iris-primary)] accent-[var(--iris-primary)]"
+                      checked={termsAccepted && privacyAccepted}
+                      onChange={() => {
+                        if (termsAccepted && privacyAccepted) {
+                          setTermsAccepted(false);
+                          setPrivacyAccepted(false);
+                          return;
+                        }
+
+                        openLegalDoc("terms");
+                      }}
                     />
-                    <span>
+
+                    <span className="leading-relaxed">
                       I accept the{" "}
                       <button
                         type="button"
                         onClick={() => openLegalDoc("privacy")}
-                        className="font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]"
+                        className="font-semibold text-[var(--iris-primary)] transition-colors hover:text-[var(--iris-primary-strong)]"
                       >
                         Privacy Policy
-                      </button>
-                      .
-                    </span>
-                  </label>
-                  <label className="flex items-start gap-2">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 h-4 w-4 rounded border-[#D1D5DB] text-[var(--iris-primary)] focus:ring-[var(--iris-primary)] accent-[var(--iris-primary)]"
-                      checked={termsAccepted}
-                      onChange={() => handleAgreementToggle("terms")}
-                    />
-                    <span>
-                      I agree to the{" "}
+                      </button>{" "}
+                      and{" "}
                       <button
                         type="button"
                         onClick={() => openLegalDoc("terms")}
-                        className="font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]"
+                        className="font-semibold text-[var(--iris-primary)] transition-colors hover:text-[var(--iris-primary-strong)]"
                       >
                         Terms and Conditions
                       </button>
@@ -862,24 +1073,74 @@ export default function SignupPage() {
                   </label>
                 </div>
               </div>
+            )}
 
-              <button
-                type="submit"
-                disabled={isLoading || !termsAccepted || !privacyAccepted}
-                className="w-full rounded-xl bg-[var(--iris-primary)] py-2.5 font-semibold text-white shadow-[0_12px_30px_rgba(30,79,163,0.3)] transition-all duration-200 hover:bg-[var(--iris-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70 md:col-span-2"
-              >
-                {isLoading ? (
-                  <span className="inline-flex items-center justify-center gap-2">
-                    <span className="h-4 w-4 rounded-full border-2 border-white/60 border-t-white animate-spin" aria-hidden />
-                    Creating account...
-                  </span>
-                ) : (
-                  "Create Account"
-                )}
-              </button>
-            </form>
+            {/* STEP BUTTONS */}
+            <div className="flex items-center gap-3 pt-2">
+              {step > 1 && (
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  className="
+                    flex-1 rounded-xl
+                    border border-[var(--iris-border)]
+                    bg-white
+                    py-2.5 font-semibold
+                    text-[var(--iris-text)]
+                    transition hover:bg-[var(--iris-primary-light)]/20
+                  "
+                >
+                  Back
+                </button>
+              )}
 
-            <p className="text-center text-sm text-[var(--iris-text-subtle)]">
+              {step < totalSteps ? (
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="
+                    flex-1 rounded-xl
+                    bg-[var(--iris-primary)]
+                    py-2.5 font-semibold text-white
+                    shadow-[0_12px_30px_rgba(30,79,163,0.28)]
+                    transition-all duration-200
+                    hover:-translate-y-[1px]
+                    hover:bg-[var(--iris-primary-strong)]
+                  "
+                >
+                  Continue
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={isLoading || !termsAccepted || !privacyAccepted}
+                  className="
+                    flex-1 rounded-xl
+                    bg-[var(--iris-primary)]
+                    py-2.5 font-semibold text-white
+                    shadow-[0_12px_30px_rgba(30,79,163,0.28)]
+                    transition-all duration-200
+                    hover:-translate-y-[1px]
+                    hover:bg-[var(--iris-primary-strong)]
+
+                    disabled:cursor-not-allowed
+                    disabled:opacity-70
+                  "
+                >
+                  {isLoading ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <span className="h-4 w-4 rounded-full border-2 border-white/60 border-t-white animate-spin" />
+                      Creating account...
+                    </span>
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
+              )}
+            </div>
+          </form>
+
+            <p className="mt-4 text-center text-sm text-[var(--iris-text-subtle)]">
               Already have an account?{" "}
               <Link
                 href="/login"
@@ -895,80 +1156,138 @@ export default function SignupPage() {
       {legalDoc && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 animate-in fade-in duration-200">
           <div className="w-full max-w-2xl">
-            <div className="flex max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] shadow-2xl ring-1 ring-black/5 transition-all animate-in zoom-in-95 duration-200">
-              <div className="flex items-center justify-between border-b border-[var(--iris-border)] bg-[var(--iris-primary-light)]/40 px-6 py-4">
-                <h3 className="text-lg font-semibold text-[var(--iris-text)] flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-[var(--iris-primary)]" />
-                  {legalContent[legalDoc].title}
-                </h3>
+            <div className="flex max-h-[85vh] flex-col overflow-hidden rounded-3xl border border-[var(--iris-border)] bg-[var(--iris-surface)] shadow-[0_30px_80px_rgba(15,23,42,0.18)] ring-1 ring-black/5 animate-in zoom-in-95 duration-200">
+
+              {/* HEADER */}
+              <div className="flex items-center justify-between border-b border-[var(--iris-border)] bg-[var(--legal-surface)] px-6 py-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--iris-primary-light)]">
+                    <ShieldCheck className="h-5 w-5 text-[var(--iris-primary)]" />
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-bold text-[var(--iris-text)]">
+                      {legalContent[legalDoc].title}
+                    </h3>
+                    <p className="text-xs text-[var(--iris-text-subtle)]">
+                      IRIS Legal Documentation
+                    </p>
+                  </div>
+                </div>
+
                 <button
                   type="button"
                   onClick={() => setLegalDoc(null)}
                   aria-label="Close dialog"
-                  className="rounded-full p-2 text-[var(--iris-text-subtle)] hover:bg-white/70 hover:text-[var(--iris-text)] transition-colors"
+                  className="rounded-full p-2 text-[var(--iris-text-subtle)] transition-all hover:bg-[var(--legal-surface-hover)] hover:text-[var(--iris-text)]"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
+
+              {/* BODY */}
               <div
-                className="flex-1 overflow-y-auto px-6 py-6 text-sm text-[var(--iris-text)] custom-scrollbar"
+                className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar bg-[var(--iris-surface)]"
                 onScroll={(event) => {
                   const target = event.currentTarget;
-                  if (target.scrollTop + target.clientHeight >= target.scrollHeight - 12) {
+                  if (
+                    target.scrollTop + target.clientHeight >=
+                    target.scrollHeight - 12
+                  ) {
                     setLegalScrolledToEnd(true);
                   }
                 }}
               >
-                <div className="mb-6 rounded-2xl border border-[var(--iris-border)] bg-white/70 p-4 text-[var(--iris-primary-strong)]">
-                  <p className="font-medium">{legalContent[legalDoc].intro}</p>
+
+                {/* INTRO (UNCHANGED TEXT, SOLID BACKGROUND) */}
+                <div className="mb-6 rounded-2xl border border-[var(--iris-border)] bg-white p-5">
+                  <p className="text-sm leading-relaxed font-medium text-[var(--iris-primary-strong)]">
+                    {legalContent[legalDoc].intro}
+                  </p>
                 </div>
+
+                {/* CONTENT */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {legalContent[legalDoc].body.map((item, index) => {
                     const [heading, ...rest] = item.split(": ");
                     const detail = rest.join(": ");
-                    const icons = [ShieldCheck, ClipboardCheck, Database, UserCheck] as const;
+
+                    const icons = [
+                      ShieldCheck,
+                      ClipboardCheck,
+                      Database,
+                      UserCheck,
+                    ] as const;
+
                     const Icon = icons[index % icons.length];
 
                     return (
-                      <div key={item} className="group rounded-2xl border border-[var(--iris-border)] bg-white p-4 transition-all hover:border-[var(--iris-primary)]/30 hover:shadow-sm">
-                        <div className="mb-2 inline-flex items-center gap-2 text-[var(--iris-primary)]">
-                          <div className="rounded-lg bg-[var(--iris-primary-light)] p-1.5 transition-colors group-hover:bg-[var(--iris-primary)] group-hover:text-white">
-                            <Icon className="h-4 w-4" />
+                      <div
+                        key={item}
+                        className="group rounded-2xl border border-[var(--iris-border)] bg-white p-4 transition-all hover:border-[var(--iris-primary)]/30 hover:shadow-md"
+                      >
+                        <div className="mb-3 flex items-center gap-2">
+                          <div className="rounded-xl bg-[var(--iris-primary-light)] p-2 transition-all group-hover:bg-[var(--iris-primary)]">
+                            <Icon className="h-4 w-4 text-[var(--iris-primary)] group-hover:text-white" />
                           </div>
-                          <p className="text-xs font-bold uppercase tracking-wide text-[var(--iris-text)] transition-colors group-hover:text-[var(--iris-primary)]">{heading}</p>
+
+                          <p className="text-xs font-bold uppercase tracking-wide text-[var(--iris-text)] group-hover:text-[var(--iris-primary)] transition-colors">
+                            {heading}
+                          </p>
                         </div>
-                        <p className="text-xs leading-relaxed text-[var(--iris-text-subtle)]">{detail}</p>
+
+                        <p className="text-xs leading-relaxed text-[var(--iris-text-subtle)]">
+                          {detail}
+                        </p>
                       </div>
                     );
                   })}
                 </div>
               </div>
-              <div className="flex items-center justify-between gap-3 border-t border-[var(--iris-border)] bg-[var(--iris-primary-light)]/20 px-6 py-4">
+
+              {/* FOOTER */}
+              <div className="flex items-center justify-between gap-4 border-t border-[var(--iris-border)] bg-[var(--legal-surface)] px-6 py-4">
+
                 <label className="inline-flex cursor-pointer select-none items-center gap-2 text-sm text-[var(--iris-text-subtle)]">
                   <input
                     type="checkbox"
                     checked={legalAccepted}
                     disabled={legalDoc === "terms" && !legalScrolledToEnd}
                     onChange={(e) => setLegalAccepted(e.target.checked)}
-                    className="h-4 w-4 rounded border-[#D1D5DB] text-[var(--iris-primary)] focus:ring-[var(--iris-primary)] accent-[var(--iris-primary)]"
+                    className="h-4 w-4 rounded border-[var(--iris-border)] text-[var(--iris-primary)] focus:ring-[var(--iris-primary)] accent-[var(--iris-primary)]"
                   />
+
                   <span className="font-medium">
-                    {legalDoc === "terms" && !legalScrolledToEnd ? "Scroll to the bottom to accept" : "I have read and agree"}
+                    {legalDoc === "terms" && !legalScrolledToEnd
+                      ? "Scroll to the bottom to accept"
+                      : "I have read and agree"}
                   </span>
                 </label>
+
                 <button
                   type="button"
                   onClick={() => {
-                    if (legalDoc === "terms") setTermsAccepted(true);
-                    if (legalDoc === "privacy") setPrivacyAccepted(true);
+                    if (legalDoc === "terms") {
+                      setTermsAccepted(true);
+                      setPrivacyAccepted(true);
+                    }
+
+                    if (legalDoc === "privacy") {
+                      setPrivacyAccepted(true);
+                    }
+
                     setLegalDoc(null);
                   }}
-                  disabled={!legalAccepted || (legalDoc === "terms" && !legalScrolledToEnd)}
-                  className="rounded-lg bg-[var(--iris-primary)] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[var(--iris-primary-strong)] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={
+                    !legalAccepted ||
+                    (legalDoc === "terms" && !legalScrolledToEnd)
+                  }
+                  className="rounded-xl bg-[var(--iris-primary)] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_10px_25px_rgba(15,23,42,0.10)] transition-all hover:bg-[var(--iris-primary-strong)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {legalDoc === "terms" ? "Accept Terms" : "Continue"}
                 </button>
               </div>
+
             </div>
           </div>
         </div>
@@ -977,7 +1296,7 @@ export default function SignupPage() {
       {verificationOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] p-5 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="space-y-2 text-center">
+            <div className="space-y-3 text-center pb-2">
               <div className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--iris-primary-light)] text-[var(--iris-primary)]">
                 <Mail className="h-5 w-5" />
               </div>
@@ -1004,7 +1323,7 @@ export default function SignupPage() {
                 type="button"
                 onClick={handleVerifyCode}
                 disabled={isVerifying || verificationCode.length !== 6}
-                className="w-full rounded-xl bg-[var(--iris-primary)] py-2.5 font-semibold text-white shadow-[0_12px_30px_rgba(30,79,163,0.3)] transition hover:bg-[var(--iris-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70"
+                className="w-full rounded-xl bg-[var(--iris-primary)] py-2.5 font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.12)] transition hover:bg-[var(--iris-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isVerifying ? "Verifying..." : "Verify Account"}
               </button>
@@ -1032,5 +1351,6 @@ export default function SignupPage() {
         </div>
       )}
     </div>
+  </>
   );
 }

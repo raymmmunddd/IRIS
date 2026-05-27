@@ -79,7 +79,7 @@ export default function CaseDetailPage() {
       <div className="hidden lg:flex h-screen shrink-0">
         <DashboardSidebar />
       </div>
-      <main className="relative min-w-0 flex-1 overflow-hidden bg-background flex flex-col">
+      <main className="relative min-w-0 flex-1 overflow-y-auto overflow-x-visible bg-background flex flex-col">
         <CaseDetailPanel 
             caseData={caseData} 
             onClose={() => router.push("/cases")}

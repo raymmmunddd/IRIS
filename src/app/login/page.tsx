@@ -126,16 +126,37 @@ export default function LoginPage() {
   } as const;
 
   return (
-    <div className="min-h-screen lg:h-screen overflow-hidden bg-[var(--iris-bg)] text-[var(--iris-text)] lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] auth-page-enter">
-      <section className="auth-hero-enter relative hidden lg:flex items-center justify-center overflow-hidden bg-[radial-gradient(120%_120%_at_0%_0%,rgba(255,255,255,0.2)_0%,rgba(255,255,255,0)_45%),linear-gradient(135deg,#1E4FA3,#173E82,#0B1A3A)] p-10 xl:p-14">
-        <div className="auth-hero-radial absolute inset-0 opacity-40" />
-        <div className="auth-hero-linear absolute inset-0 opacity-80" />
-        <div className="absolute -left-24 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-[var(--secondary)]/20 blur-3xl" />
-        <div className="relative z-10 flex h-full w-full max-w-2xl flex-col justify-between text-white">
-          <div className="space-y-7">
-           <div className="flex items-center justify-between gap-3">
-            {/* Barangay Logo */}
+  <>
+  {/* MAIN LAYOUT */}
+  <div className="min-h-screen bg-[var(--iris-bg)] text-[var(--iris-text)] lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] auth-page-enter overflow-hidden">
+
+      {/* LEFT HERO */}
+      <section
+        className="auth-hero-enter relative hidden lg:flex overflow-hidden"
+        style={{
+          background: `
+            radial-gradient(circle at top left, rgba(255,255,255,0.14), transparent 34%),
+            radial-gradient(circle at bottom right, rgba(59,130,246,0.20), transparent 34%),
+            linear-gradient(
+              145deg,
+              #0B1A3A 0%,
+              #13336C 28%,
+              #1E4FA3 52%,
+              #173E82 74%,
+              #0F172A 100%
+            )
+          `,
+        }}
+      >
+        {/* DESIGN */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.03),transparent_30%,rgba(0,0,0,0.18))]" />
+        <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute left-1/3 top-1/3 h-80 w-80 rounded-full bg-blue-400/10 blur-3xl" />
+        <div className="absolute -bottom-20 right-0 h-96 w-96 rounded-full bg-blue-300/10 blur-3xl" />
+
+        <div className="relative z-10 flex h-full w-full flex-col justify-between p-10 xl:p-14 text-white">
+          <div className="space-y-8">
+            {/* BRAND */}
             <div className="flex items-center gap-3">
               <img
                 src="/EastTapinac.png"
@@ -144,7 +165,7 @@ export default function LoginPage() {
               />
 
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-white/70">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/65">
                   IRIS Access
                 </p>
                 <p className="text-sm font-semibold text-white">
@@ -153,121 +174,246 @@ export default function LoginPage() {
               </div>
             </div>
 
-          </div>
-            <div className="space-y-4">
-              <p className="inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/90">
+            {/* HERO COPY */}
+            <div className="space-y-5 max-w-xl">
+              <p className="inline-flex w-fit items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/90 backdrop-blur">
                 Secure sign in
               </p>
-              <h1 className="text-3xl xl:text-4xl leading-tight font-semibold">{roleCopy[role].title}</h1>
-              <p className="text-base xl:text-lg text-white/80 leading-relaxed">{roleCopy[role].body}</p>
+
+              <div className="space-y-4">
+                <h1 className="text-4xl leading-tight font-semibold">
+                  {roleCopy[role].title}
+                </h1>
+
+                <p className="text-lg leading-relaxed text-white/78">
+                  {roleCopy[role].body}
+                </p>
+              </div>
             </div>
+
+            {/* FEATURE CARDS */}
             <div className="grid gap-3">
               {roleCopy[role].highlights.map((item) => (
-                <div key={item.heading} className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
-                  <p className="text-xs uppercase tracking-[0.14em] text-white/70">{item.heading}</p>
-                  <p className="mt-2 text-sm font-semibold text-white">{item.detail}</p>
+                <div
+                  key={item.heading}
+                  className="
+                    rounded-2xl
+                    border border-white/12
+                    bg-white/10
+                    p-4
+                    backdrop-blur-md
+                    transition-all
+                    hover:bg-white/14
+                    hover:border-white/20
+                  "
+                >
+                  <p className="text-[11px] uppercase tracking-[0.15em] text-white/65">
+                    {item.heading}
+                  </p>
+
+                  <p className="mt-2 text-sm font-semibold text-white">
+                    {item.detail}
+                  </p>
                 </div>
               ))}
             </div>
           </div>
-          <div className="text-xs text-white/70">
+
+          {/* FOOTER */}
+          <div className="flex items-center justify-between text-xs text-white/60">
+            <span>Protected by role permissions</span>
             <span>© 2026 IRIS</span>
           </div>
         </div>
       </section>
 
-      <section className="auth-panel-enter flex min-h-screen items-center justify-center px-4 py-4 sm:px-6 sm:py-5 lg:min-h-0 lg:h-screen lg:px-10 lg:py-0">
-        <div className="w-full max-w-md space-y-3">
-          <div className="text-sm">
-            <Link href="/" className="inline-flex items-center gap-2 font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">
-              <ArrowLeft className="h-4 w-4" />
-              Go Back to Homepage
-            </Link>
-          </div>
+      {/* RIGHT SIDE */}
+      <section className="flex min-h-screen items-center justify-center px-4 py-5 sm:px-6 lg:px-8">
+        <div
+          className="
+            w-full max-w-md
+            overflow-hidden
+            rounded-3xl
+            border border-[var(--iris-border)]
+            bg-[var(--iris-surface)]/96
+            shadow-[0_24px_70px_rgba(15,23,42,0.14)]
+            backdrop-blur-xl
+          "
+        >
+          {/* INTERNAL SCROLLER */}
+          <div className="max-h-[92vh] overflow-y-auto px-5 py-5 sm:px-6 custom-scrollbar">
 
-          <div className="space-y-4 rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)]/95 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.12)] backdrop-blur">
-            <div className="space-y-2 text-center">
-              <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--iris-primary-light)] text-[var(--iris-primary)]">
-                <LogIn className="h-5 w-5" />
-              </div>
-              <h2 className="text-2xl lg:text-3xl font-bold text-[var(--iris-text)]">Sign in</h2>
-              <p className="text-sm text-[var(--iris-text-subtle)]">Access your account to report or monitor incidents.</p>
+            {/* GO BACK INSIDE MODAL */}
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-[var(--iris-border)]">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Go back to Homepage
+              </Link>
             </div>
 
-            <form className="space-y-4" onSubmit={handleSubmit}>
+            {/* HEADER */}
+            <div className="space-y-2 text-center">
+              <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--iris-primary-light)] text-[var(--iris-primary)]">
+                <LogIn className="h-5 w-5" />
+              </div>
+
+              <h2 className="text-2xl font-bold text-[var(--iris-text)]">
+                Sign in
+              </h2>
+
+              <p className="text-sm leading-relaxed text-[var(--iris-text-subtle)]">
+                Access your account to report or monitor incidents.
+              </p>
+            </div>
+
+            {/* FORM */}
+            <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
+
+              {/* EMAIL */}
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-                <label htmlFor="email" className="sr-only">Email</label>
+
                 <input
                   id="email"
                   type="email"
                   autoComplete="email"
-                  className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                  className="
+                    h-12 w-full rounded-2xl
+                    border border-[var(--iris-border)]
+                    bg-[var(--iris-surface)]
+                    px-10 text-sm
+                    text-[var(--iris-text)]
+                    placeholder:text-[var(--iris-text-subtle)]
+                    shadow-sm transition
+                    focus:border-[var(--iris-primary)]
+                    focus:outline-none
+                    focus:ring-1
+                    focus:ring-[var(--iris-primary)]
+                  "
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Email"
                   disabled={isLoading}
                 />
-            </div>
+              </div>
 
-            <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
-              <label htmlFor="password" className="sr-only">Password</label>
-              <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-10 pr-11 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                disabled={isLoading}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--iris-text-subtle)] hover:text-[var(--iris-primary)]"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
+              {/* PASSWORD */}
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--iris-text-subtle)]" />
 
-            <div className="flex items-center justify-between pt-0.5 text-sm text-[var(--iris-text)]">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  className="
+                    h-12 w-full rounded-2xl
+                    border border-[var(--iris-border)]
+                    bg-[var(--iris-surface)]
+                    px-10 pr-11 text-sm
+                    text-[var(--iris-text)]
+                    placeholder:text-[var(--iris-text-subtle)]
+                    shadow-sm transition
+                    focus:border-[var(--iris-primary)]
+                    focus:outline-none
+                    focus:ring-1
+                    focus:ring-[var(--iris-primary)]
+                  "
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  disabled={isLoading}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--iris-text-subtle)] transition hover:text-[var(--iris-primary)]"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+
+              {/* OPTIONS */}
+              <div className="flex items-center justify-between text-sm">
                 <label className="inline-flex items-center gap-2 select-none">
                   <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-[#D1D5DB] text-[var(--iris-primary)] focus:ring-[var(--iris-primary)] accent-[var(--iris-primary)]"
+                    className="h-4 w-4 rounded border-[#D1D5DB] accent-[var(--iris-primary)]"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
                   />
-                  <span className="text-[var(--iris-text)]">Remember Me</span>
+                  <span className="text-[var(--iris-text)]">
+                    Remember Me
+                  </span>
                 </label>
-                <Link href="/forgot-password" className="font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]">Forgot Password?</Link>
-            </div>
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full rounded-xl bg-[var(--iris-primary)] py-2.5 text-white font-semibold shadow-[0_12px_30px_rgba(30,79,163,0.3)] transition-all duration-200 hover:bg-[var(--iris-primary-strong)] disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {isLoading ? (
-                <span className="inline-flex items-center justify-center gap-2">
-                  <span className="h-4 w-4 rounded-full border-2 border-white/60 border-t-white animate-spin" aria-hidden />
-                  Signing in...
-                </span>
-              ) : (
-                "Sign in"
-              )}
-            </button>
+                <Link
+                  href="/forgot-password"
+                  className="font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]"
+                >
+                  Forgot Password?
+                </Link>
+              </div>
 
-          </form>
+              {/* BUTTON */}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="
+                  w-full rounded-xl
+                  bg-[var(--iris-primary)]
+                  py-2.5 font-semibold text-white
+                  shadow-[0_12px_30px_rgba(30,79,163,0.28)]
+                  transition-all duration-200
+                  hover:-translate-y-[1px]
+                  hover:bg-[var(--iris-primary-strong)]
+                  disabled:cursor-not-allowed
+                  disabled:opacity-70
+                "
+              >
+                {isLoading ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <span className="h-4 w-4 rounded-full border-2 border-white/60 border-t-white animate-spin" />
+                    Signing in...
+                  </span>
+                ) : (
+                  "Sign in"
+                )}
+              </button>
 
-            <p className="text-center text-sm text-[var(--iris-text-subtle)]">
+              {/* LEGAL */}
+              <p className="text-center text-xs leading-relaxed text-[var(--iris-text-subtle)]">
+                By signing in, you agree to our{" "}
+                <Link
+                  href="/privacy-policy"
+                  className="font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]"
+                >
+                  Privacy Policy
+                </Link>{" "}
+                and{" "}
+                <Link
+                  href="/terms"
+                  className="font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]"
+                >
+                  Terms of Service
+                </Link>
+                .
+              </p>
+            </form>
+
+            {/* FOOTER */}
+            <p className="mt-5 text-center text-sm text-[var(--iris-text-subtle)]">
               Don&apos;t have an account?{" "}
               <Link
                 href="/signup"
-                className="auth-link-underline inline font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--iris-primary)] focus-visible:ring-offset-2"
+                className="font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]"
               >
                 Sign up.
               </Link>
@@ -275,6 +421,7 @@ export default function LoginPage() {
           </div>
         </div>
       </section>
-    </div>
+      </div>
+    </>
   );
 }

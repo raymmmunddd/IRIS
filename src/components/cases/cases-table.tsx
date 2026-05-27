@@ -111,6 +111,8 @@ export function CasesTable() {
   const [actionError, setActionError] = useState("")
   const router = useRouter()
 
+  const [scheduledAt, setScheduledAt] = useState("")
+
   // Refresh helper to reload from storage after updates
   const handleRefresh = () => {
     setRefreshTrigger((prev) => prev + 1)
@@ -171,8 +173,8 @@ export function CasesTable() {
     })
 
     result = [...result].sort((a, b) => {
-      const dateA = new Date(a.date).getTime()
-      const dateB = new Date(b.date).getTime()
+      const dateA = Date.parse(a.date)
+      const dateB = Date.parse(b.date)
 
       if (sortBy === "Newest") return dateB - dateA
       if (sortBy === "Oldest") return dateA - dateB
@@ -214,13 +216,41 @@ export function CasesTable() {
   }, [])
 
   function handleAction(action: string, caseItem: CaseRecord) {
-    const nextAction = action as CaseAction
-    const assignableOfficers = officers.filter((officer) => officer !== "Unassigned")
+    let mappedAction: CaseAction
+
+    switch (action) {
+      case "approve":
+        mappedAction = "verify"
+        break
+      case "reject":
+        mappedAction = "close"
+        break
+      case "assign_officer":
+        mappedAction = "assign"
+        break
+      case "schedule_mediation":
+        mappedAction = "mediation"
+        break
+      case "resolve":
+        mappedAction = "resolve"
+        break
+      case "dismiss":
+        mappedAction = "close"
+        break
+      default:
+        return
+    }
+
     setActionError("")
+    const assignableOfficers = officers.filter((o) => o !== "Unassigned")
+
     setSelectedOfficer(
-      caseItem.assignedOfficer !== "Unassigned" ? caseItem.assignedOfficer : assignableOfficers[0] ?? "",
+      caseItem.assignedOfficer !== "Unassigned"
+        ? caseItem.assignedOfficer
+        : assignableOfficers[0] ?? "Unassigned"
     )
-    setPendingAction({ action: nextAction, caseItem })
+
+    setPendingAction({ action: mappedAction, caseItem })
     setOpenActionId(null)
   }
 
@@ -228,7 +258,11 @@ export function CasesTable() {
     if (!pendingAction) return
 
     const { action, caseItem } = pendingAction
-    const input: { status?: CaseStatus; assignedOfficer?: string } = {}
+    const input: {
+      status?: CaseStatus
+      assignedOfficer?: string
+      scheduledAt?: string
+    } = {}
 
     if (action === "verify") input.status = "Under Review"
     if (action === "assign") {
@@ -238,7 +272,15 @@ export function CasesTable() {
       }
       input.assignedOfficer = selectedOfficer
     }
-    if (action === "mediation") input.status = "Mediation"
+    if (action === "mediation") {
+      if (!scheduledAt) {
+        setActionError("Please select a mediation date.")
+        return
+      }
+
+      input.status = "Mediation"
+      input.scheduledAt = scheduledAt
+    }
     if (action === "resolve") input.status = "Resolved"
     if (action === "close") input.status = "Closed"
 
@@ -499,6 +541,8 @@ export function CasesTable() {
                   }
                   onClose={() => setOpenActionId(null)}
                   onAction={(action) => handleAction(action, caseItem)}
+                  status={caseItem.status}
+                  hasOfficer={!!caseItem.assignedOfficer}
                 />
               </div>
             </div>
@@ -557,54 +601,138 @@ export function CasesTable() {
       )}
 
       <Dialog open={!!pendingAction} onOpenChange={(open) => !open && setPendingAction(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{pendingAction ? actionTitles[pendingAction.action] : "Case Action"}</DialogTitle>
-            <DialogDescription>
-              {pendingAction?.caseItem.caseNumber} - {pendingAction?.caseItem.fullName}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-md rounded-2xl border border-border bg-card shadow-2xl">
+    
+    {/* Header */}
+    <DialogHeader className="space-y-1">
+      <DialogTitle className="text-base font-semibold text-card-foreground">
+        {pendingAction ? actionTitles[pendingAction.action] : "Case Action"}
+      </DialogTitle>
 
-          {pendingAction?.action === "assign" ? (
-            <div className="grid gap-2">
-              <Label htmlFor="case-officer">Officer</Label>
-              <Select value={selectedOfficer} onValueChange={setSelectedOfficer}>
-                <SelectTrigger id="case-officer" className="w-full bg-background">
-                  <SelectValue placeholder="Select officer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {officers.filter((officer) => officer !== "Unassigned").map((officer) => (
-                    <SelectItem key={officer} value={officer}>
-                      {officer}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {pendingAction?.action === "verify" && "This will move the case into Under Review."}
-              {pendingAction?.action === "mediation" && "This will mark the case for mediation handling."}
-              {pendingAction?.action === "resolve" && "This will move the case into the resolved archive."}
-              {pendingAction?.action === "close" && "This will close the case and move it into the archive."}
-            </p>
-          )}
+      <DialogDescription className="text-xs text-muted-foreground">
+        {pendingAction?.caseItem.caseNumber} • {pendingAction?.caseItem.fullName}
+      </DialogDescription>
+    </DialogHeader>
 
-          {actionError && (
-            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {actionError}
-            </div>
-          )}
+    {/* Content Card */}
+    <div className="mt-2 rounded-xl border border-border bg-muted/30 p-4 space-y-3">
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPendingAction(null)} disabled={isSubmittingAction}>
-              Cancel
-            </Button>
-            <Button onClick={confirmAction} disabled={isSubmittingAction}>
-              {isSubmittingAction ? "Saving..." : "Confirm"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+      {pendingAction?.action === "assign" ? (
+        <div className="space-y-2">
+          <Label className="text-xs font-medium text-muted-foreground">
+            Select Officer
+          </Label>
+
+          <Select value={selectedOfficer} onValueChange={setSelectedOfficer}>
+            <SelectTrigger className="w-full bg-card border border-border text-sm">
+              <SelectValue placeholder="Choose officer" />
+            </SelectTrigger>
+
+            <SelectContent className="bg-card border border-border shadow-lg">
+              {officers
+                .filter((o) => o !== "Unassigned")
+                .map((officer) => (
+                  <SelectItem key={officer} value={officer}>
+                    {officer}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+
+          <p className="text-[11px] text-muted-foreground">
+            Assigning will immediately move case responsibility
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="text-sm text-card-foreground">
+            {pendingAction?.action === "verify" && "This will move the case to Under Review."}
+            {pendingAction?.action === "close" && "This will permanently close and archive the case."}
+            {pendingAction?.action === "mediation" && (
+              <div className="space-y-3">
+                <Label className="text-xs font-semibold text-muted-foreground">
+                  Schedule Mediation Date & Time
+                </Label>
+
+                <input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  max={new Date().toISOString().slice(0, 16)} // 🔒 blocks future dates
+                  onChange={(e) => {
+                    const value = e.target.value
+
+                    // enforce no future selection (extra safety)
+                    const selected = new Date(value)
+                    const now = new Date()
+
+                    if (selected > now) {
+                      setActionError("Mediation date cannot be in the future.")
+                      return
+                    }
+
+                    setActionError("")
+                    setScheduledAt(value)
+                  }}
+                  className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm
+                            focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+                  You can only select today or past dates. Future scheduling is not allowed.
+                </div>
+
+                {scheduledAt && (
+                  <div className="text-xs text-muted-foreground">
+                    Selected:{" "}
+                    <span className="font-medium text-card-foreground">
+                      {new Date(scheduledAt).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+            {pendingAction?.action === "resolve" && "This will mark the case as resolved and archive it."}
+            {pendingAction?.action === "close" && "This will close and archive the case."}
+          </div>
+        </div>
+      )}
+    </div>
+
+    {/* Error */}
+    {actionError && (
+      <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        {actionError}
+      </div>
+    )}
+
+    {/* Footer */}
+    <DialogFooter className="flex gap-2 pt-2">
+
+      <Button
+        variant="outline"
+        onClick={() => setPendingAction(null)}
+        disabled={isSubmittingAction}
+        className="flex-1"
+      >
+        Cancel
+      </Button>
+
+      <Button
+        onClick={confirmAction}
+        disabled={isSubmittingAction}
+        className={cn(
+          "flex-1",
+          pendingAction?.action === "reject" ||
+          pendingAction?.action === "close"
+            ? "bg-red-600 hover:bg-red-700 text-white"
+            : "bg-primary hover:bg-primary/90"
+        )}
+      >
+        {isSubmittingAction ? "Processing..." : "Confirm"}
+      </Button>
+
+    </DialogFooter>
+  </DialogContent>
       </Dialog>
     </>
   )

@@ -14,8 +14,14 @@ import {
   Clock,
   CheckCircle2,
   MapPin,
+  ShieldCheck,
+  ClipboardCheck,
+  Database,
+  UserCheck,
+  X,
 } from "lucide-react";
 import Image from "next/image"
+import { useState } from "react";
 
 const NAV_LINKS = [
   { label: "Features", href: "#features" },
@@ -135,6 +141,35 @@ const ROLES = [
   },
 ];
 
+const legalContent = {
+  terms: {
+    title: "Terms of Service",
+    intro:
+      "These Terms govern your use of IRIS (Incident Report and Information System) for community reporting and case tracking.",
+    body: [
+      "Account Responsibility: Keep your credentials secure and notify administrators of unauthorized use.",
+      "Acceptable Use: Provide truthful reports and avoid impersonation, harassment, or abusive content.",
+      "Role-Based Access: Use only the features permitted to your assigned role and do not attempt to bypass access controls.",
+      "Evidence & Content: Upload only relevant materials you have the right to share for case handling.",
+      "Service Availability: IRIS may undergo updates, maintenance, or temporary outages to improve security and reliability.",
+      "Enforcement: Accounts may be reviewed, suspended, or removed for violations of these Terms.",
+    ],
+  },
+  privacy: {
+    title: "Privacy Policy",
+    intro:
+      "IRIS protects your personal and case data by limiting collection to what is required for operations, safety, and legal compliance.",
+    body: [
+      "Data We Collect: Name, email, contact, street, gender, role, and account credentials (stored securely).",
+      "Case Information: Incident reports, evidence uploads, messages, and case updates needed for barangay workflows.",
+      "How We Use Data: Verification, case management, notifications, analytics, and service improvement.",
+      "Access & Sharing: Data is shared only with authorized barangay staff and officers for official purposes.",
+      "Retention: Account and case data may be retained for audits, legal compliance, and public safety needs.",
+      "Your Rights: You can request corrections or updates to your profile through the barangay administrator.",
+    ],
+  },
+} as const;
+
 function smoothScroll(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
   e.preventDefault();
   const id = href.replace("#", "");
@@ -146,6 +181,12 @@ function smoothScroll(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
 }
 
 export default function Home() {
+  const [legalDoc, setLegalDoc] = useState<"terms" | "privacy" | null>(null);
+
+  const openLegalDoc = (doc: "terms" | "privacy") => {
+    setLegalDoc(doc);
+  };
+
   return (
     <div className="min-h-screen bg-white text-[#0F172A] font-sans">
       <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 py-4 bg-white/80 backdrop-blur-md border-b border-slate-100">
@@ -157,7 +198,6 @@ export default function Home() {
               width={32}
               height={32}
               className="object-contain"
-              priority
             />
           </div>
           <span className="font-bold text-[#0F172A] tracking-tight">IRIS</span>
@@ -436,17 +476,215 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="border-t border-slate-100 px-6 md:px-12 py-8 bg-white">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-[#1D4ED8] flex items-center justify-center">
-              <span className="text-white text-[9px] font-bold">I</span>
+      <footer className="border-t border-slate-100 bg-white">
+        <div className="max-w-6xl mx-auto px-6 md:px-12 py-10">
+          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-10">
+
+            {/* BRAND */}
+            <div className="flex items-start gap-4 max-w-xl">
+              <div className="w-11 h-11 flex-shrink-0 rounded-2xl overflow-hidden bg-white border border-slate-200 shadow-sm flex items-center justify-center">
+                <Image
+                  src="/EastTapinac.png"
+                  alt="Barangay East Tapinac Logo"
+                  width={38}
+                  height={38}
+                  className="object-contain"
+                />
+              </div>
+
+              <div>
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="font-bold text-[#0F172A] tracking-tight text-sm sm:text-base">
+                    IRIS
+                  </span>
+
+                  <span className="text-slate-300 hidden sm:inline">•</span>
+
+                  <span className="text-xs text-slate-500 font-medium leading-relaxed">
+                    Incident Report & Information System
+                  </span>
+                </div>
+
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  Digital barangay case management platform for incident reporting,
+                  Lupon mediation, and community coordination.
+                </p>
+
+                <div className="flex items-center gap-2 mt-4 text-xs text-slate-400">
+                  <MapPin size={12} />
+                  Barangay East Tapinac, Olongapo City
+                </div>
+              </div>
             </div>
-            <span className="font-semibold text-slate-500">IRIS</span>
-            <span>·</span>
-            <span>Barangay East Tapinac, Olongapo City</span>
+
+            {/* LINKS */}
+            <div className="w-full sm:w-auto grid grid-cols-2 gap-10 sm:gap-14">
+
+              {/* NAVIGATION */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">
+                  Navigation
+                </p>
+
+                <div className="flex flex-col gap-2.5">
+                  {NAV_LINKS.map((link) => (
+                    <a
+                      key={link.label}
+                      href={link.href}
+                      onClick={(e) => smoothScroll(e, link.href)}
+                      className="text-sm text-slate-500 hover:text-[#1D4ED8] transition-colors leading-6"
+                    >
+                      {link.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              {/* LEGAL */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">
+                  Legal
+                </p>
+
+                <div className="flex flex-col gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => openLegalDoc("terms")}
+                    className="text-left text-sm text-slate-500 hover:text-[#1D4ED8] transition-colors leading-6"
+                  >
+                    Terms of Service
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => openLegalDoc("privacy")}
+                    className="text-left text-sm text-slate-500 hover:text-[#1D4ED8] transition-colors leading-6"
+                  >
+                    Privacy Policy
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {legalDoc && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 animate-in fade-in duration-200">
+                <div className="w-full max-w-2xl">
+                  <div className="flex max-h-[85vh] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5 animate-in zoom-in-95 duration-200">
+
+                    {/* HEADER */}
+                    <div className="flex items-center justify-between border-b border-slate-200 bg-gradient-to-r from-blue-50 to-white px-6 py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100">
+                          <ShieldCheck className="h-5 w-5 text-[#1D4ED8]" />
+                        </div>
+
+                        <div>
+                          <h3 className="text-lg font-bold text-[#0F172A]">
+                            {legalContent[legalDoc].title}
+                          </h3>
+
+                          <p className="text-xs text-slate-500">
+                            IRIS Legal Documentation
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setLegalDoc(null)}
+                        aria-label="Close dialog"
+                        className="rounded-full p-2 text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-700"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+
+                    {/* BODY */}
+                    <div className="flex-1 overflow-y-auto px-6 py-6">
+
+                      {/* INTRO */}
+                      <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50/50 p-5">
+                        <p className="text-sm leading-relaxed text-[#1E3A8A] font-medium">
+                          {legalContent[legalDoc].intro}
+                        </p>
+                      </div>
+
+                      {/* CONTENT */}
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {legalContent[legalDoc].body.map((item, index) => {
+                          const [heading, ...rest] = item.split(": ");
+                          const detail = rest.join(": ");
+
+                          const icons = [
+                            ShieldCheck,
+                            ClipboardCheck,
+                            Database,
+                            UserCheck,
+                          ] as const;
+
+                          const Icon = icons[index % icons.length];
+
+                          return (
+                            <div
+                              key={item}
+                              className="group rounded-2xl border border-slate-200 bg-white p-4 transition-all hover:border-blue-200 hover:shadow-md"
+                            >
+                              <div className="mb-3 flex items-center gap-2">
+                                <div className="rounded-xl bg-blue-50 p-2 transition-colors group-hover:bg-[#1D4ED8] group-hover:text-white">
+                                  <Icon className="h-4 w-4 text-[#1D4ED8] group-hover:text-white" />
+                                </div>
+
+                                <p className="text-xs font-bold uppercase tracking-wide text-[#0F172A] group-hover:text-[#1D4ED8] transition-colors">
+                                  {heading}
+                                </p>
+                              </div>
+
+                              <p className="text-xs leading-relaxed text-slate-500">
+                                {detail}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* FOOTER */}
+                    <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-4">
+                      <p className="text-xs text-slate-400">
+                        RA 10173 • Data Privacy Compliant
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() => setLegalDoc(null)}
+                        className="rounded-xl bg-[#1D4ED8] px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-[#1E40AF]"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-          <span>© 2026 IRIS System. All rights reserved.</span>
+
+          {/* BOTTOM */}
+          <div className="mt-10 pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-xs text-slate-400">
+              © 2026 IRIS System. All rights reserved.
+            </p>
+
+            <div className="flex items-center gap-5 text-xs text-slate-400">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck size={12} className="text-[#1D4ED8]" />
+                Secure Barangay Platform
+              </span>
+
+              <span className="hidden sm:inline text-slate-200">|</span>
+
+              <span>RA 10173 Compliant</span>
+            </div>
+          </div>
         </div>
       </footer>
     </div>

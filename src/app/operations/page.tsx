@@ -38,9 +38,7 @@ export default function OperationsPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <div className="hidden lg:flex h-screen shrink-0">
-        <DashboardSidebar />
-      </div>
+      <DashboardSidebar />
       <main className="relative min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
         <PageHeader
           title="Operations"

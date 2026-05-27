@@ -9,24 +9,74 @@ import {
   CircleCheck,
   XCircle,
 } from "lucide-react"
+import type { CaseStatus } from "@/lib/types"
 
 interface CaseActionDropdownProps {
   isOpen: boolean
   onToggle: () => void
   onClose: () => void
   onAction: (action: string) => void
+  status: CaseStatus
+  hasOfficer?: boolean
 }
 
-const actions = [
-  { label: "Verify", icon: <CheckCircle2 className="h-4 w-4" />, key: "verify" },
-  { label: "Assign Officer", icon: <UserPlus className="h-4 w-4" />, key: "assign" },
-  { label: "Schedule Mediation", icon: <Calendar className="h-4 w-4" />, key: "mediation" },
-  { label: "Mark Resolved", icon: <CircleCheck className="h-4 w-4" />, key: "resolve" },
-  { label: "Close Case", icon: <XCircle className="h-4 w-4" />, key: "close" },
-]
+function getActions(status: CaseStatus, hasOfficer: boolean) {
+  switch (status) {
+    case "Pending":
+      return [
+        { label: "Approve Case", icon: <CheckCircle2 className="h-4 w-4" />, key: "approve" },
+        { label: "Reject Case", icon: <XCircle className="h-4 w-4" />, key: "reject" },
+      ]
 
-export function CaseActionDropdown({ isOpen, onToggle, onClose, onAction }: CaseActionDropdownProps) {
+    case "Under Review":
+      return [
+        {
+          label: hasOfficer ? "Reassign Officer" : "Assign Officer",
+          icon: <UserPlus className="h-4 w-4" />,
+          key: "assign_officer",
+        },
+        {
+          label: "Schedule Mediation",
+          icon: <Calendar className="h-4 w-4" />,
+          key: "schedule_mediation",
+        },
+        {
+          label: "Dismiss Case",
+          icon: <XCircle className="h-4 w-4" />,
+          key: "dismiss",
+        },
+      ]
+
+    case "Mediation":
+      return [
+        {
+          label: "Mark as Resolved",
+          icon: <CircleCheck className="h-4 w-4" />,
+          key: "resolve",
+        },
+        {
+          label: "Dismiss Case",
+          icon: <XCircle className="h-4 w-4" />,
+          key: "dismiss",
+        },
+      ]
+
+    default:
+      return []
+  }
+}
+
+export function CaseActionDropdown({
+  isOpen,
+  onToggle,
+  onClose,
+  onAction,
+  status,
+  hasOfficer,
+}: CaseActionDropdownProps) {
   const ref = useRef<HTMLDivElement>(null)
+
+  const actions = getActions(status, hasOfficer ?? false)
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -54,7 +104,8 @@ export function CaseActionDropdown({ isOpen, onToggle, onClose, onAction }: Case
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-52 rounded-xl border border-border bg-card py-1 shadow-lg">
+        <div className="absolute right-0 top-full z-50 mt-2 w-56 min-w-max rounded-xl border border-border bg-card py-1 shadow-xl max-h-60 overflow-y-auto">
+          
           {actions.map((action) => (
             <button
               key={action.key}
@@ -63,7 +114,7 @@ export function CaseActionDropdown({ isOpen, onToggle, onClose, onAction }: Case
                 onAction(action.key)
                 onClose()
               }}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-card-foreground transition-colors hover:bg-muted"
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-card-foreground hover:bg-muted whitespace-nowrap"
             >
               <span className="text-muted-foreground">{action.icon}</span>
               <span>{action.label}</span>
