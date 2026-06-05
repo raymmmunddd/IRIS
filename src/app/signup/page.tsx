@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { UserPlus, User, Mail, Lock, X, CheckCircle2, Eye, EyeOff, ShieldCheck, ClipboardCheck, Database, UserCheck, ArrowLeft, Phone, MapPin } from "lucide-react";
+import { UserPlus, User, Mail, Lock, X, CheckCircle2, Eye, EyeOff, ShieldCheck, ClipboardCheck, Database, UserCheck, ArrowLeft, Phone, MapPin, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getRoleLandingPath, saveAuthUser, type AuthUser, type UserRole } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -93,11 +93,16 @@ type StreetRecord = {
   barangay: string;
 };
 
+type GeoPoint = {
+  latitude: number;
+  longitude: number;
+  accuracy?: number | null;
+};
+
 const groupedByPurok = EAST_TAPINAC_STREETS.reduce((acc, street) => {
   (acc[street.purok] ??= []).push(street);
   return acc;
 }, {} as Record<number, StreetRecord[]>);
-
 
 const SUFFIX_OPTIONS = ["Jr.", "Sr.", "II", "III", "IV", "V"] as const;
 
@@ -171,6 +176,7 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [location, setLocation] = useState<(GeoPoint & { address: string; street: string; purok: number }) | null>(null);
   const [contact, setContact] = useState("");
+  const [street, setStreet] = useState("");
   
   const [legalDoc, setLegalDoc] = useState<"terms" | "privacy" | null>(null);
   const [legalAccepted, setLegalAccepted] = useState(false);
@@ -179,6 +185,7 @@ export default function SignupPage() {
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   const [verificationOpen, setVerificationOpen] = useState(false);
+  const [viewIdOpen, setViewIdOpen] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
 
@@ -194,14 +201,12 @@ export default function SignupPage() {
     number: /\d/.test(password),
     special: /[^A-Za-z0-9]/.test(password),
   };
-
   const passwordScore =
     Number(checks.length) +
     Number(checks.uppercase) +
     Number(checks.lowercase) +
     Number(checks.number) +
     Number(checks.special);
-
   const strength = {
     score:
       passwordScore <= 1
@@ -223,11 +228,25 @@ export default function SignupPage() {
   };
 
   const [step, setStep] = useState(1);
-
-  const totalSteps = 4;
-
+  const totalSteps = 5;
   const nextStep = () => {
-    if (step < totalSteps) setStep((prev) => prev + 1);
+    if (
+      step === 4 &&
+      verificationStatus !== "verified"
+    ) {
+      toast({
+        title: "Verification required",
+        description:
+          "Please verify your identity before continuing.",
+        variant: "warning",
+      });
+
+      return;
+    }
+
+    if (step < totalSteps) {
+      setStep((prev) => prev + 1);
+    }
   };
 
   const prevStep = () => {
@@ -271,6 +290,7 @@ export default function SignupPage() {
           if (!result.success) throw new Error(result.message);
 
           setLocation(result.data);
+          setStreet(result.data?.street ?? "");
         } catch (err) {
           toast({
             title: "Location failed",
@@ -311,6 +331,37 @@ export default function SignupPage() {
 
     setDevCode(result.data?.devCode ?? null);
     return result;
+  };
+
+  const calculateAge = (birthDate: string) => {
+    if (!birthDate) return NaN;
+
+    // Try native parsing first (ISO-like strings)
+    let dob = new Date(birthDate);
+
+    // If parsing failed (common for dd/mm/yyyy from OCR), try to parse manually
+    if (Number.isNaN(dob.getTime())) {
+      const m = birthDate.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+      if (m) {
+        const day = parseInt(m[1], 10);
+        const month = parseInt(m[2], 10);
+        const year = parseInt(m[3], 10);
+        // assume format is dd/mm/yyyy from OCR
+        dob = new Date(year, month - 1, day);
+      }
+    }
+
+    if (Number.isNaN(dob.getTime())) return NaN;
+
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+
+    return age;
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -478,12 +529,154 @@ export default function SignupPage() {
     },
   } as const;
 
+  const [idImage, setIdImage] = useState<File | null>(null);
+
+  const [detectedName, setDetectedName] = useState("");
+  const [detectedBirthDate, setDetectedBirthDate] = useState("");
+
+  const [calculatedAge, setCalculatedAge] = useState<number | null>(null);
+
+  const [verificationStatus, setVerificationStatus] =
+    useState<"pending" | "verified" | "failed">("pending");
+
+  const MINIMUM_AGE = 18;
+
+  const handleIdUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    setIdImage(file);
+
+    try {
+      const formData = new FormData();
+
+      formData.append("file", file);
+
+      const response = await fetch("/api/identity/scan", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        console.error("Identity scan failed:", response.status, text);
+        toast({
+          title: "Scan failed",
+          description:
+            response.status === 404
+              ? "Scan service not found (404). Please ensure the API is running."
+              : text || "OCR failed",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      let result: any = null;
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        result = await response.json();
+      } else {
+        const text = await response.text().catch(() => "");
+        try {
+          result = text ? JSON.parse(text) : null;
+        } catch (err) {
+          console.error("Non-JSON response from scan endpoint:", text);
+          toast({
+            title: "Scan failed",
+            description: "Server returned invalid response format.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      if (!result || !result.success) {
+        const msg = result?.message ?? "OCR failed";
+        toast({ title: "Scan failed", description: msg, variant: "destructive" });
+        return;
+      }
+
+      setDetectedName(result.name || "");
+
+      setDetectedBirthDate(result.birthDate || "");
+
+      // prefer OCR-provided age, otherwise try to parse the DOB
+      let ageFromResult: number | null = result.age ?? null;
+      if ((ageFromResult === null || ageFromResult === undefined) && result.birthDate) {
+        const parsed = calculateAge(result.birthDate);
+        ageFromResult = Number.isNaN(parsed) ? null : parsed;
+      }
+
+      setCalculatedAge(ageFromResult);
+
+    } catch (error) {
+      console.error(error);
+
+      toast({
+        title: "OCR Failed",
+        description:
+          "Unable to extract ID information.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  
+  const [isIdentityVerifying, setIsIdentityVerifying] = useState(false);
+  const [identityConfirmed, setIdentityConfirmed] = useState(false);
+
+  const verifyIdentity = async () => {
+    setIsIdentityVerifying(true);
+
+    try {
+      if (!detectedBirthDate) {
+        setVerificationStatus("failed");
+
+        toast({
+          title: "Verification failed",
+          description: "No date of birth detected. Please upload a clear ID.",
+          variant: "destructive",
+        });
+
+        return;
+      }
+
+      const age = calculateAge(detectedBirthDate);
+
+      if (Number.isNaN(age) || age < MINIMUM_AGE) {
+        setVerificationStatus("failed");
+
+        toast({
+          title: "Verification failed",
+          description: "You must be at least 18 years old.",
+          variant: "destructive",
+        });
+
+        return;
+      }
+
+      setIdentityConfirmed(true);
+      setVerificationStatus("verified");
+
+      toast({
+        variant: "success",
+        title: "Identity verified",
+        description: "Your government ID has been successfully verified.",
+      });
+    } finally {
+      setIsIdentityVerifying(false);
+    }
+  };
+
   return (
   <>
   {/* MAIN LAYOUT */}
     <div className="min-h-screen lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] bg-[var(--iris-bg)] text-[var(--iris-text)] auth-page-enter">
 
-    {/* LEFT HERO */}
+      {/* LEFT HERO */}
       <section
           className="auth-hero-enter relative hidden lg:flex items-center justify-center overflow-hidden p-8 xl:p-10"
           style={{
@@ -515,7 +708,7 @@ export default function SignupPage() {
         <div className="relative z-10 flex h-full w-full max-w-2xl flex-col justify-between text-white">
           <div className="space-y-5">
             <div className="flex items-center justify-between gap-3">
-            {/* Barangay Logo */}
+            {/* BRAND */}
             <div className="flex items-center gap-3">
               <img
                 src="/EastTapinac.png"
@@ -533,6 +726,7 @@ export default function SignupPage() {
               </div>
             </div>
 
+          {/* HERO */}
           </div>
             <div className="space-y-4">
               <p className="inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/90">
@@ -541,6 +735,8 @@ export default function SignupPage() {
               <h1 className="text-3xl xl:text-4xl leading-tight font-semibold">{roleCopy[role].title}</h1>
               <p className="text-base xl:text-lg text-white/80 leading-relaxed">{roleCopy[role].body}</p>
             </div>
+
+            {/* FEATURE CARDS */}
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
                 <p className="text-xs uppercase tracking-[0.14em] text-white/70">Trusted access</p>
@@ -552,6 +748,8 @@ export default function SignupPage() {
               </div>
             </div>
           </div>
+
+          {/* FOOTER */}
           <div className="flex items-center justify-between text-xs text-white/60">
             <span>Protected by role permissions</span>
             <span>© 2026 IRIS</span>
@@ -559,6 +757,7 @@ export default function SignupPage() {
         </div>
       </section>
 
+      {/* RIGHT SIDE */}
       <section className="flex min-h-screen items-center justify-center px-4 py-5 sm:px-6 lg:px-8">
         <div
           className="
@@ -572,6 +771,7 @@ export default function SignupPage() {
           "
         >
 
+          {/* GO BACK INSIDE MODAL */}
           <div className="px-5 py-5 sm:px-6">
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-[var(--iris-border)]">
               <Link
@@ -583,6 +783,7 @@ export default function SignupPage() {
               </Link>
             </div>
 
+            {/* HEADER */}
             <div className="space-y-2 text-center">
               <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--iris-primary-light)] text-[var(--iris-primary)]">
                 <UserPlus className="h-5 w-5" />
@@ -598,7 +799,8 @@ export default function SignupPage() {
                   { number: 1, title: "Personal" },
                   { number: 2, title: "Contact" },
                   { number: 3, title: "Address" },
-                  { number: 4, title: "Security" },
+                  { number: 4, title: "Verify ID" },
+                  { number: 5, title: "Security" },
                 ].map((item, index) => {
                   const active = step === item.number;
                   const completed = step > item.number;
@@ -609,7 +811,7 @@ export default function SignupPage() {
                       className="relative flex flex-1 items-center"
                     >
                       {/* CONNECTOR */}
-                      {index < 3 && (
+                      {index < 4 && (
                         <div className="absolute left-1/2 top-4 h-[2px] w-full -translate-y-1/2 bg-[var(--iris-border)]">
                           <div
                             className={cn(
@@ -658,6 +860,7 @@ export default function SignupPage() {
               </div>
             </div>
 
+          {/* FORM */}
           <form
             className="mt-5 space-y-4"
             onSubmit={handleSubmit}
@@ -951,8 +1154,151 @@ export default function SignupPage() {
               </div>
             )}
 
-            {/* STEP 4 — SECURITY */}
+            {/* STEP 4 — VERIFY ID */}
             {step === 4 && (
+              <div className="space-y-4">
+
+                <input
+                  id="id-upload"
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg"
+                  onChange={handleIdUpload}
+                  className="hidden"
+                />
+
+                {!idImage && (
+                  <label
+                    htmlFor="id-upload"
+                    className="
+                      flex h-44 cursor-pointer flex-col items-center justify-center
+                      rounded-2xl border-2 border-dashed
+                      border-[var(--iris-border)]
+                      bg-[var(--iris-surface)]
+                      transition-all
+                      hover:border-[var(--iris-primary)]
+                      hover:bg-[var(--iris-primary-light)]/10
+                    "
+                  >
+                    <p className="font-semibold text-[var(--iris-text)]">
+                      Upload Government ID
+                    </p>
+
+                    <p className="text-sm text-[var(--iris-text-subtle)]">
+                      PNG, JPG or JPEG
+                    </p>
+                  </label>
+                )}
+
+                {idImage && (
+                  <div className="relative overflow-hidden rounded-2xl border border-[var(--iris-border)]">
+                    <img
+                      src={idImage ? URL.createObjectURL(idImage) : undefined}
+                      alt="Government ID"
+                      className="h-64 w-full object-cover cursor-pointer"
+                      onClick={() => setViewIdOpen(true)}
+                    />
+
+                    <div className="absolute right-3 top-3 flex gap-2">
+
+                      <button
+                        type="button"
+                        onClick={() => setViewIdOpen(true)}
+                        className="rounded-xl bg-white/90 p-2 shadow-md"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+
+                      <label
+                        htmlFor="id-upload"
+                        className="cursor-pointer rounded-xl bg-white/90 p-2 shadow-md"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </label>
+
+                    </div>
+                  </div>
+                )}
+
+                {detectedBirthDate && (
+                  <div className="rounded-xl border p-3">
+                    <p>Date of Birth: {detectedBirthDate}</p>
+                    <p>Age: {calculatedAge}</p>
+                  </div>
+                )}
+
+                {idImage && (
+                <>
+                <div className="rounded-2xl border border-[var(--iris-border)] bg-white p-4">
+                  <div className="mb-4 flex items-center gap-2">
+                    <UserCheck className="h-4 w-4 text-[var(--iris-primary)]" />
+                    <h4 className="font-semibold text-[var(--iris-text)]">
+                      Extracted Information
+                    </h4>
+                  </div>
+
+                  <div className="space-y-3">
+
+                    <div>
+                      <p className="text-xs text-[var(--iris-text-subtle)]">
+                        Full Name
+                      </p>
+
+                      <p className="font-medium">
+                        {detectedName || "Waiting for scan"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-[var(--iris-text-subtle)]">
+                        Date of Birth
+                      </p>
+
+                      <p className="font-medium">
+                        {detectedBirthDate || "-"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-[var(--iris-text-subtle)]">
+                        Age
+                      </p>
+
+                      <p className="font-medium">
+                        {calculatedAge || "-"}
+                      </p>
+                    </div>
+
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={verifyIdentity}
+                  disabled={!idImage || identityConfirmed || isIdentityVerifying}
+                  className="
+                    w-full rounded-xl
+                    bg-[var(--iris-primary)]
+                    py-3 font-semibold text-white
+                    disabled:cursor-not-allowed
+                    disabled:opacity-50
+                  "
+                >
+                  {isIdentityVerifying
+                    ? "Verifying..."
+                    : identityConfirmed
+                    ? "Identity Verified"
+                    : "Verify Identity"}
+                </button>
+
+                </>
+                )}
+
+
+              </div>
+              )}
+
+            {/* STEP 5 — SECURITY */}
+            {step === 5 && (
               <div className="space-y-4">
 
                 {/* PASSWORD */}
@@ -992,7 +1338,6 @@ export default function SignupPage() {
                       )}
                     </button>
                   </div>
-
                   {password.length > 0 && (
                     <div className="rounded-2xl border border-[var(--iris-border)] bg-white/95 p-3 shadow-[0_14px_40px_rgba(15,23,42,0.12)] backdrop-blur">
                       <div className="mb-2 flex items-center justify-between">
@@ -1107,6 +1452,10 @@ export default function SignupPage() {
                     hover:-translate-y-[1px]
                     hover:bg-[var(--iris-primary-strong)]
                   "
+                  disabled={
+                  step === 4 &&
+                  verificationStatus !== "verified"
+                }
                 >
                   Continue
                 </button>
@@ -1152,6 +1501,8 @@ export default function SignupPage() {
           </div>  
         </div>
       </section>
+
+      {/* Identity review modal removed — verification now happens inline */}
 
       {legalDoc && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 animate-in fade-in duration-200">
@@ -1290,6 +1641,52 @@ export default function SignupPage() {
 
             </div>
           </div>
+        </div>
+      )}
+
+      {viewIdOpen && idImage && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4">
+
+          <div className="relative max-w-4xl">
+
+            <button
+              type="button"
+              onClick={() => setViewIdOpen(false)}
+              className="absolute right-2 top-2 rounded-full bg-white p-2"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <img
+              src={idImage ? URL.createObjectURL(idImage) : undefined}
+              alt="Government ID"
+              className="max-h-[90vh] rounded-2xl"
+            />
+
+          </div>
+
+        </div>
+      )}      {viewIdOpen && idImage && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4">
+
+          <div className="relative max-w-4xl">
+
+            <button
+              type="button"
+              onClick={() => setViewIdOpen(false)}
+              className="absolute right-2 top-2 rounded-full bg-white p-2"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <img
+              src={URL.createObjectURL(idImage)}
+              alt="Government ID"
+              className="max-h-[90vh] rounded-2xl"
+            />
+
+          </div>
+
         </div>
       )}
 

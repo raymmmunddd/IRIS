@@ -128,7 +128,12 @@ export default function LoginPage() {
   return (
   <>
   {/* MAIN LAYOUT */}
-  <div className="min-h-screen bg-[var(--iris-bg)] text-[var(--iris-text)] lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] auth-page-enter overflow-hidden">
+  <div className="
+    min-h-screen
+    bg-[var(--iris-bg)]
+    text-[var(--iris-text)]
+    lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]
+    auth-page-enter overflow-hidden">
 
       {/* LEFT HERO */}
       <section
@@ -153,7 +158,6 @@ export default function LoginPage() {
         <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute left-1/3 top-1/3 h-80 w-80 rounded-full bg-blue-400/10 blur-3xl" />
         <div className="absolute -bottom-20 right-0 h-96 w-96 rounded-full bg-blue-300/10 blur-3xl" />
-
         <div className="relative z-10 flex h-full w-full flex-col justify-between p-10 xl:p-14 text-white">
           <div className="space-y-8">
             {/* BRAND */}
@@ -174,9 +178,22 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* HERO COPY */}
+            {/* HERO */}
             <div className="space-y-5 max-w-xl">
-              <p className="inline-flex w-fit items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/90 backdrop-blur">
+              <p className="
+                inline-flex w-fit
+                items-center
+                rounded-full
+                border
+                border-white/15
+                bg-white/10 px-3 py-1
+                text-[11px]
+                font-semibold
+                uppercase
+                tracking-[0.16em]
+                text-white/90
+                backdrop-blur
+              ">
                 Secure sign in
               </p>
 
@@ -240,19 +257,18 @@ export default function LoginPage() {
             backdrop-blur-xl
           "
         >
-          {/* INTERNAL SCROLLER */}
-          <div className="max-h-[92vh] overflow-y-auto px-5 py-5 sm:px-6 custom-scrollbar">
-
+          
             {/* GO BACK INSIDE MODAL */}
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-[var(--iris-border)]">
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Go back to Homepage
-              </Link>
-            </div>
+            <div className="px-5 py-5 sm:px-6">
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-[var(--iris-border)]">
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--iris-primary)] hover:text-[var(--iris-primary-strong)]"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Go back to Homepage
+                </Link>
+              </div>
 
             {/* HEADER */}
             <div className="space-y-2 text-center">
