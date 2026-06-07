@@ -3,7 +3,25 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { UserPlus, User, Mail, Lock, X, CheckCircle2, Eye, EyeOff, ShieldCheck, ClipboardCheck, Database, UserCheck, ArrowLeft, Phone, MapPin, RotateCcw } from "lucide-react";
+import {
+  UserPlus,
+  User,
+  Mail,
+  Lock,
+  X,
+  CheckCircle2,
+  Upload,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  ClipboardCheck,
+  Database,
+  UserCheck,
+  ArrowLeft,
+  Phone,
+  MapPin,
+  RotateCcw
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getRoleLandingPath, saveAuthUser, type AuthUser, type UserRole } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -227,8 +245,17 @@ export default function SignupPage() {
         : "Very Strong",
   };
 
+  const isPasswordValid =
+    checks.length &&
+    checks.uppercase &&
+    checks.lowercase &&
+    checks.number &&
+    checks.special;
+
   const [step, setStep] = useState(1);
   const totalSteps = 5;
+  const [verificationStatus, setVerificationStatus] =
+    useState<"pending" | "verified" | "failed">("pending");
   const nextStep = () => {
     if (
       step === 4 &&
@@ -252,6 +279,55 @@ export default function SignupPage() {
   const prevStep = () => {
     if (step > 1) setStep((prev) => prev - 1);
   };
+
+  const canProceed = useMemo(() => {
+    switch (step) {
+      case 1:
+        return (
+          firstName.trim() &&
+          lastName.trim() &&
+          middleName.trim() &&
+          gender
+        );
+
+      case 2:
+        return (
+          email.trim() &&
+          contact.trim().length >= 13
+        );
+
+      case 3:
+        return !!location;
+
+      case 4:
+        return verificationStatus === "verified";
+
+      case 5:
+        return (
+          password &&
+          isPasswordValid &&
+          termsAccepted &&
+          privacyAccepted
+        );
+
+      default:
+        return false;
+    }
+  }, [
+    step,
+    firstName,
+    lastName,
+    middleName,
+    gender,
+    email,
+    contact,
+    location,
+    verificationStatus,
+    password,
+    isPasswordValid,
+    termsAccepted,
+    privacyAccepted
+  ]);
 
   const buildFullName = () => {
     const parts = [firstName, middleName, lastName, suffix]
@@ -468,14 +544,6 @@ export default function SignupPage() {
       body: "Report incidents, track status updates, and stay informed with IRIS. Your community updates are just a click away.",
     }
   } as const;
-
-  const isPasswordValid =
-    checks.length &&
-    checks.uppercase &&
-    checks.lowercase &&
-    checks.number &&
-    checks.special;
-
   const openLegalDoc = (doc: "terms" | "privacy") => {
     setLegalAccepted(false);
     setLegalScrolledToEnd(doc === "privacy");
@@ -535,10 +603,6 @@ export default function SignupPage() {
   const [detectedBirthDate, setDetectedBirthDate] = useState("");
 
   const [calculatedAge, setCalculatedAge] = useState<number | null>(null);
-
-  const [verificationStatus, setVerificationStatus] =
-    useState<"pending" | "verified" | "failed">("pending");
-
   const MINIMUM_AGE = 18;
 
   const handleIdUpload = async (
@@ -762,7 +826,7 @@ export default function SignupPage() {
         <div
           className="
             w-full max-w-md
-            overflow-hidden
+            overflow-visible
             rounded-3xl
             border border-[var(--iris-border)]
             bg-[var(--iris-surface)]/96
@@ -799,7 +863,7 @@ export default function SignupPage() {
                   { number: 1, title: "Personal" },
                   { number: 2, title: "Contact" },
                   { number: 3, title: "Address" },
-                  { number: 4, title: "Verify ID" },
+                  { number: 4, title: "Verify" },
                   { number: 5, title: "Security" },
                 ].map((item, index) => {
                   const active = step === item.number;
@@ -956,17 +1020,21 @@ export default function SignupPage() {
                   {suffixOpen && (
                     <div
                       role="listbox"
-                      className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-[var(--iris-border)] bg-white shadow-[0_14px_40px_rgba(15,23,42,0.15)]"
+                      className="absolute left-0 right-0 top-full z-50 mt-2 max-h-36 overflow-y-auto rounded-2xl border border-[var(--iris-border)] bg-white shadow-[0_14px_40px_rgba(15,23,42,0.15)] custom-scrollbar"
                     >
                       <button
                         type="button"
                         role="option"
+                        aria-selected={suffix === ""}
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
                           setSuffix("");
                           setSuffixOpen(false);
                         }}
-                        className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
+                        className={cn(
+                          "w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40",
+                          suffix === "" ? "bg-[var(--iris-primary-light)]/40" : ""
+                        )}
                       >
                         No suffix
                       </button>
@@ -976,12 +1044,16 @@ export default function SignupPage() {
                           key={option}
                           type="button"
                           role="option"
+                          aria-selected={suffix === option}
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
                             setSuffix(option);
                             setSuffixOpen(false);
                           }}
-                          className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
+                          className={cn(
+                            "w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40",
+                            suffix === option ? "bg-[var(--iris-primary-light)]/40" : ""
+                          )}
                         >
                           {option}
                         </button>
@@ -1021,7 +1093,7 @@ export default function SignupPage() {
                   {genderOpen && (
                     <div
                       role="listbox"
-                      className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-[var(--iris-border)] bg-white shadow-[0_14px_40px_rgba(15,23,42,0.15)]"
+                      className="absolute left-0 right-0 top-full z-20 mt-2 overflow-visible rounded-2xl border border-[var(--iris-border)] bg-white shadow-[0_14px_40px_rgba(15,23,42,0.15)]"
                     >
                       <button
                         type="button"
@@ -1170,74 +1242,69 @@ export default function SignupPage() {
                   <label
                     htmlFor="id-upload"
                     className="
-                      flex h-44 cursor-pointer flex-col items-center justify-center
-                      rounded-2xl border-2 border-dashed
+                      flex cursor-pointer items-center justify-center gap-3
+                      rounded-2xl border border-dashed
                       border-[var(--iris-border)]
                       bg-[var(--iris-surface)]
+                      px-5 py-5
                       transition-all
                       hover:border-[var(--iris-primary)]
                       hover:bg-[var(--iris-primary-light)]/10
                     "
                   >
-                    <p className="font-semibold text-[var(--iris-text)]">
-                      Upload Government ID
-                    </p>
+                    <Upload className="h-5 w-5 text-[var(--iris-primary)]" />
 
-                    <p className="text-sm text-[var(--iris-text-subtle)]">
-                      PNG, JPG or JPEG
-                    </p>
-                  </label>
-                )}
+                    <div className="text-left">
+                      <p className="font-semibold text-[var(--iris-text)]">
+                        Upload Government ID
+                      </p>
 
-                {idImage && (
-                  <div className="relative overflow-hidden rounded-2xl border border-[var(--iris-border)]">
-                    <img
-                      src={idImage ? URL.createObjectURL(idImage) : undefined}
-                      alt="Government ID"
-                      className="h-64 w-full object-cover cursor-pointer"
-                      onClick={() => setViewIdOpen(true)}
-                    />
-
-                    <div className="absolute right-3 top-3 flex gap-2">
-
-                      <button
-                        type="button"
-                        onClick={() => setViewIdOpen(true)}
-                        className="rounded-xl bg-white/90 p-2 shadow-md"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-
-                      <label
-                        htmlFor="id-upload"
-                        className="cursor-pointer rounded-xl bg-white/90 p-2 shadow-md"
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                      </label>
-
+                      <p className="text-xs text-[var(--iris-text-subtle)]">
+                        PNG, JPG or JPEG
+                      </p>
                     </div>
-                  </div>
-                )}
-
-                {detectedBirthDate && (
-                  <div className="rounded-xl border p-3">
-                    <p>Date of Birth: {detectedBirthDate}</p>
-                    <p>Age: {calculatedAge}</p>
-                  </div>
+                  </label>
                 )}
 
                 {idImage && (
                 <>
                 <div className="rounded-2xl border border-[var(--iris-border)] bg-white p-4">
-                  <div className="mb-4 flex items-center gap-2">
+                  <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
                     <UserCheck className="h-4 w-4 text-[var(--iris-primary)]" />
                     <h4 className="font-semibold text-[var(--iris-text)]">
                       Extracted Information
                     </h4>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="flex gap-2">
 
+                    <button
+                      type="button"
+                      onClick={() => setViewIdOpen(true)}
+                      className="
+                        rounded-xl border border-[var(--iris-border)]
+                        bg-white p-2
+                        transition hover:bg-[var(--iris-primary-light)]/20
+                      "
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+
+                    <label
+                      htmlFor="id-upload"
+                      className="
+                        cursor-pointer rounded-xl
+                        border border-[var(--iris-border)]
+                        bg-white p-2
+                        transition hover:bg-[var(--iris-primary-light)]/20
+                      "
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </label>
+                  </div>
+                </div>
+                  <div className="space-y-3">
                     <div>
                       <p className="text-xs text-[var(--iris-text-subtle)]">
                         Full Name
@@ -1440,25 +1507,25 @@ export default function SignupPage() {
               )}
 
               {step < totalSteps ? (
-                <button
-                  type="button"
-                  onClick={nextStep}
-                  className="
-                    flex-1 rounded-xl
-                    bg-[var(--iris-primary)]
-                    py-2.5 font-semibold text-white
-                    shadow-[0_12px_30px_rgba(30,79,163,0.28)]
-                    transition-all duration-200
-                    hover:-translate-y-[1px]
-                    hover:bg-[var(--iris-primary-strong)]
-                  "
-                  disabled={
-                  step === 4 &&
-                  verificationStatus !== "verified"
-                }
-                >
-                  Continue
-                </button>
+              <button
+                type="button"
+                onClick={nextStep}
+                className="
+                  flex-1 rounded-xl
+                  bg-[var(--iris-primary)]
+                  py-2.5 font-semibold text-white
+                  shadow-[0_12px_30px_rgba(30,79,163,0.28)]
+                  transition-all duration-200
+                  hover:-translate-y-[1px]
+                  hover:bg-[var(--iris-primary-strong)]
+
+                  disabled:cursor-not-allowed
+                  disabled:opacity-60
+                "
+                disabled={!canProceed}
+              >
+                Continue
+              </button>
               ) : (
                 <button
                   type="submit"
