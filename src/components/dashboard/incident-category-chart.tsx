@@ -1,113 +1,172 @@
 "use client"
 
 import { useMemo } from "react"
-import { useIsMobile } from "@/hooks/use-mobile"
 import {
   Bar,
   BarChart,
-  Cell,
-  LabelList,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts"
 
-type CategoryChartItem = {
-  name: string
-  shortName?: string
-  value: number
-  color?: string
-  dotClass?: string
-}
-
-const fallbackData: Required<CategoryChartItem>[] = [
-  { name: "Violence or Threats", shortName: "Violence/Threats", value: 24.6, color: "var(--tertiary)", dotClass: "bg-[var(--tertiary)]" },
-  { name: "Harassment & Abuse", shortName: "Harassment", value: 18.2, color: "#d99e04", dotClass: "bg-[#d99e04]" },
-  { name: "Fraud & Scams", shortName: "Fraud/Scams", value: 15.8, color: "var(--secondary)", dotClass: "bg-[var(--secondary)]" },
-  { name: "Public Disturbance", shortName: "Public Disturb.", value: 12.1, color: "#22c55e", dotClass: "bg-[#22c55e]" },
-  { name: "Property & Theft", shortName: "Property/Theft", value: 17.5, color: "#1e4fa3", dotClass: "bg-[#1e4fa3]" },
-  { name: "Community Dispute", shortName: "Community Disp.", value: 7.3, color: "#7c3aed", dotClass: "bg-[#7c3aed]" },
-  { name: "Child & Vulnerable", shortName: "Child/Vulnerable", value: 4.5, color: "#8b5cf6", dotClass: "bg-[#8b5cf6]" },
+const daysFull = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
 ]
 
-const colors = ["var(--tertiary)", "#d99e04", "var(--secondary)", "#22c55e", "#1e4fa3", "#7c3aed", "#8b5cf6"]
+const daysShort = ["M", "T", "W", "Th", "F", "S", "S"]
 
-interface IncidentCategoryChartProps {
-  data?: CategoryChartItem[]
-}
+const categoryMeta = [
+  { key: "violence", name: "Violence or Threats", indicator: "#ef4444" },
+  { key: "harassment", name: "Harassment & Abuse", indicator: "#f59e0b" },
+  { key: "fraud", name: "Fraud & Scams", indicator: "#eab308" },
+  { key: "disturbance", name: "Public Disturbance", indicator: "#06b6d4" },
+  { key: "property", name: "Property & Theft", indicator: "#1e40af" },
+  { key: "community", name: "Community Dispute", indicator: "#22c55e" },
+  { key: "child", name: "Child & Vulnerable", indicator: "#8b5cf6" },
+]
 
-export function IncidentCategoryChart({ data }: IncidentCategoryChartProps) {
-  const isMobile = useIsMobile()
-  const chartHeight = isMobile ? 180 : 260
-  
-  const chartData = (data?.length ? data : fallbackData).map((item, index) => ({
-    ...item,
-    shortName: item.shortName ?? item.name,
-    color: item.color ?? colors[index % colors.length],
-    dotClass: item.dotClass ?? "",
-  }))
+const fallbackData = [
+  { day: "Monday", violence: 4, harassment: 3, fraud: 2, disturbance: 2, property: 3, community: 1, child: 1 },
+  { day: "Tuesday", violence: 3, harassment: 4, fraud: 3, disturbance: 2, property: 2, community: 1, child: 1 },
+  { day: "Wednesday", violence: 5, harassment: 3, fraud: 2, disturbance: 3, property: 2, community: 2, child: 1 },
+  { day: "Thursday", violence: 2, harassment: 3, fraud: 2, disturbance: 2, property: 3, community: 1, child: 1 },
+  { day: "Friday", violence: 6, harassment: 4, fraud: 3, disturbance: 3, property: 4, community: 2, child: 2 },
+  { day: "Saturday", violence: 3, harassment: 2, fraud: 2, disturbance: 2, property: 3, community: 1, child: 1 },
+  { day: "Sunday", violence: 2, harassment: 2, fraud: 1, disturbance: 1, property: 2, community: 1, child: 1 },
+]
+
+export function IncidentCategoryChart() {
+  const chartData = useMemo(() => fallbackData, [])
 
   return (
-    <div className="flex h-full flex-col rounded-xl border border-border bg-card p-3 sm:p-5 transition-all duration-300 hover:shadow-md">
-      <h3 className="mb-3 sm:mb-4 text-sm sm:text-base font-semibold text-card-foreground">
-        Incident Category
-        <span className="ml-2 text-[10px] sm:text-xs font-normal text-muted-foreground">(This Week)</span>
+    <div className="flex h-full flex-col rounded-2xl border border-border/50 bg-card p-4 sm:p-6 shadow-sm hover:shadow-lg transition-all">
+
+      {/* Header */}
+      <h3 className="mb-3 text-sm sm:text-base font-semibold text-card-foreground">
+        Weekly Incident Activity
       </h3>
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 min-h-0">
-          <ResponsiveContainer width="100%" height={chartHeight}>
-            <BarChart
-                data={chartData}
-                layout="vertical"
-                margin={{ top: 4, right: 20, bottom: 6, left: 8 }}
-              >
-                <XAxis type="number" hide domain={[0, 30]} />
-                <YAxis
-                  type="category"
-                  dataKey="shortName"
-                  width={116}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                />
-                <Tooltip
-                  formatter={(value: number) => `${value}%`}
-                  labelFormatter={(_, payload) => payload?.[0]?.payload?.name ?? "Category"}
-                  contentStyle={{
-                    borderRadius: "8px",
-                    border: "1px solid var(--color-border)",
-                    backgroundColor: "var(--color-card)",
-                    fontSize: "12px",
-                    color: "var(--color-card-foreground)",
-                    boxShadow: "0 8px 16px rgba(0,0,0,0.15)",
-                    padding: "8px 12px",
-                  }}
-                />
-                <Bar
-                  dataKey="value"
-                  radius={[0, 6, 6, 0]}
-                  isAnimationActive={true}
-                  animationDuration={600}
+
+      {/* Chart */}
+      <div className="flex-1 w-full">
+        <ResponsiveContainer width="100%" height={260}>
+          <BarChart
+            data={chartData}
+            margin={{ top: 10, right: 0, left: 0, bottom: 0 }}
+            barCategoryGap={0}
+            barGap={0}
+          >
+            <defs>
+              {categoryMeta.map((c) => (
+                <linearGradient
+                  key={c.key}
+                  id={c.key}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
                 >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-                  <LabelList dataKey="value" position="right" formatter={(value: number) => `${value}%`} className="fill-muted-foreground text-[11px]" />
-                </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="mt-2 sm:mt-3 flex flex-wrap gap-x-2 sm:gap-x-3 gap-y-1">
-          {chartData.map((item) => (
-            <div key={item.name} className="flex items-center gap-1 sm:gap-1.5">
-              <div className={`h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full ${item.dotClass}`} style={{ backgroundColor: item.dotClass ? undefined : item.color }} />
-              <span className="text-[9px] sm:text-[10px] text-muted-foreground" title={item.name}>
-                {item.shortName}
-              </span>
-            </div>
-          ))}
-        </div>
+                  <stop offset="0%" stopColor={c.indicator} stopOpacity={0.95} />
+                  <stop offset="100%" stopColor={c.indicator} stopOpacity={0.35} />
+                </linearGradient>
+              ))}
+            </defs>
+            <XAxis
+              dataKey="day"
+              axisLine={false}
+              tickLine={false}
+              interval={0}
+              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+              tickFormatter={(value) => {
+                const index = daysFull.indexOf(value)
+                return daysShort[index] ?? value
+              }}
+              padding={{ left: 0, right: 0 }}
+            />
+
+            <YAxis hide />
+
+            {/* Tooltip */}
+            <Tooltip
+              cursor={{
+                fill: "color-mix(in srgb,var(--muted) 18%, transparent)",
+              }}
+              content={({ active, payload, label }) => {
+                if (!active || !payload || !payload.length) return null
+
+                const fullDay = daysFull.find((d) => d === label) ?? label
+
+                return (
+                  <div
+                    className="rounded-lg border border-border bg-card p-3 shadow-lg"
+                    style={{
+                      fontSize: "12px",
+                      color: "var(--card-foreground)",
+                    }}
+                  >
+                    {/* BOLD TITLE */}
+                    <div className="mb-2 font-semibold text-sm">
+                      📅 {fullDay}
+                    </div>
+
+                    {/* ITEMS */}
+                    <div className="space-y-1">
+                      {payload.map((entry: any) => {
+                        const meta = categoryMeta.find((c) => c.key === entry.dataKey)
+
+                        return (
+                          <div key={entry.dataKey} className="flex items-center justify-between gap-3">
+                            <span className="text-muted-foreground">
+                              {meta?.name ?? entry.name}
+                            </span>
+                            <span className="font-medium">
+                              {entry.value} cases
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              }}
+            />
+
+            {/* Incident Bars */}
+            {categoryMeta.map((c, idx) => (
+              <Bar
+                key={c.key}
+                dataKey={c.key}
+                stackId="stack"
+                fill={`url(#${c.key})`}
+                barSize={42}
+                radius={
+                  idx === categoryMeta.length - 1 ? [10, 10, 0, 0] : 0
+                }
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Legend */}
+      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1">
+        {categoryMeta.map((c) => (
+          <div key={c.key} className="flex items-center gap-1.5">
+            <div
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: c.indicator }}
+            />
+            <span className="text-[10px] text-muted-foreground">
+              {c.name}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   )

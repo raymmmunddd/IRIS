@@ -64,15 +64,56 @@ const categoryData = [
 type FilterMode = "cases" | "category"
 
 const categoryMeta = [
-  { key: "violence", name: "Violence or Threats", shortName: "Violence/Threats", color: "#d64545" },
-  { key: "harassment", name: "Harassment & Abuse", shortName: "Harassment", color: "#d99e04" },
-  { key: "fraud", name: "Fraud & Scams", shortName: "Fraud/Scams", color: "#f2b705" },
-  { key: "disturbance", name: "Public Disturbance", shortName: "Public Disturb.", color: "#0ea5e9" },
-  { key: "property", name: "Property & Theft", shortName: "Property/Theft", color: "#1e4fa3" },
-  { key: "community", name: "Community Dispute", shortName: "Community Disp.", color: "#7c3aed" },
-  { key: "child", name: "Child & Vulnerable", shortName: "Child/Vulnerable", color: "#8b5cf6" },
+  {
+    key: "violence",
+    name: "Violence or Threats",
+    shortName: "Violence/Threats",
+    gradient: "url(#violence)",
+    indicator: "#ef4444",
+  },
+  {
+    key: "harassment",
+    name: "Harassment & Abuse",
+    shortName: "Harassment",
+    gradient: "url(#harassment)",
+    indicator: "#f59e0b",
+  },
+  {
+    key: "fraud",
+    name: "Fraud & Scams",
+    shortName: "Fraud/Scams",
+    gradient: "url(#fraud)",
+    indicator: "#eab308",
+  },
+  {
+    key: "disturbance",
+    name: "Public Disturbance",
+    shortName: "Public Disturb.",
+    gradient: "url(#disturbance)",
+    indicator: "#06b6d4",
+  },
+  {
+    key: "property",
+    name: "Property & Theft",
+    shortName: "Property/Theft",
+    gradient: "url(#property)",
+    indicator: "#1e40af",
+  },
+  {
+    key: "community",
+    name: "Community Dispute",
+    shortName: "Community Disp.",
+    gradient: "url(#community)",
+    indicator: "#22c55e",
+  },
+  {
+    key: "child",
+    name: "Child & Vulnerable",
+    shortName: "Child/Vulnerable",
+    gradient: "url(#child)",
+    indicator: "#8b5cf6",
+  },
 ]
-
 interface MonthlyTrendChartProps {
   data?: MonthlyTrendItem[]
 }
@@ -83,6 +124,48 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
   const isMobile = useIsMobile()
   const chartHeight = isMobile ? 200 : 300
   const chartData = data?.length ? data : casesData
+
+  const processedChartData = useMemo(() => {
+    const currentMonthIndex = new Date().getMonth()
+
+    return chartData.reduce<
+      (MonthlyTrendItem & { actualCases: number })[]
+    >((acc, item, index) => {
+      const previousValue =
+        acc.length > 0 ? acc[acc.length - 1].cases : item.cases
+
+      const actualCases = item.cases ?? 0
+
+      if (index === currentMonthIndex && actualCases === 0) {
+        acc.push({
+          ...item,
+          actualCases,
+          cases: previousValue,
+        })
+
+        return acc
+      }
+
+      if (index > currentMonthIndex) {
+        acc.push({
+          ...item,
+          actualCases,
+          cases: previousValue,
+        })
+
+        return acc
+      }
+
+      acc.push({
+        ...item,
+        actualCases,
+        cases: actualCases,
+      })
+
+      return acc
+    }, [])
+  }, [chartData])
+
   const categoryChartData = data?.length ? data : categoryData
 
   const selectedCategoryMonth = useMemo(
@@ -93,17 +176,29 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
   const categoryBarData = categoryMeta.map((category) => {
     const amount = selectedCategoryMonth[category.key as keyof typeof selectedCategoryMonth]
 
-    return {
-      key: category.key,
-      fullName: category.name,
-      shortName: category.shortName,
-      value: typeof amount === "number" ? amount : 0,
-      color: category.color,
-    }
+  return {
+    key: category.key,
+    fullName: category.name,
+    shortName: category.shortName,
+    value: typeof amount === "number" ? amount : 0,
+    gradient: category.gradient,
+    indicator: category.indicator,
+  }
   })
 
   return (
-    <div className="flex h-full flex-col rounded-xl border border-border bg-card p-3 sm:p-5">
+    <div
+      className="
+        flex h-full flex-col
+        rounded-2xl
+        border border-border/50
+        bg-card
+        p-4 sm:p-6
+        shadow-sm
+        transition-all duration-300
+        hover:shadow-lg
+      "
+    >
       <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h3 className="text-sm sm:text-base font-semibold text-card-foreground">Monthly Trend</h3>
         <div className="flex items-center gap-2">
@@ -149,7 +244,15 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height={chartHeight}>
           {filter === "cases" ? (
-            <LineChart data={chartData}>
+            <LineChart
+              data={processedChartData}
+              margin={{
+                top: 10,
+                right: 10,
+                left: -35,
+                bottom: 0,
+              }}
+            >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
               <XAxis
                 dataKey="month"
@@ -163,24 +266,35 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
                 tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
               />
               <Tooltip
+                cursor={{
+                  stroke: "var(--chart-main)",
+                  strokeDasharray: "4 4",
+                  strokeWidth: 1.5,
+                }}
+                formatter={(_value, _name, props) => {
+                  return [
+                    `${props.payload.actualCases} cases`,
+                    "Cases",
+                  ]
+                }}
                 contentStyle={{
-                  borderRadius: "8px",
+                  borderRadius: "10px",
                   border: "1px solid var(--border)",
                   backgroundColor: "var(--card)",
                   fontSize: "12px",
                   color: "var(--card-foreground)",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
                 }}
               />
-              <Line
-                type="monotone"
-                dataKey="cases"
-                name="Cases"
-                stroke="var(--chart-main)"
-                strokeWidth={2.5}
-                dot={{ r: 3, fill: "var(--chart-main)", strokeWidth: 0 }}
-                activeDot={{ r: 5, strokeWidth: 2, stroke: "var(--card)" }}
-              />
+            <Line
+              type="monotone"
+              dataKey="cases"
+              name="Cases"
+              stroke="var(--chart-main)"
+              strokeWidth={2.5}
+              dot={{ r: 3, fill: "var(--chart-main)", strokeWidth: 0 }}
+              activeDot={{ r: 5, strokeWidth: 2, stroke: "var(--card)" }}
+            />
             </LineChart>
           ) : (
             <BarChart
@@ -188,6 +302,49 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
               layout="vertical"
               margin={{ top: 4, right: 24, bottom: 6, left: 8 }}
             >
+              <defs>
+                {/* Violence & Threats */}
+                <linearGradient id="violence" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#ef4444" />
+                  <stop offset="100%" stopColor="#fca5a5" />
+                </linearGradient>
+
+                {/* Harassment & Abuse */}
+                <linearGradient id="harassment" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#f59e0b" />
+                  <stop offset="100%" stopColor="#fde68a" />
+                </linearGradient>
+
+                {/* Fraud & Scams */}
+                <linearGradient id="fraud" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#eab308" />
+                  <stop offset="100%" stopColor="#fef9c3" />
+                </linearGradient>
+
+                {/* Public Disturbance */}
+                <linearGradient id="disturbance" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#3b82f6" />
+                  <stop offset="100%" stopColor="#bfdbfe" />
+                </linearGradient>
+
+                {/* Property & Theft */}
+                <linearGradient id="property" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#1e3a8a" />
+                  <stop offset="100%" stopColor="#93c5fd" />
+                </linearGradient>
+
+                {/* Community Dispute */}
+                <linearGradient id="community" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#22c55e" />
+                  <stop offset="100%" stopColor="#bbf7d0" />
+                </linearGradient>
+
+                {/* Child & Vulnerable */}
+                <linearGradient id="child" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#8b5cf6" />
+                  <stop offset="100%" stopColor="#c4b5fd" />
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
               <XAxis
                 type="number"
@@ -217,13 +374,36 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
               />
               <Bar dataKey="value" radius={[0, 6, 6, 0]}>
                 {categoryBarData.map((item) => (
-                  <Cell key={item.key} fill={item.color} />
+                  <Cell
+                    key={item.key}
+                    fill={item.gradient}
+                  />
                 ))}
                 <LabelList dataKey="value" position="right" className="fill-muted-foreground text-[11px]" />
               </Bar>
             </BarChart>
           )}
         </ResponsiveContainer>
+        {filter === "category" && (
+          <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1">
+            {categoryBarData.map((item) => (
+              <div
+                key={item.key}
+                className="flex items-center gap-1.5"
+              >
+                <div
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{
+                    backgroundColor: item.indicator,
+                  }}
+                />
+                <span className="text-[10px] text-muted-foreground">
+                  {item.shortName}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
