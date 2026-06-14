@@ -130,36 +130,48 @@
     const effectiveHeight = typeof height === "number" ? height : defaultHeight
     const chartData = data?.length ? data : casesData
 
+    const currentMonthIndex = new Date().getMonth()
+
+    const visibleMonths = useMemo(
+      () => months.slice(0, currentMonthIndex + 1),
+      [currentMonthIndex]
+    )
+
     const processedChartData = useMemo(() => {
       const currentMonthIndex = new Date().getMonth()
 
-      return chartData.reduce<
-        (MonthlyTrendItem & { actualCases: number })[]
-      >((acc, item, index) => {
-        const previousValue =
-          acc.length > 0 ? acc[acc.length - 1].cases : item.cases
+      return chartData
+        .reduce<
+          (MonthlyTrendItem & { actualCases: number })[]
+        >((acc, item, index) => {
+          const previousValue =
+            acc.length > 0 ? acc[acc.length - 1].cases : item.cases
 
-        const actualCases = item.cases ?? 0
+          const actualCases = item.cases ?? 0
 
-        const isFutureMonth = index > currentMonthIndex
-        const isCurrentMissing = index === currentMonthIndex && actualCases === 0
+          const isFutureMonth = index > currentMonthIndex
+          const isCurrentMissing =
+            index === currentMonthIndex && actualCases === 0
 
-        const resolvedCases =
-          isFutureMonth || isCurrentMissing
-            ? previousValue
-            : actualCases
+          const resolvedCases =
+            isFutureMonth || isCurrentMissing
+              ? previousValue
+              : actualCases
 
-        acc.push({
-          ...item,
-          actualCases,
-          cases: resolvedCases,
-        })
+          acc.push({
+            ...item,
+            actualCases,
+            cases: resolvedCases,
+          })
 
-        return acc
-      }, [])
-    }, [chartData])
+          return acc
+        }, [])
+        .filter((item) => visibleMonths.includes(item.month))
+      }, [chartData, currentMonthIndex, visibleMonths])
 
-    const categoryChartData = data?.length ? data : categoryData
+      const categoryChartData = (data?.length ? data : categoryData).filter(
+        (item) => visibleMonths.includes(item.month)
+      )
 
     const selectedCategoryMonth = useMemo(
       () => categoryChartData.find((item) => item.month === selectedMonth) ?? categoryChartData[categoryChartData.length - 1],
@@ -231,7 +243,7 @@
 
         {filter === "category" && (
           <div className="mb-3 sm:mb-4 flex flex-wrap items-center gap-1.5 sm:gap-2">
-            {months.map((month) => (
+            {visibleMonths.map((month) => (
               <button
                 key={month}
                 onClick={() => setSelectedMonth(month)}
