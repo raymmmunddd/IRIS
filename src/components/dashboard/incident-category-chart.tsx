@@ -185,49 +185,100 @@ export function IncidentCategoryChart({ height }: { height?: number }) {
               <YAxis hide />
 
               {/* Tooltip */}
-              <Tooltip
-                cursor={{
-                  fill: "color-mix(in srgb,var(--muted) 18%, transparent)",
-                }}
-                content={({ active, payload, label }) => {
-                  if (!active || !payload || !payload.length) return null
+<Tooltip
+  cursor={{
+    fill: "color-mix(in srgb,var(--muted) 18%, transparent)",
+  }}
+  content={({ active, payload, label }) => {
+    if (!active || !payload?.length) return null
 
-                  const fullDay = daysFull.find((d) => d === label) ?? label
+    const fullDay =
+      daysFull.find((d) => d === label) ?? label
 
-                  return (
-                    <div
-                      className="rounded-lg border border-border bg-card p-3 shadow-lg"
-                      style={{
-                        fontSize: "12px",
-                        color: "var(--card-foreground)",
-                      }}
-                    >
-                      {/* BOLD TITLE */}
-                      <div className="mb-2 font-semibold text-sm">
-                        📅 {fullDay}
-                      </div>
+    const totalCases = payload.reduce(
+      (sum: number, entry: any) =>
+        sum + Number(entry.value ?? 0),
+      0
+    )
 
-                      {/* ITEMS */}
-                      <div className="space-y-1">
-                        {payload.map((entry: any) => {
-                          const meta = categoryMeta.find((c) => c.key === entry.dataKey)
+    const orderedCategories = [...categoryMeta]
+      .reverse()
+      .map((cat) => {
+        const entry = payload.find(
+          (p: any) => p.dataKey === cat.key
+        )
 
-                          return (
-                            <div key={entry.dataKey} className="flex items-center justify-between gap-3">
-                              <span className="text-muted-foreground">
-                                {meta?.name ?? entry.name}
-                              </span>
-                              <span className="font-medium">
-                                {entry.value} cases
-                              </span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                }}
-              />
+        return {
+          ...cat,
+          value: Number(entry?.value ?? 0),
+        }
+      })
+      .filter((item) => item.value > 0)
+
+    const highest = [...orderedCategories].sort(
+      (a, b) => b.value - a.value
+    )[0]
+
+    return (
+      <div
+        className="rounded-lg border border-border bg-card p-3 shadow-lg"
+        style={{
+          fontSize: "12px",
+          color: "var(--card-foreground)",
+        }}
+      >
+        {/* Day */}
+        <div className="mb-2 font-semibold text-sm">
+          📅 {fullDay}
+        </div>
+
+        {/* Total */}
+        <div className="mb-2 flex items-center justify-between border-b border-border pb-2">
+          <span className="text-muted-foreground">
+            Total incidents
+          </span>
+
+          <span className="font-semibold">
+            {totalCases}
+          </span>
+        </div>
+
+        {/* Categories in stack order (bottom → top) */}
+        <div className="space-y-1">
+          {orderedCategories.map((item) => (
+            <div
+              key={item.key}
+              className="flex items-center justify-between gap-3"
+            >
+              <div className="flex items-center gap-2">
+                <div
+                  className="h-2 w-2 rounded-full"
+                  style={{
+                    backgroundColor: item.indicator,
+                  }}
+                />
+
+                <span className="text-muted-foreground">
+                  {item.name}
+                </span>
+              </div>
+
+              <span className="font-medium">
+                {item.value}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {highest && (
+          <div className="mt-2 border-t border-border pt-2 text-[11px] text-muted-foreground">
+            🔥 Highest contributor: {highest.name} ({highest.value})
+          </div>
+        )}
+      </div>
+    )
+  }}
+/>a
 
               {/* Incident Bars */}
 {categoryMeta.map((c, idx) => (

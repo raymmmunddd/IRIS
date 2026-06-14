@@ -141,30 +141,18 @@ export function MonthlyTrendChart({ data, height, onFilterChange }: MonthlyTrend
 
       const actualCases = item.cases ?? 0
 
-      if (index === currentMonthIndex && actualCases === 0) {
-        acc.push({
-          ...item,
-          actualCases,
-          cases: previousValue,
-        })
+      const isFutureMonth = index > currentMonthIndex
+      const isCurrentMissing = index === currentMonthIndex && actualCases === 0
 
-        return acc
-      }
-
-      if (index > currentMonthIndex) {
-        acc.push({
-          ...item,
-          actualCases,
-          cases: previousValue,
-        })
-
-        return acc
-      }
+      const resolvedCases =
+        isFutureMonth || isCurrentMissing
+          ? previousValue
+          : actualCases
 
       acc.push({
         ...item,
         actualCases,
-        cases: actualCases,
+        cases: resolvedCases,
       })
 
       return acc
@@ -194,6 +182,16 @@ export function MonthlyTrendChart({ data, height, onFilterChange }: MonthlyTrend
   const lineChartHeight = effectiveHeight
   const filterModes: FilterMode[] = ["cases", "category"]
   const labelsMap: Record<FilterMode, string> = { cases: "Cases", category: "Category" }
+
+  const getTrend = (current: number, prev?: number) => {
+    if (!prev) return null
+    const diff = current - prev
+    const percent = ((diff / prev) * 100).toFixed(1)
+
+    if (diff > 0) return `+${percent}% higher than previous`
+    if (diff < 0) return `${percent}% lower than previous`
+    return "No change from previous"
+  }
 
   return (
     <div
@@ -250,7 +248,7 @@ export function MonthlyTrendChart({ data, height, onFilterChange }: MonthlyTrend
         </div>
       )}
 
-      <div className="flex-1 min-h-0 w-full" style={{ height: lineChartHeight }}>
+    <div className="flex-1 min-h-0 w-full" style={{ height: lineChartHeight }}>
       <ResponsiveContainer key={`${filter}-${lineChartHeight}`} width="100%" height={lineChartHeight}>
           {filter === "cases" ? (
             <LineChart
@@ -280,19 +278,54 @@ export function MonthlyTrendChart({ data, height, onFilterChange }: MonthlyTrend
                   strokeDasharray: "4 4",
                   strokeWidth: 1.5,
                 }}
-                formatter={(_value, _name, props) => {
-                  return [
-                    `${props.payload.actualCases} cases`,
-                    "Cases",
-                  ]
-                }}
-                contentStyle={{
-                  borderRadius: "10px",
-                  border: "1px solid var(--border)",
-                  backgroundColor: "var(--card)",
-                  fontSize: "12px",
-                  color: "var(--card-foreground)",
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null
+
+                  const data = payload[0].payload
+
+                  const actual = data.actualCases
+                  const display = data.cases
+
+                  const index = chartData.findIndex((d) => d.month === label)
+                  const prev = chartData[index - 1]?.cases
+
+                  const trend = actual > 0 ? getTrend(actual, prev) : null
+                  const isFuture = actual === 0 && index > new Date().getMonth()
+
+                  return (
+                    <div className="rounded-lg border border-border bg-card p-3 shadow-lg text-[12px]">
+                      
+                      {/* HEADER */}
+                      <div className="mb-1 font-semibold">
+                        📅 {label}
+                      </div>
+
+                      {/* VALUE */}
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-muted-foreground">
+                          Total cases
+                        </span>
+
+                        <span className="font-semibold">
+                          {actual > 0 ? actual : 0}
+                        </span>
+                      </div>
+
+                      {/* FUTURE MONTH INDICATOR */}
+                      {isFuture && (
+                        <div className="mt-1 text-[11px] text-amber-500">
+                          📌 No recorded data yet. (Unavailable)
+                        </div>
+                      )}
+
+                      {/* TREND ONLY FOR REAL DATA */}
+                      {trend && (
+                        <div className="mt-1 text-[11px] text-muted-foreground">
+                          {trend}
+                        </div>
+                      )}
+                    </div>
+                  )
                 }}
               />
               <Line
@@ -380,14 +413,57 @@ export function MonthlyTrendChart({ data, height, onFilterChange }: MonthlyTrend
               />
               <Tooltip
                 cursor={{ fill: "color-mix(in srgb,var(--muted) 35%, transparent)" }}
-                formatter={(value: number, _name, payload) => [`${value} cases`, payload?.payload?.fullName]}
-                contentStyle={{
-                  borderRadius: "8px",
-                  border: "1px solid var(--border)",
-                  backgroundColor: "var(--card)",
-                  fontSize: "12px",
-                  color: "var(--card-foreground)",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null
+
+                  const item = payload[0]
+
+                  const category = categoryBarData.find(
+                    (c) => c.value === item?.value
+                  )
+
+                  const monthTotal = categoryBarData.reduce(
+                    (sum, c) => sum + c.value,
+                    0
+                  )
+
+                  const percentage =
+                    monthTotal > 0
+                      ? ((Number(item?.value) / monthTotal) * 100).toFixed(1)
+                      : "0"
+
+                  const highestCategory = [...categoryBarData].sort(
+                    (a, b) => b.value - a.value
+                  )[0]
+
+                  const isHighest =
+                    highestCategory?.key === category?.key
+
+                  return (
+                    <div className="rounded-lg border border-border bg-card p-3 shadow-lg text-[12px]">
+                      <div className="mb-2 font-semibold">
+                        📅 {selectedMonth}
+                      </div>
+
+                      <div className="font-medium text-card-foreground">
+                        {category?.fullName}
+                      </div>
+
+                      <div className="mt-1 font-semibold">
+                        {item?.value} cases
+                      </div>
+
+                      <div className="mt-2 text-[11px] text-muted-foreground">
+                        {percentage}% of all incidents
+                      </div>
+
+                      {isHighest && (
+                        <div className="mt-1 text-[11px] text-amber-500">
+                          🔥 Highest category this month
+                        </div>
+                      )}
+                    </div>
+                  )
                 }}
               />
               <Bar dataKey="value" radius={[0, 6, 6, 0]}>
