@@ -448,13 +448,11 @@
                       ...categoryBarData.map((c) => c.value)
                     )
 
-                    const highestCategories = categoryBarData.filter(
-                      (c) => c.value === highestValue
-                    )
+                    const monthHasData = highestValue > 0
 
                     const isHighest =
+                      monthHasData &&
                       category?.value === highestValue
-
                     return (
                     <div className="rounded-lg border border-border bg-card p-3 shadow-lg text-[12px]">
                       <div className="mb-2 font-semibold">
