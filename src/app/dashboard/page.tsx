@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { isAuthenticated } from "@/lib/auth"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { PageHeader } from "@/components/ui/page-header"
@@ -27,6 +28,16 @@ export default function DashboardPage() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const [trendFilter, setTrendFilter] = useState<"cases" | "category">("cases")
+
+  const [trendMode, setTrendMode] =
+  useState<"cases" | "category">("cases")
+  const isMobile = useIsMobile()
+  const baseCasesHeight = isMobile ? 200 : 300
+  const baseCategoryHeight = isMobile ? 240 : 340
+
+  const chartHeight =
+    trendFilter === "category" ? baseCategoryHeight : baseCasesHeight
   // auth guard
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -91,10 +102,18 @@ export default function DashboardPage() {
         {/* ANALYTICS + OPERATIONAL ROW 1 */}
         <div className="mt-4 sm:mt-6 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <MonthlyTrendChart data={dashboardData?.monthlyTrend} />
+            <MonthlyTrendChart
+              data={dashboardData?.monthlyTrend}
+              height={chartHeight}
+              onFilterChange={setTrendFilter}
+            />
           </div>
 
-          <IncidentCategoryChart data={dashboardData?.categoryBreakdown} />
+
+          <IncidentCategoryChart
+            data={dashboardData?.categoryBreakdown}
+            height={chartHeight}
+          />
         </div>
 
         {/* ANALYTICS + OPERATIONAL ROW 2 */}

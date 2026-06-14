@@ -63,6 +63,8 @@ const categoryData = [
 
 type FilterMode = "cases" | "category"
 
+const CASES_COLOR = "var(--chart-main)"
+
 const categoryMeta = [
   {
     key: "violence",
@@ -116,13 +118,16 @@ const categoryMeta = [
 ]
 interface MonthlyTrendChartProps {
   data?: MonthlyTrendItem[]
+  height?: number
+  onFilterChange?: (mode: FilterMode) => void
 }
 
-export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
+export function MonthlyTrendChart({ data, height, onFilterChange }: MonthlyTrendChartProps) {
   const [filter, setFilter] = useState<FilterMode>("cases")
   const [selectedMonth, setSelectedMonth] = useState(months[new Date().getMonth()])
   const isMobile = useIsMobile()
-  const chartHeight = isMobile ? 200 : 300
+  const defaultHeight = isMobile ? 200 : 300
+  const effectiveHeight = typeof height === "number" ? height : defaultHeight
   const chartData = data?.length ? data : casesData
 
   const processedChartData = useMemo(() => {
@@ -186,6 +191,10 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
   }
   })
 
+  const lineChartHeight = effectiveHeight
+  const filterModes: FilterMode[] = ["cases", "category"]
+  const labelsMap: Record<FilterMode, string> = { cases: "Cases", category: "Category" }
+
   return (
     <div
       className="
@@ -202,23 +211,23 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
       <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h3 className="text-sm sm:text-base font-semibold text-card-foreground">Monthly Trend</h3>
         <div className="flex items-center gap-2">
-          {(["cases", "category"] as FilterMode[]).map((mode) => {
-            const labels = { "cases": "Cases", "category": "Category" } as Record<FilterMode, string>
-            return (
-              <button
-                key={mode}
-                onClick={() => setFilter(mode)}
-                className={cn(
-                  "rounded-lg border px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-medium transition-colors capitalize",
-                  filter === mode
-                    ? "border-[var(--chart-main)] bg-[var(--chart-main)] text-white"
-                    : "border-border bg-card text-card-foreground hover:bg-muted"
-                )}
-              >
-                {labels[mode]}
-              </button>
-            )
-          })}
+          {filterModes.map((mode) => (
+            <button
+              key={mode}
+              onClick={() => {
+                setFilter(mode)
+                onFilterChange?.(mode)
+              }}
+              className={cn(
+                "rounded-lg border px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-medium transition-colors capitalize",
+                filter === mode
+                  ? "border-[var(--chart-main)] bg-[var(--chart-main)] text-white"
+                  : "border-border bg-card text-card-foreground hover:bg-muted"
+              )}
+            >
+              {labelsMap[mode]}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -241,8 +250,8 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
         </div>
       )}
 
-      <div className="flex-1 min-h-0">
-        <ResponsiveContainer width="100%" height={chartHeight}>
+      <div className="flex-1 min-h-0 w-full" style={{ height: lineChartHeight }}>
+      <ResponsiveContainer key={`${filter}-${lineChartHeight}`} width="100%" height={lineChartHeight}>
           {filter === "cases" ? (
             <LineChart
               data={processedChartData}
@@ -286,15 +295,24 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
                   boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
                 }}
               />
-            <Line
-              type="monotone"
-              dataKey="cases"
-              name="Cases"
-              stroke="var(--chart-main)"
-              strokeWidth={2.5}
-              dot={{ r: 3, fill: "var(--chart-main)", strokeWidth: 0 }}
-              activeDot={{ r: 5, strokeWidth: 2, stroke: "var(--card)" }}
-            />
+              <Line
+                type="monotone"
+                dataKey="cases"
+                name="Cases"
+                stroke={CASES_COLOR}
+                strokeWidth={2.5}
+                dot={{
+                  r: 3,
+                  fill: CASES_COLOR,
+                  strokeWidth: 0,
+                }}
+                activeDot={{
+                  r: 5,
+                  fill: CASES_COLOR,
+                  stroke: "var(--card)",
+                  strokeWidth: 2,
+                }}
+              />
             </LineChart>
           ) : (
             <BarChart
@@ -384,12 +402,27 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
             </BarChart>
           )}
         </ResponsiveContainer>
+        {filter === "cases" && (
+          <div className="mt-3 flex justify-center">
+            <div className="flex items-center gap-2">
+              <div
+                className="h-2.5 w-2.5 rounded-full"
+                style={{
+                  backgroundColor: CASES_COLOR,
+                }}
+              />
+              <span className="text-[10px] text-muted-foreground">
+                Total Incident Cases
+              </span>
+            </div>
+          </div>
+        )}
         {filter === "category" && (
-          <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1">
+          <div className="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1">
             {categoryBarData.map((item) => (
               <div
                 key={item.key}
-                className="flex items-center gap-1.5"
+                className="flex items-center gap-2"
               >
                 <div
                   className="h-2.5 w-2.5 rounded-full"
@@ -398,8 +431,8 @@ export function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
                   }}
                 />
                 <span className="text-[10px] text-muted-foreground">
-                  {item.shortName}
-                </span>
+                {item.fullName}
+              </span>
               </div>
             ))}
           </div>
