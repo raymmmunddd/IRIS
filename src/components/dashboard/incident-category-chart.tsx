@@ -146,8 +146,8 @@ export function IncidentCategoryChart({ height }: { height?: number }) {
     </h3>
 
     {/* Chart wrapper MUST define flex space only */}
-    <div className="flex-1 min-h-0 w-full">
-  <ResponsiveContainer width="100%" height="100%">
+    <div className="flex-1 min-h-0 w-full" style={{ height: effectiveHeight }}>
+      <ResponsiveContainer key={effectiveHeight} width="100%" height={effectiveHeight}>
         <BarChart
           data={chartData}
           margin={{ top: 28, right: 0, left: 0, bottom: 0 }}
