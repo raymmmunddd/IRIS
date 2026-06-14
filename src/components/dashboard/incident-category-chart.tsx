@@ -215,9 +215,15 @@ export function IncidentCategoryChart({ height }: { height?: number }) {
       })
       .filter((item) => item.value > 0)
 
-    const highest = [...orderedCategories].sort(
-      (a, b) => b.value - a.value
-    )[0]
+      const highestValue = Math.max(
+        ...orderedCategories.map((c) => c.value)
+      )
+
+      const highestCategories = orderedCategories.filter(
+        (c) => c.value === highestValue
+      )
+
+      const hasTie = highestCategories.length > 1
 
     return (
       <div
@@ -270,9 +276,20 @@ export function IncidentCategoryChart({ height }: { height?: number }) {
           ))}
         </div>
 
-        {highest && (
+        {highestCategories.length > 0 && (
           <div className="mt-2 border-t border-border pt-2 text-[11px] text-muted-foreground">
-            🔥 Highest contributor: {highest.name} ({highest.value})
+            {hasTie ? (
+              <>
+                🔥 Highest contributors:
+                <div className="mt-1">
+                  {highestCategories.map((c) => c.name).join(", ")}
+                </div>
+              </>
+            ) : (
+              <>
+                🔥 Highest contributor: {highestCategories[0].name}
+              </>
+            )}
           </div>
         )}
       </div>
