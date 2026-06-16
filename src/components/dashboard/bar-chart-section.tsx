@@ -14,6 +14,7 @@
     Tooltip,
     ResponsiveContainer,
     LabelList,
+    Area,
   } from "recharts"
   import { cn } from "@/lib/utils"
 
@@ -340,6 +341,12 @@
                     )
                   }}
                 />
+                <Area
+                  type="monotone"
+                  dataKey="cases"
+                  stroke="none"
+                  fill="url(#casesFill)"
+                />
                 <Line
                   type="monotone"
                   dataKey="cases"
@@ -453,6 +460,7 @@
                     const isHighest =
                       monthHasData &&
                       category?.value === highestValue
+
                     return (
                     <div className="rounded-lg border border-border bg-card p-3 shadow-lg text-[12px]">
                       <div className="mb-2 font-semibold">

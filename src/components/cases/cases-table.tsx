@@ -94,8 +94,8 @@ const actionTitles: Record<CaseAction, string> = {
 
 export function CasesTable() {
   const [activeTab, setActiveTab] = useState<
-  "pending" | "active" | "archive"
->("pending")
+    "pending" | "active" | "mediation" | "archive"
+  >("pending")
   const [statusFilter, setStatusFilter] = useState<"All" | CaseStatus>("All")
   const [categoryFilter, setCategoryFilter] = useState<"All" | CaseCategory>("All")
   const [priorityFilter, setPriorityFilter] = useState<"All" | CasePriority>("All")
@@ -103,7 +103,7 @@ export function CasesTable() {
   const [openActionId, setOpenActionId] = useState<string | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [cases, setCases] = useState<CaseRecord[]>([])
-  const [sortBy, setSortBy] = useState<"Newest" | "Oldest" | "Priority">("Newest")
+  const [sortBy, setSortBy] = useState<"Latest" | "Oldest" | "Priority">("Latest")
   const [officers, setOfficers] = useState<string[]>(["Unassigned"])
   const [pendingAction, setPendingAction] = useState<{ action: CaseAction; caseItem: CaseRecord } | null>(null)
   const [selectedOfficer, setSelectedOfficer] = useState("")
@@ -142,16 +142,21 @@ export function CasesTable() {
 
   const filtered = useMemo(() => {
     const sourceCases = cases.filter((caseItem) => {
-      const archived =
-        caseItem.status === "Resolved" ||
-        caseItem.status === "Closed"
+      if (activeTab === "pending")
+        return caseItem.status === "Pending"
 
-      const pending = caseItem.status === "Pending"
+      if (activeTab === "mediation")
+        return caseItem.status === "Mediation"
 
-      if (activeTab === "pending") return pending
-      if (activeTab === "archive") return archived
+      if (activeTab === "archive")
+        return (
+          caseItem.status === "Resolved" ||
+          caseItem.status === "Closed"
+        )
 
-      return !pending && !archived
+      return (
+        caseItem.status === "Under Review"
+      )
     })
 
     let result = sourceCases.filter((c) => {
@@ -176,7 +181,7 @@ export function CasesTable() {
       const dateA = Date.parse(a.date)
       const dateB = Date.parse(b.date)
 
-      if (sortBy === "Newest") return dateB - dateA
+      if (sortBy === "Latest") return dateB - dateA
       if (sortBy === "Oldest") return dateA - dateB
 
       if (sortBy === "Priority") {
@@ -316,13 +321,34 @@ export function CasesTable() {
       c.status !== "Closed"
   ).length
 
+  function getProgressStep(status: CaseStatus) {
+    switch (status) {
+      case "Pending":
+        return 1
+
+      case "Under Review":
+        return 2
+
+      case "Mediation":
+        return 3
+
+      case "Resolved":
+        return 4
+
+      case "Closed":
+        return 4
+
+      default:
+        return 1
+    }
+  }
+
   return (
     <>
       <div className="mt-2 mb-2 flex items-center gap-2 overflow-x-auto border-b border-border pb-2">
 
         {/* LEFT SIDE: Tabs */}
         <div className="flex items-center gap-2">
-          
           {/* Pending */}
           <button
             onClick={() => {
@@ -335,17 +361,19 @@ export function CasesTable() {
             className={cn(
               "group flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200",
               activeTab === "pending"
-                ? "border-[#1e4fa3] bg-[#e8f0ff] text-[#1e4fa3] shadow-sm"
-                : "border-border bg-card text-muted-foreground hover:border-[#1e4fa3]/30 hover:bg-muted hover:text-foreground"
+                ? "border-yellow-500 bg-yellow-50 text-yellow-700 shadow-sm"
+                : "border-border bg-card text-muted-foreground hover:border-yellow-300 hover:bg-muted hover:text-foreground"
             )}
           >
             <Clock3 className="h-4 w-4" />
+
             <span>Pending</span>
+
             <span
               className={cn(
                 "rounded-full px-2 py-0.5 text-[11px] font-semibold",
                 activeTab === "pending"
-                  ? "bg-[#1e4fa3] text-white"
+                  ? "bg-yellow-500 text-white"
                   : "bg-muted text-muted-foreground"
               )}
             >
@@ -383,6 +411,36 @@ export function CasesTable() {
             </span>
           </button>
 
+                    {/* Mediation */}
+          <button
+            onClick={() => {
+              setActiveTab("mediation")
+              setStatusFilter("All")
+              setCategoryFilter("All")
+              setPriorityFilter("All")
+              setSearchQuery("")
+            }}
+            className={cn(
+              "group flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200",
+              activeTab === "mediation"
+                ? "border-purple-500 bg-purple-50 text-purple-700 shadow-sm"
+                : "border-border bg-card text-muted-foreground hover:border-purple-300 hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <TriangleAlert className="h-4 w-4" />
+            <span>Mediation</span>
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                activeTab === "mediation"
+                  ? "bg-purple-600 text-white"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              {cases.filter((c) => c.status === "Mediation").length}
+            </span>
+          </button>
+
           {/* Archive */}
           <button
             onClick={() => {
@@ -395,8 +453,8 @@ export function CasesTable() {
             className={cn(
               "group flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200",
               activeTab === "archive"
-                ? "border-[#1e4fa3] bg-[#e8f0ff] text-[#1e4fa3] shadow-sm"
-                : "border-border bg-card text-muted-foreground hover:border-[#1e4fa3]/30 hover:bg-muted hover:text-foreground"
+                ? "border-green-500 bg-green-50 text-green-700 shadow-sm"
+                : "border-border bg-card text-muted-foreground hover:border-green-300 hover:bg-muted hover:text-foreground"
             )}
           >
             <Archive className="h-4 w-4" />
@@ -405,7 +463,7 @@ export function CasesTable() {
               className={cn(
                 "rounded-full px-2 py-0.5 text-[11px] font-semibold",
                 activeTab === "archive"
-                  ? "bg-[#1e4fa3] text-white"
+                  ? "bg-green-600 text-white"
                   : "bg-muted text-muted-foreground"
               )}
             >
@@ -419,11 +477,11 @@ export function CasesTable() {
           <button
             onClick={() => {
               setSortBy((prev) =>
-                prev === "Newest"
-                  ? "Oldest"
-                  : prev === "Oldest"
-                  ? "Priority"
-                  : "Newest"
+              prev === "Latest"
+                ? "Oldest"
+                : prev === "Oldest"
+                ? "Priority"
+                : "Latest"
               )
             }}
             className={cn(
@@ -432,7 +490,7 @@ export function CasesTable() {
             )}
           >
             {/* Icon */}
-            {sortBy === "Newest" && <ArrowUpDown className="h-4 w-4" />}
+            {sortBy === "Latest" && <ArrowUpDown className="h-4 w-4" />}
             {sortBy === "Oldest" && <ArrowUpDown className="h-4 w-4" />}
             {sortBy === "Priority" && <ArrowUpDown className="h-4 w-4" />}
 
@@ -519,6 +577,42 @@ export function CasesTable() {
               "hover:border-primary/30"
             )}
           >
+              {/* Status Progress Bar */}
+              <div className="-mx-5 -mt-5 mb-4 flex h-1 overflow-hidden">
+                <div
+                  className={cn(
+                    "flex-1",
+                    getProgressStep(caseItem.status) >= 1
+                      ? "bg-yellow-500"
+                      : "bg-muted"
+                  )}
+                />
+                <div
+                  className={cn(
+                    "flex-1",
+                    getProgressStep(caseItem.status) >= 2
+                      ? "bg-blue-500"
+                      : "bg-muted"
+                  )}
+                />
+                <div
+                  className={cn(
+                    "flex-1",
+                    getProgressStep(caseItem.status) >= 3
+                      ? "bg-purple-500"
+                      : "bg-muted"
+                  )}
+                />
+                <div
+                  className={cn(
+                    "flex-1",
+                    getProgressStep(caseItem.status) >= 4
+                      ? "bg-green-500"
+                      : "bg-muted"
+                  )}
+                />
+              </div>
+
             {/* Header */}
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -546,11 +640,6 @@ export function CasesTable() {
                 />
               </div>
             </div>
-
-            {/* Description */}
-            <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-card-foreground">
-              {caseItem.details}
-            </p>
 
             {/* Category */}
             <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">

@@ -104,10 +104,10 @@ export function DashboardSidebar() {
         {!isMinimized && (
           <button
             onClick={() => setIsMinimized(!isMinimized)}
-            className="hidden sm:flex shrink-0 rounded-lg border-2 border-[var(--sidebar-primary)] bg-[var(--sidebar-primary)] p-1.5 transition-colors hover:opacity-90"
-            title="Minimize"
+            className="hidden lg:flex h-10 w-10 items-center justify-center rounded-xl border-2 border-[var(--sidebar-icon)] bg-[var(--sidebar-bg)] text-[var(--sidebar-icon)]"
+            title="Expand"
           >
-            <PanelRightClose className="h-5 w-5 text-[var(--sidebar-primary-foreground)]" />
+            <PanelRightOpen className="h-5 w-5" />
           </button>
         )}
         {!isMinimized && (
@@ -179,12 +179,19 @@ export function DashboardSidebar() {
       {/* Mobile Header with Menu Button */}
       <div className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between bg-[var(--sidebar-bg)] px-4 py-3 lg:hidden">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-[var(--sidebar-icon)] bg-[var(--sidebar-bg)] font-sans text-sm font-bold text-[var(--sidebar-icon)]">
-            I
+          <img
+            src="/EastTapinac.png"
+            alt="Barangay East Tapinac"
+            className="h-10 w-10 rounded-md"
+          />
+          <div className="flex flex-col">
+            <span className="text-sm font-bold tracking-wide text-[var(--sidebar-icon)]">
+              IRIS
+            </span>
+            <span className="text-[9px] font-medium uppercase tracking-wider text-[var(--sidebar-icon)]/80">
+              Admin Portal
+            </span>
           </div>
-          <span className="text-base font-bold tracking-wide text-[var(--sidebar-icon)]">
-            IRIS
-          </span>
         </div>
         <button
           data-mobile-menu-trigger
