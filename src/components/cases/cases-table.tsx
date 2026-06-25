@@ -47,26 +47,64 @@ const allCategories: ("All" | CaseCategory)[] = [
 const allPriorities: ("All" | CasePriority)[] = ["All", "High", "Medium", "Low"]
 
 const priorityColors: Record<string, string> = {
-  High: "bg-red-100 text-red-600 border border-red-200",
-  Medium: "bg-yellow-100 text-yellow-700 border border-yellow-200",
-  Low: "bg-green-100 text-green-700 border border-green-200",
+  High: "bg-red-100 text-red-700 border-red-200",
+  Medium: "bg-orange-100 text-orange-700 border-orange-200",
+  Low: "bg-yellow-100 text-yellow-700 border-yellow-200",
 }
 
 const categoryMeta = [
-  { key: "violence", name: "Violence or Threats", shortName: "Violence/Threats", color: "#d64545" },
-  { key: "harassment", name: "Harassment & Abuse", shortName: "Harassment", color: "#d99e04" },
-  { key: "fraud", name: "Fraud & Scams", shortName: "Fraud/Scams", color: "#f2b705" },
-  { key: "disturbance", name: "Public Disturbance", shortName: "Public Disturb.", color: "#0ea5e9" },
-  { key: "property", name: "Property & Theft", shortName: "Property/Theft", color: "#1e4fa3" },
-  { key: "community", name: "Community Dispute", shortName: "Community Disp.", color: "#7c3aed" },
-  { key: "child", name: "Child & Vulnerable", shortName: "Child/Vulnerable", color: "#8b5cf6" },
+  {
+    key: "violence",
+    name: "Violence or Threats",
+    shortName: "Violence/Threats",
+    badge: "bg-pink-100 text-pink-700 border border-pink-200",
+  },
+  {
+    key: "harassment",
+    name: "Harassment & Abuse",
+    shortName: "Harassment",
+    badge: "bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200",
+  },
+  {
+    key: "fraud",
+    name: "Fraud & Scams",
+    shortName: "Fraud/Scams",
+    badge: "bg-lime-100 text-lime-700 border border-lime-200",
+  },
+  {
+    key: "disturbance",
+    name: "Public Disturbance",
+    shortName: "Public Disturb.",
+    badge: "bg-sky-100 text-sky-700 border border-sky-200",
+  },
+  {
+    key: "property",
+    name: "Property & Theft",
+    shortName: "Property/Theft",
+    badge: "bg-indigo-100 text-indigo-700 border border-indigo-200",
+  },
+  {
+    key: "community",
+    name: "Community Dispute",
+    shortName: "Community Disp.",
+    badge: "bg-teal-100 text-teal-700 border border-teal-200",
+  },
+  {
+    key: "child",
+    name: "Child & Vulnerable",
+    shortName: "Child/Vulnerable",
+    badge: "bg-violet-100 text-violet-700 border border-violet-200",
+  },
 ]
 
 const getCategoryMeta = (category: string) => {
   return (
-    categoryMeta.find((c) =>
-      category.toLowerCase().includes(c.name.toLowerCase())
-    ) || categoryMeta[0]
+    categoryMeta.find(
+      (c) =>
+        category
+          .toLowerCase()
+          .includes(c.name.toLowerCase())
+    ) ?? categoryMeta[0]
   )
 }
 
@@ -100,6 +138,10 @@ const actionTitles: Record<CaseAction, string> = {
   resolve: "Resolve Case",
   close: "Close Case",
 }
+
+const categoryStyles: Record<string, string> = Object.fromEntries(
+  categoryMeta.map((c) => [c.name, c.badge])
+)
 
 interface CasesTableProps {
   onViewCase?: (caseData: CaseRecord) => void
@@ -640,19 +682,13 @@ export function CasesTable({
               priorityFilter !== "All") && (
               <div className="mb-3 flex flex-wrap gap-2 rounded-xl bg-muted/30 p-1">
                 {selectedStatuses.map((s) => (
-                  <div
-                    key={s}
-                    className="
-                      flex items-center gap-1
-                      rounded-full
-                      bg-[#e8f0ff]
-                      px-2.5
-                      py-1
-                      text-[11px]
-                      font-medium
-                      text-[#1e4fa3]
-                    "
-                  >
+                <div
+                  key={s}
+                  className={cn(
+                    "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium",
+                    statusStyles[s]
+                  )}
+                >
                     {s}
                     <button
                       onClick={() =>
@@ -672,17 +708,10 @@ export function CasesTable({
                 ))}
                 {categoryFilter !== "All" && (
                 <div
-                  className="
-                    flex items-center gap-1
-                    rounded-full
-                    bg-blue-100
-                    border border-blue-200
-                    px-2.5
-                    py-1
-                    text-[11px]
-                    font-medium
-                    text-blue-700
-                  "
+                  className={cn(
+                    "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium",
+                    categoryStyles[categoryFilter]
+                  )}
                 >
                   {categoryFilter}
                   <button
@@ -696,7 +725,7 @@ export function CasesTable({
                 <div
                   className={cn(
                     "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium",
-                    prioritySummaryStyles[priorityFilter]
+                    priorityColors[priorityFilter]
                   )}
                 >
                   {priorityFilter}
@@ -753,7 +782,7 @@ export function CasesTable({
                       className={cn(
                         "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
                         selected
-                          ? colorMap[status]
+                          ? statusStyles[status]
                           : "bg-muted/30 text-muted-foreground border border-border/60 hover:bg-muted"
                       )}
                     >
@@ -806,7 +835,7 @@ export function CasesTable({
                           className={cn(
                             "rounded-full px-3 py-1.5 text-xs font-medium transition-all",
                           selected
-                            ? "bg-blue-100 text-blue-700 border border-blue-200"
+                            ? categoryStyles[category]
                             : "bg-muted/30 text-muted-foreground border border-border/60 hover:bg-muted"
                           )}
                         >
@@ -857,9 +886,8 @@ export function CasesTable({
                           }
                           className={cn(
                             "rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
-
                             selected
-                              ? styles[priority]
+                              ? priorityColors[priority]
                               : "bg-muted/30 text-muted-foreground border border-border/60 hover:bg-muted"
                           )}
                         >
@@ -877,9 +905,27 @@ export function CasesTable({
                   </Label>
 
                   {(dateFrom || dateTo) && (
-                    <span className="text-[11px] text-[#1e4fa3] font-medium">
-                      Selected
-                    </span>
+                    <div
+                      className="
+                        flex items-center gap-1
+                        rounded-full
+                        bg-indigo-50
+                        px-2.5 py-1
+                        text-[11px]
+                        text-indigo-700
+                      "
+                    >
+                      {dateFrom || "Any"} → {dateTo || "Any"}
+
+                      <button
+                        onClick={() => {
+                          setDateFrom("")
+                          setDateTo("")
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -1059,11 +1105,6 @@ export function CasesTable({
               </div>
             </div>
 
-            {/* Category */}
-            <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-              {caseItem.category}
-            </div>
-
             {/* Tags */}
             <div className="mt-3 flex flex-wrap gap-2">
               <span
@@ -1074,6 +1115,21 @@ export function CasesTable({
               >
                 {caseItem.priority}
               </span>
+
+              {(() => {
+                const category = getCategoryMeta(caseItem.category)
+
+                return (
+                  <span
+                    className={cn(
+                      "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                      category.badge
+                    )}
+                  >
+                    {category.shortName}
+                  </span>
+                )
+              })()}
 
               <span
                 className={cn(
