@@ -1,6 +1,8 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
+import { CaseDetailPanel } from "@/components/cases/case-detail-panel"
+import type { CaseRecord } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { isAuthenticated } from "@/lib/auth"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
@@ -10,6 +12,11 @@ import { CasesTable } from "@/components/cases/cases-table"
 
 export default function CasesPage() {
   const router = useRouter()
+  const [selectedCase, setSelectedCase] = useState<CaseRecord | null>(null)
+
+  function handleCaseUpdated(updatedCase: CaseRecord) {
+    setSelectedCase(updatedCase)
+  }
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -28,7 +35,16 @@ export default function CasesPage() {
           icon={<Briefcase className="h-5 w-5 text-white" />}
         />
 
-        <CasesTable />
+        <CasesTable
+          onViewCase={(caseData) => setSelectedCase(caseData)}
+        />
+        {selectedCase && (
+        <CaseDetailPanel
+          caseData={selectedCase}
+          onClose={() => setSelectedCase(null)}
+          onCaseUpdated={handleCaseUpdated}
+        />
+        )}
       </main>
     </div>
   )

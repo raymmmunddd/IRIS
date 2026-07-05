@@ -1,9 +1,25 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, FileText, Image as ImageIcon } from "lucide-react"
+import { X,
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
+  ZoomOut,
+  Download,
+  FileText,
+  Image as ImageIcon
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { EvidenceFile } from "@/lib/types"
+import { ExternalLink } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface EvidenceViewerProps {
   onClose: () => void
@@ -60,25 +76,87 @@ const mockEvidenceFiles: EvidenceFile[] = [
 ]
 
 export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0 }: EvidenceViewerProps) {
-  const files = providedFiles && providedFiles.length > 0 ? providedFiles : mockEvidenceFiles
-  const [currentIndex, setCurrentIndex] = useState(Math.min(initialIndex, files.length - 1))
+  const files = providedFiles?.length ? providedFiles : mockEvidenceFiles
+
+  const safeInitialIndex =
+    files.length > 0
+      ? Math.min(initialIndex, files.length - 1)
+      : 0
+
+  const [currentIndex, setCurrentIndex] = useState(safeInitialIndex)
   const [zoom, setZoom] = useState(1)
-  const current = files[currentIndex]
+
+  const current = files[currentIndex] ?? files[0]
 
   useEffect(() => {
-    setCurrentIndex(Math.min(initialIndex, files.length - 1))
+    const safeIndex =
+      files.length > 0
+        ? Math.min(initialIndex, files.length - 1)
+        : 0
+
+    setCurrentIndex(safeIndex)
     setZoom(1)
-  }, [initialIndex, files.length])
+  }, [initialIndex])
 
   const goNext = useCallback(() => {
-    setCurrentIndex((i) => (i + 1) % files.length)
+    setCurrentIndex((i) => (files.length ? (i + 1) % files.length : 0))
     setZoom(1)
   }, [files.length])
 
   const goPrev = useCallback(() => {
-    setCurrentIndex((i) => (i - 1 + files.length) % files.length)
+    setCurrentIndex((i) =>
+      files.length ? (i - 1 + files.length) % files.length : 0
+    )
     setZoom(1)
   }, [files.length])
+
+  const getExternalUrl = (file: {
+    url?: string
+    fileUrl?: string
+  }) => {
+    return file.url ?? file.fileUrl ?? "#"
+  }
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (!e.ctrlKey) return
+
+    e.preventDefault()
+
+    setZoom((prev) => {
+      const next = prev + (e.deltaY < 0 ? 0.1 : -0.1)
+      return Math.min(3, Math.max(0.25, next))
+    })
+  }
+
+  const extension = current.name.split(".").pop()?.toLowerCase()
+
+  const isPDF = extension === "pdf"
+
+  const isWord =
+      extension === "doc" ||
+      extension === "docx"
+
+  const isExcel =
+      extension === "xls" ||
+      extension === "xlsx"
+
+  const isPowerpoint =
+      extension === "ppt" ||
+      extension === "pptx"
+
+  const [paperSize, setPaperSize] = useState<"A4" | "Legal">("A4")
+
+  const zoomLevels = [
+    25,
+    50,
+    75,
+    100,
+    125,
+    150,
+    175,
+    200,
+    300,
+  ]
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -91,9 +169,16 @@ export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0
   }, [onClose, goNext, goPrev])
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col">
+    <div className="fixed inset-0 z-[60]">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-foreground/80 backdrop-blur-sm" onClick={onClose} />
+        <div
+          className="absolute inset-0 bg-black/70"
+          onClick={onClose}
+        />
+        <div
+          className="relative z-20 flex h-full flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
 
       {/* Top bar */}
       <div className="relative z-10 flex items-center justify-between bg-primary/95 px-4 py-3 backdrop-blur-sm">
@@ -119,7 +204,26 @@ export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0
           >
             <ZoomOut className="h-4 w-4" />
           </button>
-          <span className="w-10 text-center text-xs font-medium text-primary-foreground/70">{Math.round(zoom * 100)}%</span>
+          <Select
+            value={`${Math.round(zoom * 100)}`}
+            onValueChange={(value) => {
+              setZoom(Number(value) / 100)
+            }}
+          >
+            <SelectTrigger className="w-24 h-8 border-0 bg-primary-foreground/10 text-primary-foreground">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+                {zoomLevels.map(level => (
+                    <SelectItem
+                        key={level}
+                        value={String(level)}
+                    >
+                        {level}%
+                    </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
           <button
             onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
             className="rounded-md p-1.5 text-primary-foreground/70 transition-colors hover:bg-primary-foreground/10 hover:text-primary-foreground"
@@ -128,14 +232,15 @@ export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0
             <ZoomIn className="h-4 w-4" />
           </button>
           <div className="mx-2 h-5 w-px bg-primary-foreground/20" />
-          <a
-            href={current.url}
-            download={current.name}
-            className="rounded-md p-1.5 text-primary-foreground/70 transition-colors hover:bg-primary-foreground/10 hover:text-primary-foreground"
-            aria-label="Download file"
-          >
-            <Download className="h-4 w-4" />
-          </a>
+            <a
+              href={getExternalUrl(current)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-md p-1.5 text-primary-foreground/70 transition-colors hover:bg-primary-foreground/10 hover:text-primary-foreground"
+              aria-label="Open externally"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </a>
           <button
             onClick={onClose}
             className="ml-1 rounded-md p-1.5 text-primary-foreground/70 transition-colors hover:bg-primary-foreground/10 hover:text-primary-foreground"
@@ -160,29 +265,101 @@ export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0
         )}
 
         {/* Image display */}
-        <div className="flex items-center justify-center overflow-auto p-8" style={{ maxHeight: "calc(100vh - 140px)", maxWidth: "100vw" }}>
-          {current.type === "image" ? (
-            <img
-              src={current.url}
-              alt={current.name}
-              className="rounded-lg shadow-2xl transition-transform duration-200"
-              style={{ transform: `scale(${zoom})`, maxHeight: "calc(100vh - 180px)", objectFit: "contain" }}
-              draggable={false}
+        <div
+          onWheel={handleWheel}
+          className="
+            flex
+            flex-1
+            items-center
+            justify-center
+            overflow-auto
+            p-8
+            select-none
+          "
+        >
+        {current.type === "image" ? (
+          <img
+            src={current.url}
+            alt={current.name}
+            draggable={false}
+            className="max-w-none transition-transform duration-150"
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: "center center",
+            }}
+          />
+        ) : isPDF ? (
+          <div className="w-full h-full rounded-xl overflow-hidden bg-white">
+            <iframe
+              src={getExternalUrl(current)}
+              title={current.name}
+              className="w-full h-full border-0"
             />
-          ) : (
-            <div className="flex flex-col items-center gap-4 rounded-2xl bg-card p-10 shadow-2xl">
-              <FileText className="h-16 w-16 text-muted-foreground" />
-              <p className="text-sm font-medium text-card-foreground">{current.name}</p>
-              <p className="text-xs text-muted-foreground">{current.size}</p>
-              <a
-                href={current.url}
-                download={current.name}
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                Download File
-              </a>
+          </div>
+        ) : isWord || isExcel || isPowerpoint ? (
+          <div className="w-full h-full rounded-xl overflow-hidden bg-white">
+            <iframe
+              src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
+                getExternalUrl(current)
+              )}`}
+              title={current.name}
+              className="w-full h-full border-0"
+            />
+          </div>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-zinc-300 overflow-auto p-10">
+
+            <div
+              className="bg-white shadow-2xl"
+              style={{
+                width: "794px",
+                minHeight: "1123px",
+                transform: `scale(${zoom})`,
+                transformOrigin: "top center",
+              }}
+            >
+
+              {/* Render PDF */}
+
+              {isPDF ? (
+                <iframe
+                  src={getExternalUrl(current)}
+                  className="w-full h-[1123px]"
+                />
+              ) : (
+
+                <div className="p-10 space-y-6">
+
+                  <h1 className="text-3xl font-bold">
+                    {current.name}
+                  </h1>
+
+                  <p className="text-muted-foreground">
+                    Document Preview
+                  </p>
+
+                  <hr />
+
+                  <p>
+                    This represents an A4 page preview.
+                  </p>
+
+                  <p>
+                    DOCX, XLSX and PPTX cannot be rendered directly by the browser.
+                  </p>
+
+                  <p>
+                    During development this placeholder simulates an actual document page.
+                  </p>
+
+                </div>
+
+              )}
+
             </div>
-          )}
+
+          </div>
+        )}
         </div>
 
         {/* Next button */}
@@ -215,8 +392,6 @@ export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0
                 <img
                   src={file.thumbnail}
                   alt={file.name}
-                  className="h-full w-full object-cover"
-                  draggable={false}
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-muted">
@@ -228,5 +403,6 @@ export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0
         </div>
       )}
     </div>
+  </div>
   )
 }
