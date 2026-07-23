@@ -26,83 +26,83 @@ import { useToast } from "@/hooks/use-toast";
 import { getRoleLandingPath, saveAuthUser, type AuthUser, type UserRole } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
-export const EAST_TAPINAC_BARANGAY = "Barangay East Tapinac" as const;
+export const EAST_NEW_KALALAKE = "Barangay New Kalalake" as const;
 
-export const EAST_TAPINAC_STREETS: StreetRecord[] = [
+export const EAST_NEW_KALALAKE_STREETS: StreetRecord[] = [
   // Purok 1
-  { name: "Gallagher Street", purok: 1, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Hansen Street", purok: 1, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Irving Street", purok: 1, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Gallagher Street", purok: 1, barangay: EAST_NEW_KALALAKE },
+  { name: "Hansen Street", purok: 1, barangay: EAST_NEW_KALALAKE },
+  { name: "Irving Street", purok: 1, barangay: EAST_NEW_KALALAKE },
 
   // Purok 2
-  { name: "Labrador Street", purok: 2, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Rizal Street", purok: 2, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Fontaine Extension", purok: 2, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Labrador Street", purok: 2, barangay: EAST_NEW_KALALAKE },
+  { name: "Rizal Street", purok: 2, barangay: EAST_NEW_KALALAKE },
+  { name: "Fontaine Extension", purok: 2, barangay: EAST_NEW_KALALAKE },
 
   // Purok 3
-  { name: "Hospital Road", purok: 3, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Dela Cruz Drive", purok: 3, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Fontaine Bridge", purok: 3, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Hospital Road", purok: 3, barangay: EAST_NEW_KALALAKE },
+  { name: "Dela Cruz Drive", purok: 3, barangay: EAST_NEW_KALALAKE },
+  { name: "Fontaine Bridge", purok: 3, barangay: EAST_NEW_KALALAKE },
 
   // Purok 4
-  { name: "Apelado Street", purok: 4, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 14th Street", purok: 4, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Fontaine Extension", purok: 4, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Apelado Street", purok: 4, barangay: EAST_NEW_KALALAKE },
+  { name: "East 14th Street", purok: 4, barangay: EAST_NEW_KALALAKE },
+  { name: "Fontaine Extension", purok: 4, barangay: EAST_NEW_KALALAKE },
 
   // Purok 5
-  { name: "East 14th Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 13th Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "11th Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Veterano Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Bacon Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 9th Street", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Rizal Avenue", purok: 5, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "East 14th Street", purok: 5, barangay: EAST_NEW_KALALAKE },
+  { name: "East 13th Street", purok: 5, barangay: EAST_NEW_KALALAKE },
+  { name: "11th Street", purok: 5, barangay: EAST_NEW_KALALAKE },
+  { name: "Veterano Street", purok: 5, barangay: EAST_NEW_KALALAKE },
+  { name: "Bacon Street", purok: 5, barangay: EAST_NEW_KALALAKE },
+  { name: "East 9th Street", purok: 5, barangay: EAST_NEW_KALALAKE },
+  { name: "Rizal Avenue", purok: 5, barangay: EAST_NEW_KALALAKE },
 
   // Purok 6
-  { name: "Donor Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Llanos Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 12th Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Fendler Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 14th Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 13th Street", purok: 6, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Donor Street", purok: 6, barangay: EAST_NEW_KALALAKE },
+  { name: "Llanos Street", purok: 6, barangay: EAST_NEW_KALALAKE },
+  { name: "East 12th Street", purok: 6, barangay: EAST_NEW_KALALAKE },
+  { name: "Fendler Street", purok: 6, barangay: EAST_NEW_KALALAKE },
+  { name: "East 14th Street", purok: 6, barangay: EAST_NEW_KALALAKE },
+  { name: "East 13th Street", purok: 6, barangay: EAST_NEW_KALALAKE },
 
   // Purok 7
-  { name: "Fendler Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Gallagher Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Hansen Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Irving Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 14th Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 12th Street", purok: 7, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Fendler Street", purok: 7, barangay: EAST_NEW_KALALAKE },
+  { name: "Gallagher Street", purok: 7, barangay: EAST_NEW_KALALAKE },
+  { name: "Hansen Street", purok: 7, barangay: EAST_NEW_KALALAKE },
+  { name: "Irving Street", purok: 7, barangay: EAST_NEW_KALALAKE },
+  { name: "East 14th Street", purok: 7, barangay: EAST_NEW_KALALAKE },
+  { name: "East 12th Street", purok: 7, barangay: EAST_NEW_KALALAKE },
 
   // Purok 8
-  { name: "Bacon Street", purok: 8, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Fendler Street", purok: 8, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 9th Street", purok: 8, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Magsaysay Drive", purok: 8, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Rizal Avenue", purok: 8, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Bacon Street", purok: 8, barangay: EAST_NEW_KALALAKE },
+  { name: "Fendler Street", purok: 8, barangay: EAST_NEW_KALALAKE },
+  { name: "East 9th Street", purok: 8, barangay: EAST_NEW_KALALAKE },
+  { name: "Magsaysay Drive", purok: 8, barangay: EAST_NEW_KALALAKE },
+  { name: "Rizal Avenue", purok: 8, barangay: EAST_NEW_KALALAKE },
 
   // Purok 9
-  { name: "Fendler Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Gallagher Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Hansen Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Irving Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 12th Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 10th Street", purok: 9, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Fendler Street", purok: 9, barangay: EAST_NEW_KALALAKE },
+  { name: "Gallagher Street", purok: 9, barangay: EAST_NEW_KALALAKE },
+  { name: "Hansen Street", purok: 9, barangay: EAST_NEW_KALALAKE },
+  { name: "Irving Street", purok: 9, barangay: EAST_NEW_KALALAKE },
+  { name: "East 12th Street", purok: 9, barangay: EAST_NEW_KALALAKE },
+  { name: "East 10th Street", purok: 9, barangay: EAST_NEW_KALALAKE },
 
   // Purok 10
-  { name: "Fendler Street", purok: 10, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 10th Street", purok: 10, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 8th Street", purok: 10, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "East 6th Street", purok: 10, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Magsaysay Drive", purok: 10, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "Fendler Street", purok: 10, barangay: EAST_NEW_KALALAKE },
+  { name: "East 10th Street", purok: 10, barangay: EAST_NEW_KALALAKE },
+  { name: "East 8th Street", purok: 10, barangay: EAST_NEW_KALALAKE },
+  { name: "East 6th Street", purok: 10, barangay: EAST_NEW_KALALAKE },
+  { name: "Magsaysay Drive", purok: 10, barangay: EAST_NEW_KALALAKE },
 
   // Purok 11
-  { name: "5th Street", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "3rd Street", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Alba Street", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Fendler Street", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Lindayag Street", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
-  { name: "Rizal Extension", purok: 11, barangay: EAST_TAPINAC_BARANGAY },
+  { name: "5th Street", purok: 11, barangay: EAST_NEW_KALALAKE },
+  { name: "3rd Street", purok: 11, barangay: EAST_NEW_KALALAKE },
+  { name: "Alba Street", purok: 11, barangay: EAST_NEW_KALALAKE },
+  { name: "Fendler Street", purok: 11, barangay: EAST_NEW_KALALAKE },
+  { name: "Lindayag Street", purok: 11, barangay: EAST_NEW_KALALAKE },
+  { name: "Rizal Extension", purok: 11, barangay: EAST_NEW_KALALAKE },
 ];
 
 type StreetRecord = {
@@ -775,8 +775,8 @@ export default function SignupPage() {
             {/* BRAND */}
             <div className="flex items-center gap-3">
               <img
-                src="/EastTapinac.png"
-                alt="Barangay East Tapinac"
+                src="/NewKalalake.png"
+                alt="Barangay New Kalalake"
                 className="h-14 w-14"
               />
 
@@ -785,7 +785,7 @@ export default function SignupPage() {
                   IRIS Access
                 </p>
                 <p className="text-sm font-semibold text-white">
-                  Barangay East Tapinac
+                  Barangay New Kalalake
                 </p>
               </div>
             </div>

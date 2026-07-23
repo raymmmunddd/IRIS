@@ -80,7 +80,7 @@ const CONTACTS = [
   },
   {
     label: "Facebook Page",
-    value: "Barangay East Tapinac Official",
+    value: "Barangay New Kalalake Official",
     icon: ExternalLink,
     action: "https://facebook.com",
   },

@@ -89,8 +89,8 @@ export function BpatSidebar() {
           ) : (
             <>
               <img
-                src="/EastTapinac.png"
-                alt="Barangay East Tapinac"
+                src="/NewKalalake.png"
+                alt="Barangay New Kalalake"
                 className="h-12 w-12 rounded-md"
               />
               <div className="flex flex-col">

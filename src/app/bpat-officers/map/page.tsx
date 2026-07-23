@@ -160,7 +160,7 @@ type Category = "All" | "Public Disturbance" | "Community Dispute" | "Violence o
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <MapPin className="h-4 w-4 text-[var(--primary)]" />
             <p className="text-sm font-semibold">Street Incident Heatmap</p>
-            <span className="ml-auto text-xs text-muted-foreground">East Tapinac</span>
+            <span className="ml-auto text-xs text-muted-foreground">New Kalalake</span>
           </div>
           <div className="relative overflow-hidden h-64">
             <StreetMap />

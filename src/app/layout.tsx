@@ -20,22 +20,22 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "IRIS | Barangay East Tapinac",
+  title: "IRIS | Barangay New Kalalake",
   description:
-    "Incident Reporting and Information System for Barangay East Tapinac",
+    "Incident Reporting and Information System for Barangay New Kalalake",
   icons: {
     icon: [
-      { url: "/EastTapinac.png", sizes: "16x16", type: "image/png" },
-      { url: "/EastTapinac.png", sizes: "32x32", type: "image/png" },
-      { url: "/EastTapinac.png", sizes: "48x48", type: "image/png" },
-      { url: "/EastTapinac.png", sizes: "192x192", type: "image/png" },
-      { url: "/EastTapinac.png", sizes: "512x512", type: "image/png" },
+      { url: "/NewKalalake.png", sizes: "16x16", type: "image/png" },
+      { url: "/NewKalalake.png", sizes: "32x32", type: "image/png" },
+      { url: "/NewKalalake.png", sizes: "48x48", type: "image/png" },
+      { url: "/NewKalalake.png", sizes: "192x192", type: "image/png" },
+      { url: "/NewKalalake.png", sizes: "512x512", type: "image/png" },
     ],
     apple: [
-      { url: "/EastTapinac.png", sizes: "180x180", type: "image/png" },
+      { url: "/NewKalalake.png", sizes: "180x180", type: "image/png" },
     ],
     shortcut: [
-      { url: "/EastTapinac.png", type: "image/png" },
+      { url: "/NewKalalake.png", type: "image/png" },
     ],
   },
 };

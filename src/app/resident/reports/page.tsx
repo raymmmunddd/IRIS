@@ -32,7 +32,7 @@
       id: 1,
       title: "Barangay Assembly — May 15, 2026",
       content:
-        "All residents are invited to the quarterly Barangay Assembly on May 15, 2026 at 9:00 AM, Barangay Hall, East Tapinac. Discuss community concerns, budget updates, and upcoming projects. Attendance is encouraged. Please bring a valid ID.",
+        "All residents are invited to the quarterly Barangay Assembly on May 15, 2026 at 9:00 AM, Barangay Hall, New Kalalake. Discuss community concerns, budget updates, and upcoming projects. Attendance is encouraged. Please bring a valid ID.",
       date: "May 5, 2026",
       tag: "Events",
       tagColor: TAG_COLORS["Events"],

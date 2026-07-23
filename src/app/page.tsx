@@ -193,15 +193,15 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-white">
             <Image
-              src="/EastTapinac.png"
-              alt="Barangay East Tapinac Logo"
+              src="/NewKalalake.png"
+              alt="Barangay New Kalalake Logo"
               width={32}
               height={32}
               className="object-contain"
             />
           </div>
           <span className="font-bold text-[#0F172A] tracking-tight">IRIS</span>
-          <span className="hidden sm:inline text-xs text-slate-400 ml-1">Barangay East Tapinac</span>
+          <span className="hidden sm:inline text-xs text-slate-400 ml-1">Barangay New Kalalake</span>
         </div>
 
         <div className="hidden md:flex items-center gap-8">
@@ -253,7 +253,7 @@ export default function Home() {
         <div className="relative max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-[#1D4ED8] text-xs font-semibold px-3 py-1.5 rounded-full mb-6 uppercase tracking-widest">
             <MapPin size={11} />
-            Barangay East Tapinac · Olongapo City
+            Barangay New Kalalake · Olongapo City
           </div>
 
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-[#0F172A] leading-[1.05] mb-6">
@@ -269,7 +269,7 @@ export default function Home() {
           </h1>
 
           <p className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto mb-10 leading-relaxed">
-            IRIS is a digital case management system for Barangay East Tapinac From incident
+            IRIS is a digital case management system for Barangay New Kalalake From incident
             filing to Lupon mediation, every step is tracked and documented.
           </p>
 
@@ -484,8 +484,8 @@ export default function Home() {
             <div className="flex items-start gap-4 max-w-xl">
               <div className="w-11 h-11 flex-shrink-0 rounded-2xl overflow-hidden bg-white border border-slate-200 shadow-sm flex items-center justify-center">
                 <Image
-                  src="/EastTapinac.png"
-                  alt="Barangay East Tapinac Logo"
+                  src="/NewKalalake.png"
+                  alt="Barangay New Kalalake Logo"
                   width={38}
                   height={38}
                   className="object-contain"
@@ -512,7 +512,7 @@ export default function Home() {
 
                 <div className="flex items-center gap-2 mt-4 text-xs text-slate-400">
                   <MapPin size={12} />
-                  Barangay East Tapinac, Olongapo City
+                  Barangay New Kalalake, Olongapo City
                 </div>
               </div>
             </div>

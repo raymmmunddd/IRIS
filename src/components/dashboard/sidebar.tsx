@@ -86,8 +86,8 @@ export function DashboardSidebar() {
           ) : (
             <>
               <img
-                src="/EastTapinac.png"
-                alt="Barangay East Tapinac"
+                src="/NewKalalake.png"
+                alt="Barangay New Kalalake"
                 className="h-12 w-12 rounded-md"
               />
               <div className="flex flex-col">
@@ -180,8 +180,8 @@ export function DashboardSidebar() {
       <div className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between bg-[var(--sidebar-bg)] px-4 py-3 lg:hidden">
         <div className="flex items-center gap-2">
           <img
-            src="/EastTapinac.png"
-            alt="Barangay East Tapinac"
+            src="/NewKalalake.png"
+            alt="Barangay New Kalalake"
             className="h-10 w-10 rounded-md"
           />
           <div className="flex flex-col">

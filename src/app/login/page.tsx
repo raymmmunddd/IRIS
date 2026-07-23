@@ -163,8 +163,8 @@ export default function LoginPage() {
             {/* BRAND */}
             <div className="flex items-center gap-3">
               <img
-                src="/EastTapinac.png"
-                alt="Barangay East Tapinac"
+                src="/NewKalalake.png"
+                alt="Barangay New Kalalake"
                 className="h-14 w-14"
               />
 
@@ -173,7 +173,7 @@ export default function LoginPage() {
                   IRIS Access
                 </p>
                 <p className="text-sm font-semibold text-white">
-                  Barangay East Tapinac
+                  Barangay New Kalalake
                 </p>
               </div>
             </div>
