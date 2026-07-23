@@ -117,7 +117,7 @@ type GeoPoint = {
   accuracy?: number | null;
 };
 
-const groupedByPurok = EAST_TAPINAC_STREETS.reduce((acc, street) => {
+const groupedByPurok = EAST_NEW_KALALAKE_STREETS.reduce((acc, street) => {
   (acc[street.purok] ??= []).push(street);
   return acc;
 }, {} as Record<number, StreetRecord[]>);
@@ -132,7 +132,7 @@ const findStreetMatch = (value: string) => {
 
   if (!query) return null;
 
-  return EAST_TAPINAC_STREETS.find(
+  return EAST_NEW_KALALAKE_STREETS.find(
     (street) => street.name.toLowerCase() === query
   ) ?? null;
 };
@@ -141,7 +141,7 @@ const getStreetSuggestions = (value: string) => {
   const query = normalizeStreetQuery(value);
   const seen = new Set<string>();
 
-  return EAST_TAPINAC_STREETS
+  return EAST_NEW_KALALAKE_STREETS
     .filter((street) =>
       query ? street.name.toLowerCase().includes(query) : true
     )
