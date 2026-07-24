@@ -18,6 +18,7 @@
     Badge,
     Pencil,
     ArrowDown,
+    Maximize2,
   } from "lucide-react"
   import { useToast } from "@/hooks/use-toast"
   import type { CaseRecord } from "@/lib/types"
@@ -262,6 +263,14 @@
     onCaseUpdated,
     officers,
   }: CaseDetailPanelProps) {
+    const [timelineExpanded, setTimelineExpanded] = useState(false)
+    const timelineCount =
+      1 + // Initial "Case Submitted" event
+      (caseData.statusHistory?.length ?? 0) +
+      (caseData.assignedOfficerHistory?.length ?? 0)
+
+    const canExpandTimeline = timelineCount > 6
+
     const { toast } = useToast()
     const statusFlow = {
       Pending: ["Under Review", "Dismissed"],
@@ -1306,15 +1315,99 @@
                 </div>
 
               {/* TIMELINE */}
-              <div>
-                <p className="text-xs font-semibold mb-2">Timeline</p>
-                <TimelineDisplay
-                  dateSubmitted={caseData.dateSubmitted}
-                  statusHistory={caseData.statusHistory}
-                  assignedOfficerHistory={caseData.assignedOfficerHistory}
-                  actorFallback={caseData.assignedOfficer}
-                />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold tracking-tight">
+                    Timeline
+                  </h3>
+
+                  {canExpandTimeline && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setTimelineExpanded(true)}
+                      aria-label="Expand timeline"
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+
+                <div
+                  className="
+                    rounded-xl
+                    border
+                    border-border
+                    bg-background
+                    overflow-hidden
+                  "
+                >
+                  <div
+                    className={cn(
+                      "px-5 py-4 scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent",
+                      canExpandTimeline
+                        ? "max-h-[420px] overflow-y-auto"
+                        : "overflow-visible"
+                    )}
+                  >
+                    <TimelineDisplay
+                      dateSubmitted={caseData.dateSubmitted}
+                      statusHistory={caseData.statusHistory}
+                      assignedOfficerHistory={caseData.assignedOfficerHistory}
+                      actorFallback={caseData.assignedOfficer}
+                    />
+                  </div>
+                </div>
               </div>
+              <Dialog
+                open={timelineExpanded}
+                onOpenChange={setTimelineExpanded}
+              >
+                <DialogContent
+                  className="
+                    w-[92vw]
+                    max-w-4xl
+                    h-[78vh]
+                    overflow-hidden
+                    rounded-2xl
+                    p-0
+                    gap-0
+                  "
+                >
+                  {/* Header */}
+                  <div className="sticky top-0 z-20 border-b bg-card px-6 py-4">
+                    <div className="flex items-center justify-between">
+
+                      <DialogTitle className="text-xl font-bold">
+                        Timeline
+                      </DialogTitle>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setTimelineExpanded(false)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+
+                    </div>
+                  </div>
+
+                  {/* Body */}
+                  <div className="flex-1 overflow-y-auto bg-muted/20">
+                    <div className="mx-auto max-w-5xl p-6">
+
+                      <TimelineDisplay
+                        dateSubmitted={caseData.dateSubmitted}
+                        statusHistory={caseData.statusHistory}
+                        assignedOfficerHistory={caseData.assignedOfficerHistory}
+                        actorFallback={caseData.assignedOfficer}
+                      />
+
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
 
               {/* AI INSIGHT */}
               <div className="space-y-2">

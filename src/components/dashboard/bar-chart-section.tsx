@@ -23,13 +23,15 @@
   type MonthlyTrendItem = {
     month: string
     cases: number
-    violence?: number
-    harassment?: number
-    fraud?: number
-    disturbance?: number
+
+    physical?: number
+    threats?: number
     property?: number
-    community?: number
-    child?: number
+    theft?: number
+    family?: number
+    publicOrder?: number
+    privacy?: number
+    morality?: number
   }
 
   const casesData: MonthlyTrendItem[] = [
@@ -48,18 +50,18 @@
   ]
 
   const categoryData = [
-    { month: "Jan", violence: 32, harassment: 48, fraud: 28, disturbance: 22, property: 34, community: 14, child: 8 },
-    { month: "Feb", violence: 38, harassment: 52, fraud: 35, disturbance: 28, property: 38, community: 16, child: 8 },
-    { month: "Mar", violence: 55, harassment: 68, fraud: 48, disturbance: 38, property: 52, community: 24, child: 13 },
-    { month: "Apr", violence: 42, harassment: 62, fraud: 45, disturbance: 35, property: 48, community: 20, child: 10 },
-    { month: "May", violence: 60, harassment: 78, fraud: 55, disturbance: 45, property: 58, community: 28, child: 16 },
-    { month: "Jun", violence: 52, harassment: 72, fraud: 50, disturbance: 42, property: 55, community: 26, child: 15 },
-    { month: "Jul", violence: 65, harassment: 85, fraud: 58, disturbance: 48, property: 68, community: 32, child: 22 },
-    { month: "Aug", violence: 58, harassment: 80, fraud: 56, disturbance: 45, property: 65, community: 30, child: 21 },
-    { month: "Sep", violence: 72, harassment: 90, fraud: 62, disturbance: 52, property: 75, community: 35, child: 24 },
-    { month: "Oct", violence: 68, harassment: 86, fraud: 60, disturbance: 50, property: 72, community: 34, child: 22 },
-    { month: "Nov", violence: 75, harassment: 95, fraud: 68, disturbance: 56, property: 80, community: 38, child: 26 },
-    { month: "Dec", violence: 80, harassment: 102, fraud: 72, disturbance: 60, property: 85, community: 40, child: 28 },
+    { month: "Jan", physical: 32, threats: 48, property: 28, theft: 22, family: 34, publicOrder: 14, privacy: 8, morality: 6 },
+    { month: "Feb", physical: 38, threats: 52, property: 35, theft: 28, family: 38, publicOrder: 16, privacy: 8, morality: 6 },
+    { month: "Mar", physical: 55, threats: 68, property: 48, theft: 38, family: 52, publicOrder: 24, privacy: 13, morality: 8 },
+    { month: "Apr", physical: 42, threats: 62, property: 45, theft: 35, family: 48, publicOrder: 20, privacy: 10, morality: 6 },
+    { month: "May", physical: 60, threats: 78, property: 55, theft: 45, family: 58, publicOrder: 28, privacy: 16, morality: 10 },
+    { month: "Jun", physical: 52, threats: 72, property: 50, theft: 42, family: 55, publicOrder: 26, privacy: 15, morality: 9 },
+    { month: "Jul", physical: 65, threats: 85, property: 58, theft: 48, family: 68, publicOrder: 32, privacy: 22, morality: 12 },
+    { month: "Aug", physical: 58, threats: 80, property: 56, theft: 45, family: 65, publicOrder: 30, privacy: 21, morality: 11 },
+    { month: "Sep", physical: 72, threats: 90, property: 62, theft: 52, family: 75, publicOrder: 35, privacy: 24, morality: 13 },
+    { month: "Oct", physical: 68, threats: 86, property: 60, theft: 50, family: 72, publicOrder: 34, privacy: 22, morality: 12 },
+    { month: "Nov", physical: 75, threats: 95, property: 68, theft: 56, family: 80, publicOrder: 38, privacy: 26, morality: 14 },
+    { month: "Dec", physical: 80, threats: 102, property: 72, theft: 60, family: 85, publicOrder: 40, privacy: 28, morality: 15 },
   ]
 
   type FilterMode = "cases" | "category"
@@ -68,55 +70,79 @@
 
   const categoryMeta = [
     {
-      key: "violence",
-      name: "Violence or Threats",
-      shortName: "Violence/Threats",
-      gradient: "url(#violence)",
-      indicator: "#ef4444",
+      key: "physical",
+      name: "Physical Injury",
+      shortName: "Physical",
+      gradient: "url(#physical)",
+      start: "#C62828",
+      end: "#E57373",
+      indicator: "#C62828",
     },
     {
-      key: "harassment",
-      name: "Harassment & Abuse",
-      shortName: "Harassment",
-      gradient: "url(#harassment)",
-      indicator: "#f59e0b",
+      key: "threats",
+      name: "Threats & Coercion",
+      shortName: "Threats",
+      gradient: "url(#threats)",
+      start: "#EF6C00",
+      end: "#FFB74D",
+      indicator: "#EF6C00",
     },
     {
-      key: "fraud",
-      name: "Fraud & Scams",
-      shortName: "Fraud/Scams",
-      gradient: "url(#fraud)",
-      indicator: "#eab308",
+      key: "theft",
+      name: "Theft, Fraud & Financial",
+      shortName: "Theft/Fraud",
+      gradient: "url(#theft)",
+      start: "#D4A017",
+      end: "#F4C95D",
+      indicator: "#D4A017",
     },
     {
-      key: "disturbance",
-      name: "Public Disturbance",
-      shortName: "Public Disturb.",
-      gradient: "url(#disturbance)",
-      indicator: "#3b82f6", // changed
+      key: "publicOrder",
+      name: "Public Order",
+      shortName: "Public",
+      gradient: "url(#publicOrder)",
+      start: "#2E7D32",
+      end: "#81C784",
+      indicator: "#2E7D32",
     },
     {
       key: "property",
-      name: "Property & Theft",
-      shortName: "Property/Theft",
+      name: "Property & Land",
+      shortName: "Property",
       gradient: "url(#property)",
-      indicator: "#1e3a8a",
+      start: "#1565C0",
+      end: "#64B5F6",
+      indicator: "#1565C0",
     },
     {
-      key: "community",
-      name: "Community Dispute",
-      shortName: "Community Disp.",
-      gradient: "url(#community)",
-      indicator: "#22c55e",
+      key: "privacy",
+      name: "Privacy & Reputation",
+      shortName: "Privacy",
+      gradient: "url(#privacy)",
+      start: "#3949AB",
+      end: "#9FA8DA",
+      indicator: "#3949AB",
     },
     {
-      key: "child",
-      name: "Child & Vulnerable",
-      shortName: "Child/Vulnerable",
-      gradient: "url(#child)",
-      indicator: "#8b5cf6",
+      key: "family",
+      name: "Family & Child Custody",
+      shortName: "Family",
+      gradient: "url(#family)",
+      start: "#6A1B9A",
+      end: "#BA68C8",
+      indicator: "#6A1B9A",
+    },
+    {
+      key: "morality",
+      name: "Personal & Morality",
+      shortName: "Morality",
+      gradient: "url(#morality)",
+      start: "#C2185B",
+      end: "#F48FB1",
+      indicator: "#C2185B",
     },
   ]
+  
   interface MonthlyTrendChartProps {
     data?: MonthlyTrendItem[]
     height?: number
@@ -373,46 +399,52 @@
                 margin={{ top: 4, right: 24, bottom: 6, left: 8 }}
               >
                 <defs>
-                  {/* Violence & Threats */}
-                  <linearGradient id="violence" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#ef4444" />
-                    <stop offset="100%" stopColor="#fca5a5" />
+                  {/* Physical Injury */}
+                  <linearGradient id="physical" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#DC2626" />
+                    <stop offset="100%" stopColor="#FCA5A5" />
                   </linearGradient>
 
-                  {/* Harassment & Abuse */}
-                  <linearGradient id="harassment" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#f59e0b" />
-                    <stop offset="100%" stopColor="#fde68a" />
+                  {/* Threats & Coercion */}
+                  <linearGradient id="threats" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#EA580C" />
+                    <stop offset="100%" stopColor="#FDBA74" />
                   </linearGradient>
 
-                  {/* Fraud & Scams */}
-                  <linearGradient id="fraud" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#eab308" />
-                    <stop offset="100%" stopColor="#fef9c3" />
-                  </linearGradient>
-
-                  {/* Public Disturbance */}
-                  <linearGradient id="disturbance" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#3b82f6" />
-                    <stop offset="100%" stopColor="#bfdbfe" />
-                  </linearGradient>
-
-                  {/* Property & Theft */}
+                  {/* Property & Land */}
                   <linearGradient id="property" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#1e3a8a" />
-                    <stop offset="100%" stopColor="#93c5fd" />
+                    <stop offset="0%" stopColor="#2563EB" />
+                    <stop offset="100%" stopColor="#93C5FD" />
                   </linearGradient>
 
-                  {/* Community Dispute */}
-                  <linearGradient id="community" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#22c55e" />
-                    <stop offset="100%" stopColor="#bbf7d0" />
+                  {/* Theft, Fraud & Financial */}
+                  <linearGradient id="theft" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#CA8A04" />
+                    <stop offset="100%" stopColor="#FDE68A" />
                   </linearGradient>
 
-                  {/* Child & Vulnerable */}
-                  <linearGradient id="child" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#8b5cf6" />
-                    <stop offset="100%" stopColor="#c4b5fd" />
+                  {/* Family & Child Custody */}
+                  <linearGradient id="family" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#7C3AED" />
+                    <stop offset="100%" stopColor="#C4B5FD" />
+                  </linearGradient>
+
+                  {/* Public Order */}
+                  <linearGradient id="publicOrder" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#16A34A" />
+                    <stop offset="100%" stopColor="#BBF7D0" />
+                  </linearGradient>
+
+                  {/* Privacy & Reputation */}
+                  <linearGradient id="privacy" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#DB2777" />
+                    <stop offset="100%" stopColor="#FBCFE8" />
+                  </linearGradient>
+
+                  {/* Personal & Morality */}
+                  <linearGradient id="morality" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#475569" />
+                    <stop offset="100%" stopColor="#CBD5E1" />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
