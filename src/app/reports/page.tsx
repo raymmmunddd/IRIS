@@ -13,8 +13,26 @@ import { KeyInsights } from "@/components/reports/key-insights"
 import { OfficerResponseAnalysis } from "@/components/reports/officer-performance"
 import { FileText } from "lucide-react"
 
+import { useIsMobile } from "@/hooks/use-mobile"
+
 export default function ReportsPage() {
   const [reportsData, setReportsData] = useState<any>(null)
+
+  const isMobile = useIsMobile()
+
+  const [trendFilter, setTrendFilter] =
+    useState<"cases" | "category">("cases")
+
+  const baseCasesHeight =
+    isMobile ? 220 : 300
+
+  const baseCategoryHeight =
+    isMobile ? 300 : 340
+
+  const chartHeight =
+    trendFilter === "category"
+      ? baseCategoryHeight
+      : baseCasesHeight
 
   useEffect(() => {
     async function loadReports() {
@@ -45,8 +63,22 @@ export default function ReportsPage() {
            <ReportStats data={reportsData?.reportStats} />
         </div>
         
-        <div className="mt-4 sm:mt-6 h-80 sm:h-[400px]">
-          <MonthlyTrendChart data={reportsData?.monthlyTrend} />
+        <div
+          className={`
+            mt-4 sm:mt-6
+            transition-all duration-300
+            ${
+              trendFilter === "category"
+                ? "min-h-[500px] lg:min-h-0"
+                : "min-h-[400px] lg:min-h-0"
+            }
+          `}
+        >
+          <MonthlyTrendChart
+            data={reportsData?.monthlyTrend}
+            height={chartHeight}
+            onFilterChange={setTrendFilter}
+          />
         </div>
 
         <div className="mt-4 sm:mt-6 grid gap-4 sm:gap-6 md:grid-cols-2">

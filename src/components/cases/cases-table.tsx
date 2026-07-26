@@ -155,7 +155,7 @@ export function CasesTable({
   onViewCase,
 }: CasesTableProps) {
   const [activeTab, setActiveTab] =
-    useState<"cases" | "schedules" | "archive">("cases")
+    useState<"cases" | "archive">("cases")
 
   const [filterOpen, setFilterOpen] = useState(false)
   const filterRef = useRef<HTMLDivElement>(null)
@@ -206,6 +206,14 @@ export function CasesTable({
     setRefreshTrigger((prev) => prev + 1)
   }
 
+  const handleTabChange = (tab: "cases" | "archive") => {
+    if (tab === activeTab) return
+
+    setSelectedStatuses([])
+    setFilterOpen(false)
+    setActiveTab(tab)
+  }
+
   async function loadCases() {
     try {
       const response = await fetch("/api/cases")
@@ -230,18 +238,19 @@ export function CasesTable({
 
   const filtered = useMemo(() => {
     const sourceCases = cases.filter((caseItem) => {
-      if (activeTab === "schedules") {
-        return caseItem.status === "Mediation"
-      }
-
       if (activeTab === "archive") {
         return (
+          caseItem.status === "Resolved" ||
           caseItem.status === "Closed" ||
           caseItem.status === "Dismissed"
         )
       }
 
-      return true
+      return (
+        caseItem.status === "Pending" ||
+        caseItem.status === "Under Review" ||
+        caseItem.status === "Mediation"
+      )
     })
 
     let result = sourceCases.filter((c) => {
@@ -467,7 +476,7 @@ export function CasesTable({
         <div className="flex items-center gap-2">
           {/* Cases */}
           <button
-            onClick={() => setActiveTab("cases")}
+            onClick={() => handleTabChange("cases")}
             className={cn(
               "group flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200",
               activeTab === "cases"
@@ -489,35 +498,14 @@ export function CasesTable({
             </span>
           </button>
           {/* Schedules */}
-          <button
-            onClick={() => setActiveTab("schedules")}
-            className={cn(
-              "group flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200",
-              activeTab === "schedules"
-                ? "border-purple-500 bg-purple-50 text-purple-700 shadow-sm"
-                : "border-border bg-card text-muted-foreground"
-            )}
-          >
-            <TriangleAlert className="h-4 w-4" />
-            <span>Schedules</span>
-            <span
-              className={cn(
-                "rounded-full px-2 py-0.5 text-[11px] font-semibold",
-                activeTab === "schedules"
-                  ? "bg-purple-600 text-white"
-                  : "bg-muted text-muted-foreground"
-              )}
-            >
-              {cases.filter((c) => c.status === "Mediation").length}
-            </span>
-          </button>
+
           {/* Archive */}
           <button
-            onClick={() => setActiveTab("archive")}
+            onClick={() => handleTabChange("archive")}
             className={cn(
               "group flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200",
               activeTab === "archive"
-                ? "border-slate-400 bg-slate-50 text-slate-700 shadow-sm"
+                ? "border-green-500 bg-green-50 text-green-700 shadow-sm"
                 : "border-border bg-card text-muted-foreground"
             )}
           >
@@ -527,13 +515,16 @@ export function CasesTable({
               className={cn(
                 "rounded-full px-2 py-0.5 text-[11px] font-semibold",
                 activeTab === "archive"
-                  ? "bg-slate-600 text-white"
+                  ? "border-green-500 bg-green-50 text-green-700 shadow-sm"
                   : "bg-muted text-muted-foreground"
               )}
             >
               {
                 cases.filter(
-                  (c) => c.status === "Closed" || c.status === "Dismissed"
+                  (c) =>
+                    c.status === "Resolved" ||
+                    c.status === "Closed" ||
+                    c.status === "Dismissed"
                 ).length
               }
             </span>
@@ -755,23 +746,13 @@ export function CasesTable({
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                {[
-                  "Pending",
-                  "Under Review",
-                  "Mediation",
-                  "Resolved",
-                  "Closed",
-                  "Dismissed",
-                ].map((status) => {
+                {(
+                  activeTab === "cases"
+                    ? ["Pending", "Under Review", "Mediation"]
+                    : ["Resolved", "Closed", "Dismissed"]
+                ).map((status) => {
                   const selected = selectedStatuses.includes(status)
-                  const colorMap: Record<string, string> = {
-                    Pending: "bg-yellow-100 text-yellow-700 border-yellow-200",
-                    "Under Review": "bg-blue-100 text-blue-700 border-blue-200",
-                    Mediation: "bg-purple-100 text-purple-700 border-purple-200",
-                    Resolved: "bg-green-100 text-green-700 border-green-200",
-                    Closed: "bg-slate-100 text-slate-600 border-slate-200",
-                    Dismissed: "bg-red-100 text-red-700 border-red-200",
-                  }
+
                   return (
                     <button
                       key={status}
