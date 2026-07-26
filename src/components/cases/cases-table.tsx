@@ -36,13 +36,14 @@ const allStatuses: ("All" | CaseStatus)[] = [
 ]
 const allCategories: ("All" | CaseCategory)[] = [
   "All",
-  "Violence or Threats",
-  "Harassment & Abuse",
-  "Fraud & Scams",
-  "Public Disturbance",
-  "Property & Theft",
-  "Community Dispute",
-  "Child & Vulnerable Protection",
+  "Physical Injury",
+  "Threats",
+  "Theft",
+  "Public Order",
+  "Property",
+  "Privacy",
+  "Family",
+  "Morality",
 ]
 const allPriorities: ("All" | CasePriority)[] = ["All", "High", "Medium", "Low"]
 
@@ -54,56 +55,59 @@ const priorityColors: Record<string, string> = {
 
 const categoryMeta = [
   {
-    key: "violence",
-    name: "Violence or Threats",
-    shortName: "Violence/Threats",
-    badge: "bg-pink-100 text-pink-700 border border-pink-200",
+    key: "physical",
+    name: "Physical Injury",
+    shortName: "Physical Injury",
+    badge: "bg-red-100 text-red-700 border border-red-200",
   },
   {
-    key: "harassment",
-    name: "Harassment & Abuse",
-    shortName: "Harassment",
-    badge: "bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200",
+    key: "threats",
+    name: "Threats",
+    shortName: "Threats",
+    badge: "bg-orange-100 text-orange-700 border border-orange-200",
   },
   {
-    key: "fraud",
-    name: "Fraud & Scams",
-    shortName: "Fraud/Scams",
-    badge: "bg-lime-100 text-lime-700 border border-lime-200",
+    key: "theft",
+    name: "Theft",
+    shortName: "Theft",
+    badge: "bg-amber-100 text-amber-700 border border-amber-200",
   },
   {
-    key: "disturbance",
-    name: "Public Disturbance",
-    shortName: "Public Disturb.",
-    badge: "bg-sky-100 text-sky-700 border border-sky-200",
+    key: "publicOrder",
+    name: "Public Order",
+    shortName: "Public Order",
+    badge: "bg-green-100 text-green-700 border border-green-200",
   },
   {
     key: "property",
-    name: "Property & Theft",
-    shortName: "Property/Theft",
+    name: "Property",
+    shortName: "Property",
+    badge: "bg-blue-100 text-blue-700 border border-blue-200",
+  },
+  {
+    key: "privacy",
+    name: "Privacy",
+    shortName: "Privacy",
     badge: "bg-indigo-100 text-indigo-700 border border-indigo-200",
   },
   {
-    key: "community",
-    name: "Community Dispute",
-    shortName: "Community Disp.",
-    badge: "bg-teal-100 text-teal-700 border border-teal-200",
+    key: "family",
+    name: "Family",
+    shortName: "Family",
+    badge: "bg-purple-100 text-purple-700 border border-purple-200",
   },
   {
-    key: "child",
-    name: "Child & Vulnerable",
-    shortName: "Child/Vulnerable",
-    badge: "bg-violet-100 text-violet-700 border border-violet-200",
+    key: "morality",
+    name: "Morality",
+    shortName: "Morality",
+    badge: "bg-pink-100 text-pink-700 border border-pink-200",
   },
 ]
 
 const getCategoryMeta = (category: string) => {
   return (
     categoryMeta.find(
-      (c) =>
-        category
-          .toLowerCase()
-          .includes(c.name.toLowerCase())
+      (c) => c.name.toLowerCase() === category.toLowerCase()
     ) ?? categoryMeta[0]
   )
 }
