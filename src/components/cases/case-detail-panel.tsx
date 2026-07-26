@@ -265,11 +265,13 @@
   }: CaseDetailPanelProps) {
     const [timelineExpanded, setTimelineExpanded] = useState(false)
     const timelineCount =
-      1 + // Initial "Case Submitted" event
+      1 + // Initial "Case Submitted"
       (caseData.statusHistory?.length ?? 0) +
       (caseData.assignedOfficerHistory?.length ?? 0)
 
-    const canExpandTimeline = timelineCount > 6
+    const TIMELINE_VISIBLE_LIMIT = 5
+
+    const canExpandTimeline = timelineCount > TIMELINE_VISIBLE_LIMIT
 
     const { toast } = useToast()
     const statusFlow = {
@@ -1346,7 +1348,7 @@
                     className={cn(
                       "px-5 py-4 scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent",
                       canExpandTimeline
-                        ? "max-h-[420px] overflow-y-auto"
+                        ? "max-h-[340px] overflow-y-auto"
                         : "overflow-visible"
                     )}
                   >
