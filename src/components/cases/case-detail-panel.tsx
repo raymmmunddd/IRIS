@@ -19,6 +19,7 @@
     Pencil,
     ArrowDown,
     Maximize2,
+    AlertTriangle,
   } from "lucide-react"
   import { useToast } from "@/hooks/use-toast"
   import type { CaseRecord } from "@/lib/types"
@@ -291,6 +292,9 @@
     const [selectedStatus, setSelectedStatus] = useState(caseData.status)
     const [confirmStatusOpen, setConfirmStatusOpen] = useState(false)
     const [editingOfficer, setEditingOfficer] = useState(false)
+
+    const [dismissReason, setDismissReason] = useState("")
+
     const [reassignmentReason, setReassignmentReason] = useState("")
     const [confirmOfficerOpen, setConfirmOfficerOpen] = useState(false)
 
@@ -303,6 +307,7 @@
     const dialog =
       statusMessages[transitionKey] ??
       statusMessages["Any->Dismissed"]
+    const isDismissAction = selectedStatus === "Dismissed"
 
     const [quickOfficer, setQuickOfficer] = useState(caseData.assignedOfficer)
     const [requestInfoOpen, setRequestInfoOpen] = useState(false)
@@ -551,6 +556,7 @@
         })
 
         setConfirmStatusOpen(false)
+        setDismissReason("")
         setEditingStatus(false)
       } catch {
         toast({
@@ -815,6 +821,8 @@
                             onClick={() => {
                               setEditingStatus(false)
                               setSelectedStatus(caseData.status)
+                              setDismissReason("")
+                              setConfirmStatusOpen(false)
                             }}
                           >
                             Cancel
@@ -988,7 +996,7 @@
                       sm:max-w-lg
                       overflow-hidden
                       rounded-2xl
-                      border-2 border-amber-200
+                      border-0
                       bg-white
                       p-0
                       gap-0
@@ -996,15 +1004,15 @@
                     "
                   >
                     {/* HEADER */}
-                    <div className="bg-amber-50 px-6 py-5">
+                    <div className="bg-white px-6 py-4">
                       <div className="flex items-start gap-3">
 
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-100">
-                          <ShieldCheck className="h-5 w-5 text-amber-700" />
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-orange-100">
+                          <AlertTriangle className="h-5 w-5 text-orange-600" />
                         </div>
 
                         <div className="min-w-0">
-                          <DialogTitle className="text-xl font-bold tracking-tight text-amber-950">
+                          <DialogTitle className="text-xl font-bold tracking-tight  text-slate-900">
                             Review Status Change
                           </DialogTitle>
 
@@ -1017,54 +1025,42 @@
                     </div>
 
                     {/* BODY */}
-                    <div className="space-y-4 px-6 py-5">
+                    <div className="pt-3 pb-5">
+                      <div className="space-y-4 px-8">
+                        <p className="text-sm leading-7 text-slate-700">
+                          You are about to change the status of this case from{" "}
+                          <span className="font-semibold text-slate-900">
+                            {caseData.status}
+                          </span>{" "}
+                          to{" "}
+                          <span className="font-semibold text-slate-900">
+                            {selectedStatus}
+                          </span>.
+                        </p>
+                        <p className="text-sm leading-7 text-slate-700">
+                          This change will be recorded in the case timeline and may affect how
+                          this case is processed and displayed throughout the system.
+                        </p>
+                        <p className="text-sm leading-7 text-slate-700">
+                          Do you want to apply this change?
+                        </p>
+                      </div>
 
-                      <p className="text-sm leading-7 text-slate-700">
-                        You are about to change the status of this case from{" "}
-                        <span className="font-semibold text-slate-900">
-                          {caseData.status}
-                        </span>{" "}
-                        to{" "}
-                        <span className="font-semibold text-slate-900">
-                          {selectedStatus}
-                        </span>.
-                      </p>
-
-                      <p className="text-sm leading-7 text-slate-700">
-                        This change will be recorded in the case timeline and may affect how
-                        this case is processed and displayed throughout the system.
-                      </p>
-
-                      <p className="font-semibold text-slate-900">
-                        Do you want to apply this change?
-                      </p>
-
-                      {/* ACTIONS */}
-                      <div className="flex justify-end gap-3 pt-2">
-
+                      <div className="flex justify-end gap-3 px-6 pt-6">
                         <Button
                           variant="outline"
                           onClick={() => setConfirmStatusOpen(false)}
-                          className="
-                            border-slate-300
-                            hover:bg-slate-50
-                          "
+                          className="border-slate-300 hover:bg-slate-50"
                         >
                           Cancel
                         </Button>
-
                         <Button
                           disabled={updatingStatus}
                           onClick={handleConfirmStatusUpdate}
-                          className="
-                            bg-amber-600
-                            text-white
-                            hover:bg-amber-700
-                          "
+                          className="bg-amber-600 text-white hover:bg-amber-700"
                         >
                           {updatingStatus ? "Updating..." : "Update Status"}
                         </Button>
-
                       </div>
 
                     </div>
@@ -1091,6 +1087,108 @@
                       shadow-2xl
                     "
                   >
+                    {isDismissAction ? (
+                      <>
+                        {/* Header */}
+                        <div className="bg-white px-6 py-4">
+                          <div className="flex items-start gap-3">
+
+                            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-100">
+                              <AlertTriangle className="h-5 w-5 text-red-600" />
+                            </div>
+
+                            <div>
+                              <DialogTitle className="text-xl font-bold tracking-tight text-slate-900">
+                                Case Dismissal
+                              </DialogTitle>
+
+                              <p className="mt-1 text-sm text-slate-500">
+                                Please state the reason for dismissing this case.
+                              </p>
+                            </div>
+
+                            {/* Body */}
+                            <div className="pt-3 pb-5">
+
+                              <div className="space-y-4 px-8">
+
+                                <p className="text-sm leading-7 text-slate-700">
+                                  You are about to dismiss this case.
+                                </p>
+
+                                <p className="text-sm leading-7 text-slate-700">
+                                  Dismissing this case will end barangay proceedings and record the selected reason in the case history.
+                                </p>
+
+                                <div className="space-y-2">
+
+                                  <label className="text-sm font-medium">
+                                    Reason for Dismissal
+                                    <span className="ml-1 text-red-500">*</span>
+                                  </label>
+
+                                  <Select
+                                    value={dismissReason}
+                                    onValueChange={setDismissReason}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select a dismissal reason" />
+                                    </SelectTrigger>
+
+                                    <SelectContent>
+
+                                      <SelectItem value="jurisdiction">
+                                        Outside Barangay Jurisdiction
+                                      </SelectItem>
+
+                                      <SelectItem value="venue">
+                                        Filed in the Wrong Barangay
+                                      </SelectItem>
+
+                                      <SelectItem value="absence">
+                                        Complainant Failed to Appear
+                                      </SelectItem>
+
+                                      <SelectItem value="prescription">
+                                        Complaint Filed Too Late
+                                      </SelectItem>
+
+                                    </SelectContent>
+                                  </Select>
+
+                                  <p className="text-xs text-muted-foreground">
+                                    This reason will be recorded in the case timeline.
+                                  </p>
+
+                                </div>
+
+                              </div>
+
+                              <div className="flex justify-end gap-3 px-6 pt-6">
+
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setConfirmStatusOpen(false)}
+                                >
+                                  Cancel
+                                </Button>
+
+                                <Button
+                                  disabled={!dismissReason || updatingStatus}
+                                  onClick={handleConfirmStatusUpdate}
+                                  className="bg-red-600 text-white hover:bg-red-700"
+                                >
+                                  {updatingStatus ? "Dismissing..." : "Dismiss Case"}
+                                </Button>
+
+                              </div>
+
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                      ) : (
+                    <>
                     {/* Header */}
                     <div className="bg-blue-50 px-6 py-5">
                       <div className="flex items-start gap-3">
@@ -1223,6 +1321,8 @@
                         </Button>
                       </div>
                     </div>
+                  </>
+                  )}
                   </DialogContent>
                 </Dialog>
 
