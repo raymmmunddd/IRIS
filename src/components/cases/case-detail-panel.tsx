@@ -665,7 +665,7 @@
 
             {/* BODY */}
             <div className="flex-1 overflow-y-auto bg-muted/20">
-              <div className="mx-auto max-w-5xl space-y-6 p-5">
+              <div className="mx-auto max-w-5xl space-y-6 p-4">
 
                 {/* DESCRIPTION */}
                 <div className="space-y-1">
@@ -750,7 +750,7 @@
 
                     ) : (
 
-                      <div className="space-y-4">
+                      <div className="space-y-3">
 
                         <div>
                           <p className="mb-2 text-xs text-muted-foreground">
@@ -765,6 +765,7 @@
                           >
                             <SelectTrigger
                               className="
+                                w-full
                                 h-11
                                 rounded-lg
                                 border
@@ -906,7 +907,7 @@
 
                     ) : (
 
-                      <div className="space-y-4">
+                      <div className="space-y-3">
 
                         <div>
                           <p className="mb-2 text-xs text-muted-foreground">
@@ -1026,7 +1027,7 @@
 
                     {/* BODY */}
                     <div className="pt-3 pb-5">
-                      <div className="space-y-4 px-8">
+                      <div className="space-y-3 px-8">
                         <p className="text-sm leading-7 text-slate-700">
                           You are about to change the status of this case from{" "}
                           <span className="font-semibold text-slate-900">
