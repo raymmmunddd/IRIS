@@ -135,114 +135,101 @@ export default function LoginPage() {
     lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]
     auth-page-enter overflow-hidden">
 
-      {/* LEFT HERO */}
-      <section
-        className="auth-hero-enter relative hidden lg:flex overflow-hidden"
-        style={{
-          background: `
-            radial-gradient(circle at top left, rgba(255,255,255,0.14), transparent 34%),
-            radial-gradient(circle at bottom right, rgba(59,130,246,0.20), transparent 34%),
-            linear-gradient(
-              145deg,
-              #0B1A3A 0%,
-              #13336C 28%,
-              #1E4FA3 52%,
-              #173E82 74%,
-              #0F172A 100%
-            )
-          `,
-        }}
-      >
-        {/* DESIGN */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.03),transparent_30%,rgba(0,0,0,0.18))]" />
-        <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute left-1/3 top-1/3 h-80 w-80 rounded-full bg-blue-400/10 blur-3xl" />
-        <div className="absolute -bottom-20 right-0 h-96 w-96 rounded-full bg-blue-300/10 blur-3xl" />
-        <div className="relative z-10 flex h-full w-full flex-col justify-between p-10 xl:p-14 text-white">
-          <div className="space-y-8">
-            {/* BRAND */}
-            <div className="flex items-center gap-3">
-              <img
-                src="/NewKalalake.png"
-                alt="Barangay New Kalalake"
-                className="h-14 w-14"
-              />
+    {/* LEFT HERO */}
+    <section
+      className="relative hidden lg:flex overflow-hidden"
+      style={{
+        background: `
+          radial-gradient(circle at top left, rgba(217,165,20,0.18), transparent 35%),
+          radial-gradient(circle at bottom right, rgba(255,255,255,0.06), transparent 45%),
+          linear-gradient(
+            150deg,
+            #091225 0%,
+            #101B35 35%,
+            #14264A 70%,
+            #091225 100%
+          )
+        `,
+      }}
+    >
+      {/* Background */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:42px_42px]" />
 
-              <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-white/65">
-                  IRIS Access
-                </p>
-                <p className="text-sm font-semibold text-white">
-                  Barangay New Kalalake
-                </p>
-              </div>
-            </div>
+      <div className="absolute top-0 left-0 h-72 w-72 rounded-full bg-[var(--primary)]/10 blur-3xl" />
+      <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-yellow-300/5 blur-3xl" />
 
-            {/* HERO */}
-            <div className="space-y-5 max-w-xl">
-              <p className="
-                inline-flex w-fit
-                items-center
-                rounded-full
-                border
-                border-white/15
-                bg-white/10 px-3 py-1
-                text-[11px]
-                font-semibold
-                uppercase
-                tracking-[0.16em]
-                text-white/90
-                backdrop-blur
-              ">
-                Secure sign in
+      <div className="relative z-10 flex h-full w-full flex-col justify-between p-14 text-white">
+
+        {/* Header */}
+        <div className="space-y-10">
+
+          <div className="flex items-center gap-4">
+            <img
+              src="/NewKalalake.png"
+              alt="Barangay"
+              className="h-16 w-16"
+            />
+
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-yellow-300">
+                IRIS PORTAL
               </p>
 
-              <div className="space-y-4">
-                <h1 className="text-4xl leading-tight font-semibold">
-                  {roleCopy[role].title}
-                </h1>
-
-                <p className="text-lg leading-relaxed text-white/78">
-                  {roleCopy[role].body}
-                </p>
-              </div>
+              <h2 className="mt-1 text-lg font-semibold">
+                Barangay New Kalalake
+              </h2>
             </div>
+          </div>
 
-            {/* FEATURE CARDS */}
-            <div className="grid gap-3">
-              {roleCopy[role].highlights.map((item) => (
-                <div
-                  key={item.heading}
-                  className="
-                    rounded-2xl
-                    border border-white/12
-                    bg-white/10
-                    p-4
-                    backdrop-blur-md
-                    transition-all
-                    hover:bg-white/14
-                    hover:border-white/20
-                  "
-                >
-                  <p className="text-[11px] uppercase tracking-[0.15em] text-white/65">
-                    {item.heading}
-                  </p>
+          <div className="space-y-5 max-w-xl">
 
-                  <p className="mt-2 text-sm font-semibold text-white">
-                    {item.detail}
-                  </p>
+            <span className="inline-flex rounded-full bg-[var(--primary)]/15 px-4 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300 border border-yellow-400/20">
+              Secure Login
+            </span>
+
+            <h1 className="text-5xl font-semibold leading-tight">
+              Welcome to IRIS!
+            </h1>
+
+            <p className="text-lg leading-8 text-white/70">
+              Access your secure workspace and manage incident reports,
+              investigations, and barangay operations with confidence.
+            </p>
+
+          </div>
+
+          {/* Timeline */}
+          <div className="space-y-6 pt-4">
+
+            {[
+              "Role-based authentication",
+              "Protected resident records",
+              "Secure case management"
+            ].map((item) => (
+              <div
+                key={item}
+                className="flex items-center gap-4"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--foreground)] font-bold">
+                  ✓
                 </div>
-              ))}
-            </div>
+
+                <div>
+                  <p className="text-sm font-medium">{item}</p>
+                </div>
+              </div>
+            ))}
+
           </div>
 
-          {/* FOOTER */}
-          <div className="flex items-center justify-between text-xs text-white/60">
-            <span>Protected by role permissions</span>
-            <span>© 2026 IRIS</span>
-          </div>
         </div>
-      </section>
+
+        <div className="flex justify-between text-xs text-white/50">
+          <span>© 2026 IRIS</span>
+        </div>
+
+      </div>
+    </section>
 
       {/* RIGHT SIDE */}
       <section className="flex min-h-screen items-center justify-center px-4 py-5 sm:px-6 lg:px-8">

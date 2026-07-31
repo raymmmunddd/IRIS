@@ -1,18 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  /* Brand */
-  --primary: #1D4ED8;
-  --primary-hover: #1E40AF;
-  --primary-light: #DBEAFE;
+  /* Brand - IRIS Gold Theme */
+  --primary: #D9A514;
+  --primary-hover: #B8870B;
+  --primary-light: #FFF4C7;
 
-  --secondary: #3B82F6;
-  --secondary-hover: #2563EB;
-  --secondary-light: #EFF6FF;
+  --secondary: #EAB308;
+  --secondary-hover: #CA8A04;
+  --secondary-light: #FEF9C3;
 
   --tertiary: #DC2626;
   --tertiary-hover: #B91C1C;
   --tertiary-light: #FEF2F2;
+
 
   /* Neutrals */
   --background: #F4F7FB;
@@ -27,139 +28,130 @@
   --muted: #F1F5F9;
   --muted-foreground: #64748B;
 
-  --accent: #1D4ED8;
-  --accent-foreground: #FFFFFF;
+
+  /* Accent */
+  --accent: #D9A514;
+  --accent-foreground: #0F172A;
+
 
   --popover: #FFFFFF;
   --popover-foreground: #0F172A;
 
   --input: #CBD5E1;
-  --ring: #2563EB;
+  --ring: #D9A514;
 
   /* Sidebar */
-  --sidebar-bg: #1E3A8A;
+  --sidebar-bg: #101B35;
 
-  --sidebar-foreground: rgba(255,255,255,0.92);
+  --sidebar-foreground: rgba(255,255,255,0.94);
   --sidebar-icon: rgba(255,255,255,0.96);
-  --sidebar-muted: rgba(255,255,255,0.68);
+  --sidebar-muted: rgba(255,255,255,0.65);
 
-  --sidebar-accent: rgba(255,255,255,0.12);
-  --sidebar-active: rgba(255,255,255,0.16);
+  --sidebar-accent: rgba(248,198,17,0.12);
+  --sidebar-active: rgba(248,198,17,0.18);
 
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-primary: rgba(255,255,255,0.14);
-  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent-foreground:#ffffff;
 
-  --sidebar-nav-hover-bg: rgba(255,255,255,0.12);
-  --sidebar-nav-hover-foreground: #ffffff;
+  --sidebar-primary: rgba(248,198,17,0.15);
+  --sidebar-primary-foreground:#ffffff;
 
-  --sidebar-nav-active-bg: rgba(255,255,255,0.18);
-  --sidebar-nav-active-foreground: #ffffff;
+  --sidebar-nav-hover-bg: rgba(248,198,17,0.12);
+  --sidebar-nav-hover-foreground:#ffffff;
 
-  --sidebar-nav-hover-border: rgba(255,255,255,0.28);
+  --sidebar-nav-active-bg: rgba(248,198,17,0.18);
+  --sidebar-nav-active-foreground:#ffffff;
+
+  --sidebar-nav-hover-border: rgba(248,198,17,0.35);
+
   --sidebar-border: rgba(255,255,255,0.10);
-  --sidebar-ring: rgba(255,255,255,0.24);
+  --sidebar-ring: rgba(248,198,17,0.30);
 
   /* Legal Modal */
-  --legal-surface: #F8FBFF;
-  --legal-surface-hover: #EEF5FF;
-  --legal-surface-strong: #E4F0FF;
+  --legal-surface:#FFFDF5;
+  --legal-surface-hover:#FFF7D6;
+  --legal-surface-strong:#FCECA8;
 
   /* KPI Cards */
-  --kpi-default: #FFFFFF;
-  --kpi-urgent: #FEF2F2;
-  --kpi-positive-accent: #3B82F6;
+  --kpi-default:#FFFFFF;
+  --kpi-urgent:#FEF2F2;
+  --kpi-positive-accent:#D9A514;
 
   /* Charts */
-  --chart-main: #1D4ED8;
-  --chart-comparison: #3B82F6;
-  --chart-alert: #DC2626;
-  --chart-neutral: #94A3B8;
-  --chart-muted: #E2E8F0;
-  --chart-accent: #22C55E;
+  --chart-main:#D9A514;
+  --chart-comparison:#2563EB;
+  --chart-alert:#DC2626;
+  --chart-neutral:#94A3B8;
+  --chart-muted:#E2E8F0;
+  --chart-accent:#22C55E;
 
-  /* Auth Pages */
-  --iris-bg: var(--background);
-  --iris-surface: var(--card);
-  --iris-text: var(--foreground);
-  --iris-text-subtle: var(--text-secondary);
-  --iris-border: var(--border);
-  --iris-muted: var(--muted-foreground);
+  /* Auth */
+  --iris-bg:var(--background);
+  --iris-surface:var(--card);
+  --iris-text:var(--foreground);
+  --iris-text-subtle:var(--text-secondary);
+  --iris-border:var(--border);
+  --iris-muted:var(--muted-foreground);
 
-  --iris-primary: var(--primary);
-  --iris-primary-strong: var(--primary-hover);
-  --iris-primary-light: var(--primary-light);
+  --iris-primary:var(--primary);
+  --iris-primary-strong:var(--primary-hover);
+  --iris-primary-light:var(--primary-light);
 }
 
 .dark {
-  --primary: #4a82ff;
-  --primary-hover: #3a6ad6;
-  --primary-light: #1b2b4f;
-  --secondary: #f2b705;
-  --secondary-hover: #d99e04;
-  --secondary-light: #4a3b12;
-  --tertiary: #d64545;
-  --tertiary-hover: #b73737;
-  --tertiary-light: #3f1c1c;
+  --primary:#F8C611;
+  --primary-hover:#D9A514;
+  --primary-light:#4A3A0A;
 
-  --background: #0b1021;
-  --foreground: #e6ecf7;
-  --card: #11182e;
-  --card-foreground: #e6ecf7;
-  --border: #1e2a46;
-  --text-secondary: #9ba5b8;
-  --muted: #1b243a;
-  --muted-foreground: #9ba5b8;
-  --accent: #f2b705;
-  --accent-foreground: #0b1021;
-  --popover: #11182e;
-  --popover-foreground: #e6ecf7;
-  --input: #1e2a46;
-  --ring: #4a82ff;
+  --secondary:#EAB308;
+  --secondary-hover:#CA8A04;
+  --secondary-light:#3B2E08;
 
-  --sidebar-bg: #0f172a;
-  --sidebar-active: #1b2b4f;
-  --sidebar-icon: #e6ecf7;
-  --sidebar-foreground: #e6ecf7;
-  --sidebar-muted: #94a3b8;
-  --sidebar-accent: #1b2b4f;
-  --sidebar-accent-foreground: #e6ecf7;
-  --sidebar-primary: #0f172a;
-  --sidebar-primary-foreground: #e6ecf7;
+  --background:#090F22;
+  --foreground:#F8FAFC;
 
-  /* Sidebar nav (avoid blue hover/active backgrounds) */
-  --sidebar-nav-active-bg: var(--card);
-  --sidebar-nav-active-foreground: var(--foreground);
-  --sidebar-nav-hover-bg: var(--secondary);
-  --sidebar-nav-hover-foreground: var(--background);
-  --sidebar-nav-hover-border: var(--secondary-hover);
+  --card:#111A32;
+  --card-foreground:#F8FAFC;
 
-  --kpi-default: #11182e;
-  --kpi-urgent: #3f1c1c;
-  --kpi-positive-accent: #f2b705;
+  --border:#24304D;
 
-  --chart-main: #4a82ff;
-  --chart-comparison: #f2b705;
-  --chart-alert: #d64545;
-  --chart-neutral: #9ba5b8;
-  --chart-muted: #1e2a46;
-  --chart-accent: #22c55e;
+  --text-secondary:#AAB4C8;
 
-  /* Auth pages (legacy IRIS tokens used by /login and /signup) */
-  --iris-bg: var(--background);
-  --iris-surface: var(--card);
-  --iris-text: var(--foreground);
-  --iris-text-subtle: var(--text-secondary);
-  --iris-border: var(--border);
-  --iris-muted: var(--muted-foreground);
-  --iris-primary: var(--primary);
-  --iris-primary-strong: var(--primary-hover);
-  --iris-primary-light: var(--primary-light);
+  --muted:#18233D;
+  --muted-foreground:#94A3B8;
 
-  /* Legal Modal */
-  --legal-surface: #162033;
-  --legal-surface-hover: #1D2A42;
-  --legal-surface-strong: #243552;
+  --accent:#F8C611;
+  --accent-foreground:#090F22;
+
+  --popover:#111A32;
+  --popover-foreground:#F8FAFC;
+
+  --input:#24304D;
+  --ring:#F8C611;
+
+  --sidebar-bg:#080D1D;
+  --sidebar-active:#2A230C;
+  --sidebar-icon:#F8FAFC;
+  --sidebar-foreground:#F8FAFC;
+  --sidebar-muted:#94A3B8;
+  --sidebar-accent:#2A230C;
+  --sidebar-accent-foreground:#F8FAFC;
+  --sidebar-primary:#111827;
+  --sidebar-primary-foreground:#F8FAFC;
+
+  --kpi-default:#111A32;
+  --kpi-urgent:#3F1C1C;
+  --kpi-positive-accent:#F8C611;
+
+  --chart-main:#F8C611;
+  --chart-comparison:#60A5FA;
+  --chart-alert:#F87171;
+  --chart-neutral:#94A3B8;
+  --chart-muted:#24304D;
+  --chart-accent:#22C55E;
+
+  --legal-surface:#101827;
+  --legal-surface-hover:#17233B;
+  --legal-surface-strong:#22304B;
 }
 
 @theme inline {
