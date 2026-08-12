@@ -13,9 +13,33 @@ import { KeyInsights } from "@/components/reports/key-insights"
 import { OfficerResponseAnalysis } from "@/components/reports/officer-performance"
 import { FileText } from "lucide-react"
 
+import { ReportsSkeleton } from "@/components/reports/reports-skeleton"
+
 import { useIsMobile } from "@/hooks/use-mobile"
 
 export default function ReportsPage() {
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    async function loadReports() {
+      try {
+        setLoading(true)
+
+        const response = await fetch("/api/reports")
+        const result = await response.json()
+
+        if (result.success) {
+          setReportsData(result.data)
+        }
+      } catch (error) {
+        console.error("Failed to load reports data:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadReports()
+  }, [])
+
   const [reportsData, setReportsData] = useState<any>(null)
 
   const isMobile = useIsMobile()
@@ -47,6 +71,26 @@ export default function ReportsPage() {
 
     loadReports()
   }, [])
+
+  if (loading) {
+  return (
+    <div className="flex h-screen overflow-hidden bg-background">
+      <DashboardSidebar />
+
+      <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader
+          title="Reports & Analytics"
+          description="View key insights on incident trends, resolutions, and operational performance."
+          icon={<FileText className="h-5 w-5 text-white" />}
+        />
+
+        <div className="mt-4 sm:mt-6">
+          <ReportsSkeleton />
+        </div>
+      </main>
+    </div>
+  )
+}
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -97,12 +141,6 @@ export default function ReportsPage() {
           <div className="h-80 sm:h-[400px]">
                <ResolutionStatusOverview data={reportsData?.resolutionStatus} />
           </div>
-        </div>
-
-        <div className="mt-4 sm:mt-6 flex flex-col gap-4 sm:gap-6">
-           {/* KeyInsights spans full width naturally in flex-col */}
-           <KeyInsights data={reportsData?.keyInsights} />
-           <OfficerResponseAnalysis officers={reportsData?.officerPerformance} />
         </div>
       </main>
     </div>

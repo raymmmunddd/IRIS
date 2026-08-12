@@ -10,7 +10,36 @@ import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { OfficersTab } from "@/components/operations/officers-tab"
 import { MediationTab } from "@/components/operations/mediation-tab"
 
+import { OperationsSkeleton } from "@/components/operations/operations-skeleton"
+
 export default function OperationsPage() {
+  const [loading, setLoading] = useState(true)
+
+    async function loadOperations() {
+    try {
+      setLoading(true)
+
+      const [operationsResponse, officersResponse] = await Promise.all([
+        fetch("/api/operations"),
+        fetch("/api/officers"),
+      ])
+
+      const operationsResult = await operationsResponse.json()
+      const officersResult = await officersResponse.json()
+
+      if (operationsResult.success) {
+        setOperationsData(operationsResult.data)
+      }
+
+      if (officersResult.success) {
+        setMediators(officersResult.data)
+      }
+    } catch (error) {
+      console.error("Failed to load operations data:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
   const [activeTab, setActiveTab] = useState("officers")
   const [operationsData, setOperationsData] = useState<{
     officers: Parameters<typeof OfficersTab>[0]["officers"]
@@ -35,6 +64,24 @@ export default function OperationsPage() {
   useEffect(() => {
     loadOperations()
   }, [])
+
+  if (loading) {
+  return (
+    <div className="flex h-screen overflow-hidden bg-background">
+      <DashboardSidebar />
+
+      <main className="relative min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader
+          title="Operations"
+          description="Assign cases to officers and manage field response activities."
+          icon={<Users className="h-5 w-5 text-white" />}
+        />
+
+        <OperationsSkeleton />
+      </main>
+    </div>
+  )
+}
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

@@ -228,7 +228,18 @@ export function OfficersTab({
   const [assignOfficer, setAssignOfficer] = useState<OperationsOfficer | null>(null)
   const [selectedCaseId, setSelectedCaseId] = useState("")
   const [isAddOpen, setIsAddOpen] = useState(false)
-  const [fullName, setFullName] = useState("")
+  const [firstName, setFirstName] = useState("")
+  const [middleName, setMiddleName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const [suffix, setSuffix] = useState("")
+  const fullName = [
+    firstName,
+    middleName,
+    lastName,
+    suffix,
+  ]
+  .filter(Boolean)
+  .join(" ")
   const [email, setEmail] = useState("")
   const [roleTitle, setRoleTitle] = useState("BPAT_OFFICER")
   const [search, setSearch] = useState("")

@@ -10,8 +10,29 @@ import { PublicDataTab } from "@/components/admin/public-data-tab";
 import { AuditLogsTab } from "@/components/admin/audit-logs-tab";
 import { SettingsTab } from "@/components/admin/settings-tab";
 import { Users, Megaphone, Eye, FileText, Settings, ShieldCheck } from "lucide-react";
+import { PageHeaderSkeleton } from "@/components/ui/page-header-skeleton"
+import { AdminSkeleton } from "@/components/admin/admin-skeleton"
 
 export default function AdminPage() {
+  const [loading, setLoading] = useState(true)
+
+  async function loadAdminData() {
+    try {
+      setLoading(true)
+
+      const response = await fetch("/api/admin")
+      const result = await response.json()
+
+      if (result.success) {
+        setAdminData(result.data)
+      }
+    } catch (error) {
+      console.error("Failed to load admin data:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const [adminData, setAdminData] = useState<{
     users: Parameters<typeof UsersTab>[0]["users"]
     announcements: Parameters<typeof AnnouncementsTab>[0]["announcements"]
@@ -31,6 +52,19 @@ export default function AdminPage() {
   useEffect(() => {
     loadAdminData()
   }, [])
+
+  if (loading) {
+    return (
+      <div className="flex h-screen overflow-hidden bg-background">
+        <DashboardSidebar />
+
+        <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <PageHeaderSkeleton />
+          <AdminSkeleton />
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

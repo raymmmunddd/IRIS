@@ -144,19 +144,75 @@ export default function BpatOfficersPage() {
           <div className="mx-auto w-full max-w-md space-y-4 lg:max-w-6xl lg:space-y-6">
             <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="space-y-4 lg:space-y-6">
-                <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div className="rounded-xl bg-[var(--primary-light)] px-2 py-3">
-                      <p className="text-xs text-muted-foreground">Pending</p>
-                      <p className="mt-1 text-xl font-bold text-[var(--primary)]">{stats.pending}</p>
+                <section>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    {/* Pending */}
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold tracking-wide text-slate-600">
+                            Pending Cases
+                          </p>
+
+                          <div className="inline-flex rounded-xl bg-slate-100 px-3 py-1.5 text-lg font-bold text-slate-700">
+                            {stats.pending}
+                          </div>
+
+                          <p className="text-sm leading-relaxed text-slate-600">
+                            Reports waiting for officer review.
+                          </p>
+                        </div>
+
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                          <ClipboardList className="h-6 w-6" />
+                        </div>
+                      </div>
                     </div>
-                    <div className="rounded-xl bg-[var(--secondary-light)] px-2 py-3">
-                      <p className="text-xs text-muted-foreground">Active</p>
-                      <p className="mt-1 text-xl font-bold text-[var(--secondary-hover)]">{stats.active}</p>
+
+                    {/* Active */}
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold tracking-wide text-slate-600">
+                            Active Response
+                          </p>
+
+                          <div className="inline-flex rounded-xl bg-emerald-100 px-3 py-1.5 text-lg font-bold text-emerald-700">
+                            {stats.active}
+                          </div>
+
+                          <p className="text-sm leading-relaxed text-slate-600">
+                            Incidents currently assigned in the field.
+                          </p>
+                        </div>
+
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                          <ShieldCheck className="h-6 w-6" />
+                        </div>
+                      </div>
                     </div>
-                    <div className="rounded-xl bg-[var(--tertiary-light)] px-2 py-3">
-                      <p className="text-xs text-muted-foreground">Urgent</p>
-                      <p className="mt-1 text-xl font-bold text-[var(--tertiary)]">{stats.urgent}</p>
+
+                    {/* Urgent */}
+                    <div className="rounded-2xl border border-red-200 bg-red-50/50 p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold tracking-wide text-slate-600">
+                            Urgent Cases
+                          </p>
+
+                          <div className="inline-flex rounded-xl bg-red-100 px-3 py-1.5 text-lg font-bold text-red-700">
+                            {stats.urgent}
+                          </div>
+
+                          <p className="text-sm leading-relaxed text-slate-600">
+                            High-priority incidents requiring immediate action.
+                          </p>
+                        </div>
+
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-700">
+                          <AlertTriangle className="h-6 w-6" />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </section>

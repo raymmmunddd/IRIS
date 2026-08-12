@@ -15,6 +15,14 @@
     ResponsiveContainer,
     LabelList,
     Area,
+    ShieldAlert,
+    TriangleAlert,
+    Home,
+    Landmark,
+    Users,
+    HandCoins,
+    Lock,
+    HeartHandshake,
   } from "recharts"
   import { cn } from "@/lib/utils"
 

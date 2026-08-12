@@ -2,250 +2,57 @@
 
 import { useMemo } from "react"
 import { useIsMobile } from "@/hooks/use-mobile"
-import {
-  Bar,
-  BarChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  LabelList
-} from "recharts"
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, LabelList, Cell } from "recharts"
 
-const daysFull = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-]
-
+const daysFull = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 const daysShort = ["M", "T", "W", "Th", "F", "S", "S"]
 
-const categoryMeta = [
-  {
-    key: "physical",
-    name: "Physical Injury",
-    start: "#DC2626",
-    end: "#FCA5A5",
-    indicator: "#EF4444",
-  },
-  {
-    key: "threats",
-    name: "Threats & Coercion",
-    start: "#EA580C",
-    end: "#FDBA74",
-    indicator: "#F97316",
-  },
-  {
-    key: "property",
-    name: "Property & Land",
-    start: "#2563EB",
-    end: "#93C5FD",
-    indicator: "#2563EB",
-  },
-  {
-    key: "theft",
-    name: "Theft, Fraud & Financial",
-    start: "#CA8A04",
-    end: "#FDE68A",
-    indicator: "#EAB308",
-  },
-  {
-    key: "family",
-    name: "Family & Child Custody",
-    start: "#7C3AED",
-    end: "#C4B5FD",
-    indicator: "#8B5CF6",
-  },
-  {
-    key: "publicOrder",
-    name: "Public Order",
-    start: "#16A34A",
-    end: "#BBF7D0",
-    indicator: "#22C55E",
-  },
-  {
-    key: "privacy",
-    name: "Privacy & Reputation",
-    start: "#DB2777",
-    end: "#FBCFE8",
-    indicator: "#EC4899",
-  },
-  {
-    key: "morality",
-    name: "Personal & Morality",
-    start: "#475569",
-    end: "#CBD5E1",
-    indicator: "#64748B",
-  },
+// Weekly sample data (per-category). The tracker will sum these into daily totals.
+type DayEntry = { day: string; [key: string]: number | string }
+
+const fallbackData: DayEntry[] = [
+  { day: "Monday", physical: 4, threats: 3, property: 4, theft: 3, family: 1, publicOrder: 2, privacy: 1, morality: 1 },
+  { day: "Tuesday", physical: 3, threats: 2, property: 5, theft: 4, family: 2, publicOrder: 1, privacy: 1, morality: 1 },
+  { day: "Wednesday", physical: 5, threats: 3, property: 4, theft: 3, family: 2, publicOrder: 2, privacy: 1, morality: 1 },
+  { day: "Thursday", physical: 2, threats: 3, property: 3, theft: 2, family: 1, publicOrder: 2, privacy: 1, morality: 1 },
+  { day: "Friday", physical: 6, threats: 5, property: 5, theft: 4, family: 2, publicOrder: 3, privacy: 2, morality: 1 },
+  { day: "Saturday", physical: 3, threats: 2, property: 4, theft: 3, family: 1, publicOrder: 2, privacy: 1, morality: 1 },
+  { day: "Sunday", physical: 2, threats: 2, property: 3, theft: 2, family: 1, publicOrder: 1, privacy: 1, morality: 1 },
 ]
 
-const fallbackData = [
-  {
-    day: "Monday",
-    physical: 4,
-    threats: 3,
-    property: 4,
-    theft: 3,
-    family: 1,
-    publicOrder: 2,
-    privacy: 1,
-    morality: 1,
-  },
-  {
-    day: "Tuesday",
-    physical: 3,
-    threats: 2,
-    property: 5,
-    theft: 4,
-    family: 2,
-    publicOrder: 1,
-    privacy: 1,
-    morality: 1,
-  },
-  {
-    day: "Wednesday",
-    physical: 5,
-    threats: 3,
-    property: 4,
-    theft: 3,
-    family: 2,
-    publicOrder: 2,
-    privacy: 1,
-    morality: 1,
-  },
-  {
-    day: "Thursday",
-    physical: 2,
-    threats: 3,
-    property: 3,
-    theft: 2,
-    family: 1,
-    publicOrder: 2,
-    privacy: 1,
-    morality: 1,
-  },
-  {
-    day: "Friday",
-    physical: 6,
-    threats: 5,
-    property: 5,
-    theft: 4,
-    family: 2,
-    publicOrder: 3,
-    privacy: 2,
-    morality: 1,
-  },
-  {
-    day: "Saturday",
-    physical: 3,
-    threats: 2,
-    property: 4,
-    theft: 3,
-    family: 1,
-    publicOrder: 2,
-    privacy: 1,
-    morality: 1,
-  },
-  {
-    day: "Sunday",
-    physical: 2,
-    threats: 2,
-    property: 3,
-    theft: 2,
-    family: 1,
-    publicOrder: 1,
-    privacy: 1,
-    morality: 1,
-  },
-]
+const TRACKER_COLOR = { base: "#D4A017", light: "#F4C95D", dark: "#B3860F" }
 
 export function IncidentCategoryChart({ height }: { height?: number }) {
+  // Sum category values into a single `total` per day
   const chartData = useMemo(() => {
-    return fallbackData.map((d) => {
-      const total = categoryMeta.reduce(
-        (sum, c) => sum + (d[c.key as keyof typeof d] as number),
-        0
-      )
-
-      return {
-        ...d,
-        __total: total,
-      }
-    })
+    return fallbackData.map((d) => ({
+      day: d.day,
+      total: Object.keys(d)
+        .filter((k) => k !== "day")
+        .reduce((sum, k) => sum + Number((d as DayEntry)[k] ?? 0), 0),
+    }))
   }, [])
+
   const isMobile = useIsMobile()
   const defaultHeight = isMobile ? 200 : 300
   const effectiveHeight = typeof height === "number" ? height : defaultHeight
 
-  const totals = useMemo(() => {
-    return fallbackData.map((d) => {
-      const total =
-        categoryMeta.reduce((sum, c) => sum + (d[c.key as keyof typeof d] as number), 0)
-
-      return {
-        day: d.day,
-        total,
-      }
-    })
-  }, [])
-  const renderTotalLabel = (props: any) => {
+  const renderTotalLabel = (props: { x: number; y: number; width: number; value: number }) => {
     const { x, y, width, value } = props
-
     return (
-      <text
-        x={x + width / 2}
-        y={y - 6}
-        fill="var(--foreground)"
-        fontSize={10}
-        textAnchor="middle"
-        fontWeight={600}
-      >
+      <text x={x + width / 2} y={y - 6} fill="var(--foreground)" fontSize={10} textAnchor="middle" fontWeight={600}>
         {value}
       </text>
     )
   }
 
-  const getTotal = (entry: any) => {
-    return categoryMeta.reduce((sum, c) => {
-      return sum + (entry?.[c.key] || 0)
-    }, 0)
-  }
-
   return (
-  <div className="flex h-full flex-col rounded-2xl border border-border/50 bg-card p-4 sm:p-6 shadow-sm hover:shadow-lg transition-all">
-    {/* Header */}
-    <h3 className="mb-3 text-sm sm:text-base font-semibold text-card-foreground">
-      Weekly Incident Activity
-    </h3>
-
-    {/* Chart wrapper MUST define flex space only */}
-    <div className="flex-1 min-h-0 w-full" style={{ height: effectiveHeight }}>
-      <ResponsiveContainer key={effectiveHeight} width="100%" height={effectiveHeight}>
-        <BarChart
-          data={chartData}
-          margin={{ top: 28, right: 0, left: 0, bottom: 0 }}
-          barCategoryGap={0}
-          barGap={0}
-        >
-              <defs>
-                {categoryMeta.map((c) => (
-                  <linearGradient
-                    key={c.key}
-                    id={c.key}
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop offset="0%" stopColor={c.start} />
-                    <stop offset="100%" stopColor={c.end} />
-                  </linearGradient>
-                ))}
-              </defs>
+    <div className="flex h-full flex-col rounded-2xl border border-border/50 bg-card p-4 sm:p-6 shadow-sm hover:shadow-lg transition-all">
+      {/* Header */}
+      <h3 className="mb-3 text-sm sm:text-base font-semibold text-card-foreground">Weekly Case Tracker</h3>
+        <div className="flex-1 min-h-0 w-full" style={{ height: effectiveHeight }}>
+          <ResponsiveContainer key={effectiveHeight} width="100%" height={effectiveHeight}>
+            <BarChart data={chartData} margin={{ top: 28, right: 0, left: 0, bottom: 0 }} barCategoryGap={6} barGap={4}>
               <XAxis
                 dataKey="day"
                 axisLine={false}
@@ -256,175 +63,97 @@ export function IncidentCategoryChart({ height }: { height?: number }) {
                   const index = daysFull.indexOf(value)
                   return daysShort[index] ?? value
                 }}
-                padding={{ left: 0, right: 0 }}
+                padding={{ left: 6, right: 6 }}
               />
 
               <YAxis hide />
+                <Tooltip
+                  cursor={{
+                    fill: "color-mix(in srgb,var(--muted) 30%, transparent)",
+                  }}
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload?.length) return null
 
-              {/* Tooltip */}
-<Tooltip
-  cursor={{
-    fill: "color-mix(in srgb,var(--muted) 18%, transparent)",
-  }}
-  content={({ active, payload, label }) => {
-    if (!active || !payload?.length) return null
+                    const totalCases = Number(payload[0].value ?? 0)
 
-    const fullDay =
-      daysFull.find((d) => d === label) ?? label
+                    const weekTotal = chartData.reduce(
+                      (sum, day) => sum + day.total,
+                      0
+                    )
 
-    const totalCases = payload.reduce(
-      (sum: number, entry: any) =>
-        sum + Number(entry.value ?? 0),
-      0
-    )
+                    const percentage =
+                      weekTotal > 0
+                        ? ((totalCases / weekTotal) * 100).toFixed(1)
+                        : "0"
 
-    const orderedCategories = [...categoryMeta]
-      .reverse()
-      .map((cat) => {
-        const entry = payload.find(
-          (p: any) => p.dataKey === cat.key
-        )
+                    const highest = Math.max(...chartData.map((d) => d.total))
+                    const isHighest = totalCases === highest
 
-        return {
-          ...cat,
-          value: Number(entry?.value ?? 0),
-        }
-      })
-      .filter((item) => item.value > 0)
+                    return (
+                      <div className="rounded-xl border border-border bg-card p-3 shadow-xl text-[12px] min-w-[180px]">
 
-      const highestValue = Math.max(
-        ...orderedCategories.map((c) => c.value)
-      )
+                        {/* Header */}
+                        <div className="mb-2 flex items-center gap-2">
+                          <div
+                            className="h-3 w-3 rounded-full"
+                            style={{ backgroundColor: TRACKER_COLOR.base }}
+                          />
+                          <span className="font-semibold text-card-foreground">
+                            📅 {label}
+                          </span>
+                        </div>
 
-      const highestCategories = orderedCategories.filter(
-        (c) => c.value === highestValue
-      )
+                        <div className="mb-2 border-b border-border" />
 
-      const hasTie = highestCategories.length > 1
+                        {/* Total */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">
+                            Total cases
+                          </span>
 
-    return (
-      <div
-        className="rounded-lg border border-border bg-card p-3 shadow-lg"
-        style={{
-          fontSize: "12px",
-          color: "var(--card-foreground)",
-        }}
-      >
-        {/* Day */}
-        <div className="mb-2 font-semibold text-sm">
-          📅 {fullDay}
-        </div>
+                          <span className="font-semibold text-card-foreground">
+                            {totalCases}
+                          </span>
+                        </div>
 
-        {/* Total */}
-        <div className="mb-2 flex items-center justify-between border-b border-border pb-2">
-          <span className="text-muted-foreground">
-            Total incidents
-          </span>
+                        {/* Percentage */}
+                        <div className="mt-2 text-[11px] text-muted-foreground">
+                          {percentage}% of this week's incidents
+                        </div>
 
-          <span className="font-semibold">
-            {totalCases}
-          </span>
-        </div>
-
-        {/* Categories in stack order (bottom → top) */}
-        <div className="space-y-1">
-          {orderedCategories.map((item) => (
-            <div
-              key={item.key}
-              className="flex items-center justify-between gap-3"
-            >
-              <div className="flex items-center gap-2">
-                <div
-                  className="h-2 w-2 rounded-full"
-                  style={{
-                    backgroundColor: item.indicator,
+                        {/* Highest day */}
+                        {isHighest && (
+                          <div className="mt-1 text-[11px] text-amber-500">
+                            🔥 Highest incident day this week
+                          </div>
+                        )}
+                      </div>
+                    )
                   }}
                 />
 
-                <span className="text-muted-foreground">
-                  {item.name}
-                </span>
-              </div>
-
-              <span className="font-medium">
-                {item.value}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {highestCategories.length > 0 && (
-          <div className="mt-2 border-t border-border pt-2 text-[11px] text-muted-foreground">
-            {hasTie ? (
-              <>
-                🔥 Highest contributors:
-                <div className="mt-1">
-                  {highestCategories.map((c) => c.name).join(", ")}
-                </div>
-              </>
-            ) : (
-              <>
-                🔥 Highest contributor: {highestCategories[0].name}
-              </>
-            )}
-          </div>
-        )}
-      </div>
-    )
-  }}
-/>a
-
-              {/* Incident Bars */}
-{categoryMeta.map((c, idx) => (
-  <Bar
-    key={c.key}
-    dataKey={c.key}
-    stackId="stack"
-    fill={`url(#${c.key})`}
-    radius={idx === categoryMeta.length - 1 ? [10, 10, 0, 0] : 0}
-  >
-    {idx === categoryMeta.length - 1 && (
-      <LabelList
-        dataKey={(entry: any) => getTotal(entry)}
-        position="top"
-        content={(props: any) => {
-          const { x, y, width, value } = props
-
-          return (
-            <text
-              x={x + width / 2}
-              y={y - 6}
-              textAnchor="middle"
-              fontSize={10}
-              fontWeight={600}
-              fill="var(--foreground)"
-            >
-              {value}
-            </text>
-          )
-        }}
-      />
-    )}
-  </Bar>
-))}
+              <Bar dataKey="total" radius={[6, 6, 0, 0]}>
+                {chartData.map((_, idx) => (
+                  <Cell key={`c-${idx}`} fill={idx % 2 === 0 ? TRACKER_COLOR.base : TRACKER_COLOR.light} />
+                ))}
+                <LabelList dataKey="total" position="top" content={renderTotalLabel} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Legend */}
-        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1">
-          {categoryMeta.map((c) => (
-            <div key={c.key} className="flex items-center gap-1.5">
-              <div
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: c.indicator }}
-              />
-              <span className="text-[10px] text-muted-foreground">
-                {c.name}
-              </span>
-            </div>
-          ))}
+      {/* Legend */}
+      <div className="mt-3 flex items-center gap-4">
+        <div className="flex items-center gap-1.5">
+          <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: TRACKER_COLOR.base }} />
+          <span className="text-[10px] text-muted-foreground">Weekly cases</span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: TRACKER_COLOR.light }} />
+          <span className="text-[10px] text-muted-foreground">Weekly cases</span>
         </div>
       </div>
+    </div>
   )
 }

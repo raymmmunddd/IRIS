@@ -152,6 +152,7 @@ interface CasesTableProps {
 }
 
 export function CasesTable({
+  cases,
   onViewCase,
 }: CasesTableProps) {
   const [activeTab, setActiveTab] =
@@ -191,7 +192,6 @@ export function CasesTable({
   const [searchQuery, setSearchQuery] = useState("")
   const [openActionId, setOpenActionId] = useState<string | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
-  const [cases, setCases] = useState<CaseRecord[]>([])
   const [sortBy, setSortBy] = useState<"Latest" | "Oldest" | "Priority">("Latest")
   const [officers, setOfficers] = useState<string[]>(["Unassigned"])
   const [pendingAction, setPendingAction] = useState<{ action: CaseAction; caseItem: CaseRecord } | null>(null)
@@ -212,16 +212,6 @@ export function CasesTable({
     setSelectedStatuses([])
     setFilterOpen(false)
     setActiveTab(tab)
-  }
-
-  async function loadCases() {
-    try {
-      const response = await fetch("/api/cases")
-      const result = await response.json()
-      if (result.success) setCases(result.data)
-    } catch (error) {
-      console.error("Failed to load cases:", error)
-    }
   }
 
   async function updateCase(caseId: string, input: { status?: CaseStatus; assignedOfficer?: string }) {
@@ -322,20 +312,6 @@ export function CasesTable({
       dateFrom,
       dateTo,
     ])
-
-      useEffect(() => {
-    loadCases()
-    async function loadOfficers() {
-      try {
-        const response = await fetch("/api/officers")
-        const result = await response.json()
-        if (result.success) setOfficers(result.data)
-      } catch (error) {
-        console.error("Failed to load officers:", error)
-      }
-    }
-    loadOfficers()
-  }, [])
 
   function handleAction(action: string, caseItem: CaseRecord) {
     let mappedAction: CaseAction
