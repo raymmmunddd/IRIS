@@ -25,20 +25,35 @@ export default function VerifyResetPage() {
     }
   }, [email, router])
 
-  const handleResend = () => {
+  const handleResend = async () => {
     setIsResending(true)
-
-    setTimeout(() => {
-      setIsResending(false)
+    try {
+      const response = await fetch("/api/auth/password-reset/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.message || "Unable to resend the code.")
       toast({
-        title: "Code resent",
-        description: "A new verification code has been sent.",
+        title: "Reset request received",
+        description: result.data?.devCode
+          ? `Development code: ${result.data.devCode}`
+          : "If an account exists, a new code will be sent when the resend limit allows it.",
         variant: "success",
       })
-    }, 1000)
+    } catch (error) {
+      toast({
+        title: "Unable to resend code",
+        description: error instanceof Error ? error.message : "Try again later.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsResending(false)
+    }
   }
 
-  const handleVerify = (event: React.FormEvent) => {
+  const handleVerify = async (event: React.FormEvent) => {
     event.preventDefault()
 
     if (code.length < 6) {
@@ -50,10 +65,16 @@ export default function VerifyResetPage() {
       return
     }
 
-    if (newPassword.length < 8) {
+    if (
+      newPassword.length < 8
+      || !/[A-Z]/.test(newPassword)
+      || !/[a-z]/.test(newPassword)
+      || !/\d/.test(newPassword)
+      || !/[^A-Za-z0-9]/.test(newPassword)
+    ) {
       toast({
         title: "Weak password",
-        description: "Password must be at least 8 characters.",
+        description: "Use at least 8 characters with uppercase and lowercase letters, a number, and a symbol.",
         variant: "warning",
       })
       return
@@ -69,16 +90,29 @@ export default function VerifyResetPage() {
     }
 
     setIsVerifying(true)
-
-    setTimeout(() => {
-      setIsVerifying(false)
+    try {
+      const response = await fetch("/api/auth/password-reset/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code, password: newPassword }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.message || "Invalid or expired verification code.")
       toast({
         title: "Password reset complete",
         description: "You can now sign in using your new password.",
         variant: "success",
       })
       router.push("/login")
-    }, 1400)
+    } catch (error) {
+      toast({
+        title: "Password reset failed",
+        description: error instanceof Error ? error.message : "Invalid or expired verification code.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsVerifying(false)
+    }
   }
 
   return (
@@ -110,8 +144,11 @@ export default function VerifyResetPage() {
               </label>
               <input
                 id="code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
                 value={code}
-                onChange={(event) => setCode(event.target.value)}
+                onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
                 placeholder="Enter 6-digit code"
                 className="w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-3 py-2.5 text-sm text-[var(--iris-text)] focus:outline-none"
               />
@@ -128,6 +165,7 @@ export default function VerifyResetPage() {
                 onChange={(event) => setNewPassword(event.target.value)}
                 className="w-full rounded-xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-3 py-2.5 text-sm text-[var(--iris-text)] focus:outline-none"
               />
+              <p className="text-xs text-[var(--iris-text-subtle)]">At least 8 characters with uppercase and lowercase letters, a number, and a symbol.</p>
             </div>
 
             <div className="space-y-2">

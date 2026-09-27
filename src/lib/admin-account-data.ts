@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { normalizeAddress, normalizeContact } from "@/lib/personal-info"
 import { hashPassword, verifyPassword } from "@/lib/auth-data"
 
 type ActivityCategory = "profile" | "security" | "cases" | "system"
@@ -77,37 +78,29 @@ export async function getAdminProfileData(email: string) {
 
 export async function updateAdminProfileData(
   email: string,
-  input: { fullName?: string; phone?: string; address?: string; bio?: string; photoUrl?: string; email?: string }
+  input: { phone?: string; address?: string; bio?: string; photoUrl?: string; email?: string }
 ) {
   const user = await findUserByEmail(email)
   if (!user) return null
 
   const nextEmail = input.email?.trim().toLowerCase() || user.email
+  const phone = input.phone === undefined ? undefined : normalizeContact(input.phone)
+  const address = input.address === undefined ? undefined : normalizeAddress(input.address)
 
   const updated = await prisma.user.update({
     where: { id: user.id },
     data: {
-      fullName: input.fullName,
-      contact: input.phone,
-      street: input.address,
+      contact: phone,
+      street: address,
       bio: input.bio,
       photoUrl: input.photoUrl,
       email: nextEmail,
     },
   })
 
-  if (input.fullName && input.fullName !== user.fullName) {
-    await createUserActivityData({
-      email: nextEmail,
-      label: "Profile name updated",
-      detail: `Display name changed to ${input.fullName}.`,
-      category: "profile",
-    })
-  }
-
   if (
-    (input.phone !== undefined && input.phone !== (user.contact ?? "")) ||
-    (input.address !== undefined && input.address !== (user.street ?? "")) ||
+    (phone !== undefined && phone !== (user.contact ?? "")) ||
+    (address !== undefined && address !== (user.street ?? "")) ||
     (input.bio !== undefined && input.bio !== (user.bio ?? ""))
   ) {
     await createUserActivityData({

@@ -24,6 +24,7 @@ import { ResidentNav } from "@/components/ResidentNav";
 import { getAuthUser } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ResidentProfile {
   fullName: string;
@@ -94,6 +95,7 @@ export default function ResidentAccountPage() {
     street: "",
     photoUrl: "",
   });
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
   // Password
   const [currentPw, setCurrentPw] = useState("");
@@ -117,7 +119,10 @@ export default function ResidentAccountPage() {
   const [showEmailForm, setShowEmailForm] = useState(false);
 
   useEffect(() => {
-    if (!userEmail) return;
+    if (!userEmail) {
+      Promise.resolve().then(() => setIsLoadingProfile(false));
+      return;
+    }
     Promise.resolve().then(() => setProfile(loadProfile(userEmail)));
     fetch(`/api/resident/profile?email=${encodeURIComponent(userEmail)}`)
       .then((response) => response.json())
@@ -126,7 +131,8 @@ export default function ResidentAccountPage() {
           setProfile((current) => ({ ...result.data, photoUrl: current.photoUrl }));
         }
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => setIsLoadingProfile(false));
   }, [userEmail]);
 
   useEffect(() => {
@@ -240,13 +246,29 @@ export default function ResidentAccountPage() {
     { id: "security", label: "Security", icon: Shield },
   ];
 
+  if (isLoadingProfile) {
+    return (
+      <div className="flex min-h-dvh bg-background text-foreground lg:h-dvh lg:overflow-hidden">
+        <div className="hidden h-dvh shrink-0 lg:flex"><ResidentSidebar /></div>
+        <main className="min-w-0 flex-1 p-4 pb-28 sm:p-6 sm:pb-28 lg:min-h-0 lg:overflow-y-auto lg:p-8 lg:pb-8">
+          <div className="hidden lg:block"><PageHeader title="My Account" description="Manage your resident profile, contact details, and security preferences." icon={<User className="h-5 w-5 text-white" />} /></div>
+          <div aria-label="Loading account profile" className="mx-auto mt-5 grid w-full max-w-md gap-4 lg:max-w-6xl lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="space-y-4"><Skeleton className="h-28 w-full" /><Skeleton className="h-80 w-full" /></div>
+            <div className="space-y-4"><Skeleton className="h-40 w-full" /><Skeleton className="h-52 w-full" /></div>
+          </div>
+        </main>
+        <div className="lg:hidden"><ResidentNav /></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
-      <div className="hidden lg:flex h-screen shrink-0">
+    <div className="flex min-h-dvh bg-background text-foreground lg:h-dvh lg:overflow-hidden">
+      <div className="hidden lg:flex h-dvh shrink-0">
         <ResidentSidebar />
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col lg:min-h-0">
         <header className="sticky top-0 z-20 border-b border-border bg-gradient-to-br from-[var(--primary)] via-[var(--primary-hover)] to-[#123472] px-4 pb-5 pt-4 text-white shadow-sm lg:hidden">
           <div className="mx-auto w-full max-w-md">
             <Link
@@ -280,7 +302,7 @@ export default function ResidentAccountPage() {
 
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 p-4 pb-28 sm:p-6 sm:pb-28 lg:min-h-0 lg:overflow-y-auto lg:p-8 lg:pb-8">
           <div className="hidden lg:block">
             <PageHeader
               title="My Account"
@@ -358,11 +380,15 @@ export default function ResidentAccountPage() {
                         <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         <input
                           value={profile.fullName}
-                          onChange={(e) => updateField("fullName", e.target.value)}
+                          readOnly
                           placeholder="Enter your full name"
-                          className="flex-1 bg-transparent text-sm focus:outline-none"
+                          aria-describedby="resident-name-note"
+                          className="flex-1 bg-transparent text-sm text-muted-foreground focus:outline-none"
                         />
                       </div>
+                      <p id="resident-name-note" className="text-xs text-muted-foreground">
+                        Contact the barangay administrator to correct your name.
+                      </p>
                     </label>
 
                     <label className="block space-y-1">

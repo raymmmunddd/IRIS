@@ -6,8 +6,9 @@ import { ArrowLeft, Bell, Briefcase, CheckCircle2, Clock, FileText, Settings } f
 import { ResidentNav } from "@/components/ResidentNav";
 import { ResidentSidebar } from "@/components/resident/sidebar";
 import { PageHeader } from "@/components/ui/page-header";
-import { type ResidentNotif, loadNotifs, saveNotifs } from "@/components/NotificationBell";
+import { type ResidentNotif } from "@/components/NotificationBell";
 import { getAuthUser } from "@/lib/auth";
+import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh";
 
 const CATEGORY_ICON = {
   case: Briefcase,
@@ -21,50 +22,79 @@ function getCategoryIcon(category: string) {
 }
 
 export default function UpdatesPage() {
-  const [notifs, setNotifs] = useState<ResidentNotif[]>(loadNotifs);
+  const hasUser = Boolean(getAuthUser());
+  const [notifs, setNotifs] = useState<ResidentNotif[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [updating, setUpdating] = useState(false);
+  const [reloadCount, setReloadCount] = useState(0);
 
   useEffect(() => {
-    const user = getAuthUser();
-    if (!user) {
-      return;
+    if (!hasUser) {
+      setLoadError("Sign in to view notifications.");
+      setLoading(false);
     }
+  }, [hasUser]);
 
-    fetch(`/api/resident/notifications?email=${encodeURIComponent(user.email)}`)
-      .then((response) => response.json())
-      .then((result) => {
-        setNotifs(result.success ? result.data : loadNotifs());
-      })
-      .catch(() => setNotifs(loadNotifs()));
-  }, []);
+  useRealtimeRefresh(async (signal) => {
+    const user = getAuthUser();
+    if (!user) return;
+    try {
+      const response = await fetch(`/api/resident/notifications?email=${encodeURIComponent(user.email)}`, { signal });
+      const result = await response.json();
+      if (!response.ok || !result.success || !Array.isArray(result.data)) throw new Error(result.message || "Unable to load notifications.");
+      setNotifs(result.data);
+      setLoadError("");
+    } catch (error) {
+      if (!signal.aborted && notifs.length === 0) setLoadError(error instanceof Error ? error.message : "Unable to load notifications.");
+    } finally {
+      if (!signal.aborted) setLoading(false);
+    }
+  }, { topics: ["iris:notifications"], enabled: hasUser, refreshKey: reloadCount });
 
   const unread = notifs.filter((n) => !n.read).length;
   const allRead = unread === 0;
 
-  const markOne = (id: number | string) => {
-    const updated = notifs.map((n) => (n.id === id ? { ...n, read: true } : n));
-    setNotifs(updated);
-    saveNotifs(updated);
+  const markOne = async (id: number | string) => {
     const user = getAuthUser();
-    if (user) {
-      fetch(`/api/resident/notifications/${id}`, {
+    if (!user) return;
+    setUpdating(true);
+    setActionError("");
+    try {
+      const response = await fetch(`/api/resident/notifications/${encodeURIComponent(String(id))}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: user.email }),
-      }).catch(() => undefined);
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || "Unable to update notification.");
+      setReloadCount((count) => count + 1);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Unable to update notification.");
+    } finally {
+      setUpdating(false);
     }
   };
 
-  const markAll = () => {
-    const updated = notifs.map((n) => ({ ...n, read: true }));
-    setNotifs(updated);
-    saveNotifs(updated);
+  const markAll = async () => {
     const user = getAuthUser();
-    if (user) {
-      fetch("/api/resident/notifications", {
+    if (!user) return;
+    setUpdating(true);
+    setActionError("");
+    try {
+      const response = await fetch("/api/resident/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: user.email }),
-      }).catch(() => undefined);
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || "Unable to update notifications.");
+      setReloadCount((count) => count + 1);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Unable to update notifications.");
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -109,6 +139,9 @@ export default function UpdatesPage() {
           </div>
 
           <div className="mx-auto w-full max-w-md space-y-4 pb-24 lg:max-w-6xl lg:space-y-6 lg:pb-0">
+            {loadError && <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><span>{loadError}</span><button type="button" onClick={() => setReloadCount((count) => count + 1)} className="min-h-10 font-semibold underline">Retry</button></div>}
+            {actionError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{actionError}</p>}
+            {loading ? <div aria-label="Loading notifications" className="space-y-3">{[0, 1, 2].map((item) => <div key={item} className="h-20 animate-pulse rounded-xl bg-muted" />)}</div> : (
             <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="order-2 space-y-4 lg:order-1 lg:space-y-6">
                 <div>
@@ -116,6 +149,7 @@ export default function UpdatesPage() {
                     Recent
                   </p>
                   <div className="space-y-2">
+                    {recent.length === 0 && <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">No recent notifications.</p>}
                     {recent.map((n) => {
                       const Icon = getCategoryIcon(n.category ?? "case");
                       return (
@@ -165,7 +199,7 @@ export default function UpdatesPage() {
                     <p className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
                       Earlier
                     </p>
-                    <div className="space-y-2">
+                  <div className="space-y-2">
                       {older.map((n) => {
                         const Icon = getCategoryIcon(n.category ?? "system");
                         return (
@@ -222,10 +256,10 @@ export default function UpdatesPage() {
                   </div>
                   <button
                     onClick={markAll}
-                    disabled={allRead}
-                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-[var(--primary)] transition hover:bg-muted disabled:opacity-40"
+                    disabled={allRead || updating || loading}
+                    className="min-h-10 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-[var(--primary)] transition hover:bg-muted disabled:opacity-40"
                   >
-                    Mark all read
+                    {updating ? "Updating..." : "Mark all read"}
                   </button>
                 </div>
 
@@ -254,6 +288,7 @@ export default function UpdatesPage() {
                 </div>
               </aside>
             </div>
+            )}
           </div>
         </main>
 

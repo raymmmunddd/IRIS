@@ -7,9 +7,6 @@ import {
   Users,
   FileText,
   TrendingUp,
-  Award,
-  Clock3,
-  ShieldCheck,
   Eye,
   UserPlus,
   Search,
@@ -25,6 +22,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
+import { ListPagination } from "@/components/ui/list-pagination"
+import { paginateItems } from "@/lib/pagination"
 
 export type OperationsOfficer = {
   id: string
@@ -33,8 +32,6 @@ export type OperationsOfficer = {
   position: string
   activeCases: number
   resolvedCases: number
-  performance: number
-  avgResponseTime: string
   cases?: {
     id: string
     caseNumber: string
@@ -66,31 +63,6 @@ function getInitials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("")
-}
-
-function getPerformanceTone(performance: number) {
-  if (performance >= 85) {
-    return {
-      badge:
-        "border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm",
-      dot: "bg-emerald-500",
-      label: "Excellent",
-    }
-  }
-  if (performance >= 70) {
-    return {
-      badge:
-        "border-amber-200 bg-amber-50 text-amber-700 shadow-sm",
-      dot: "bg-amber-500",
-      label: "Good",
-    }
-  }
-  return {
-    badge:
-      "border-rose-200 bg-rose-50 text-rose-700 shadow-sm",
-    dot: "bg-rose-500",
-    label: "Needs Review",
-  }
 }
 
 function getWorkloadTone(activeCases: number) {
@@ -226,6 +198,9 @@ export function OfficersTab({
 }: OfficersTabProps) {
   const [selectedOfficer, setSelectedOfficer] = useState<OperationsOfficer | null>(null)
   const [assignOfficer, setAssignOfficer] = useState<OperationsOfficer | null>(null)
+  const currentSelectedOfficer = selectedOfficer
+    ? officers.find((officer) => officer.id === selectedOfficer.id) ?? selectedOfficer
+    : null
   const [selectedCaseId, setSelectedCaseId] = useState("")
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [firstName, setFirstName] = useState("")
@@ -243,13 +218,12 @@ export function OfficersTab({
   const [email, setEmail] = useState("")
   const [roleTitle, setRoleTitle] = useState("BPAT_OFFICER")
   const [search, setSearch] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const totalOfficers = officers.length
   const totalActiveCases = officers.reduce((sum, o) => sum + o.activeCases, 0)
   const totalResolvedCases = officers.reduce((sum, o) => sum + o.resolvedCases, 0)
-  const avgPerformance = Math.round(
-    officers.reduce((sum, o) => sum + o.performance, 0) / Math.max(totalOfficers, 1)
-  )
 
   const filteredOfficers = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -262,7 +236,6 @@ export function OfficersTab({
         officer.position,
         String(officer.activeCases),
         String(officer.resolvedCases),
-        String(officer.performance),
       ]
         .join(" ")
         .toLowerCase()
@@ -271,30 +244,38 @@ export function OfficersTab({
     })
   }, [officers, search])
 
+  const pageSize = 5
+  const { page: visiblePage, pageCount, items: visibleOfficers } = paginateItems(filteredOfficers, currentPage, pageSize)
+
   async function addOfficer() {
     if (!fullName || !email) {
       toast.error("Name and email are required")
       return
     }
 
-    const response = await fetch("/api/operations/officers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fullName, email, roleTitle }),
-    })
-
-    const result = await response.json()
-    if (!result.success) {
-      toast.error(result.message || "Unable to add officer")
-      return
+    setIsSaving(true)
+    try {
+      const response = await fetch("/api/operations/officers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullName, email, roleTitle }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.message || "Unable to add officer")
+      toast.success("Officer added")
+      setFirstName("")
+      setMiddleName("")
+      setLastName("")
+      setSuffix("")
+      setEmail("")
+      setRoleTitle("BPAT_OFFICER")
+      setIsAddOpen(false)
+      onUpdated?.()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to add officer")
+    } finally {
+      setIsSaving(false)
     }
-
-    toast.success("Officer added")
-    setFullName("")
-    setEmail("")
-    setRoleTitle("BPAT_OFFICER")
-    setIsAddOpen(false)
-    onUpdated?.()
   }
 
   async function assignCase() {
@@ -303,30 +284,29 @@ export function OfficersTab({
       return
     }
 
-    const response = await fetch("/api/operations/assign-case", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        officerId: assignOfficer.id,
-        caseId: selectedCaseId,
-      }),
-    })
-
-    const result = await response.json()
-    if (!result.success) {
-      toast.error(result.message || "Unable to assign case")
-      return
+    setIsSaving(true)
+    try {
+      const response = await fetch("/api/operations/assign-case", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ officerId: assignOfficer.id, caseId: selectedCaseId }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.message || "Unable to assign case")
+      toast.success("Case assigned")
+      setAssignOfficer(null)
+      setSelectedCaseId("")
+      onUpdated?.()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to assign case")
+    } finally {
+      setIsSaving(false)
     }
-
-    toast.success("Case assigned")
-    setAssignOfficer(null)
-    setSelectedCaseId("")
-    onUpdated?.()
   }
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <InsightTile
           title="Active Officers"
           value={`${totalOfficers}`}
@@ -353,19 +333,6 @@ export function OfficersTab({
           icon={<TrendingUp className="h-6 w-6" />}
         />
 
-        <InsightTile
-          title="Average Performance"
-          value={`${avgPerformance}%`}
-          description="Overall operational efficiency of the Lupon team."
-          state={
-            avgPerformance >= 85
-              ? "positive"
-              : avgPerformance >= 70
-              ? "warning"
-              : "critical"
-          }
-          icon={<Award className="h-6 w-6" />}
-        />
       </div>
 
       <Card className="rounded-3xl border border-slate-200/80 bg-white shadow-sm">
@@ -386,7 +353,7 @@ export function OfficersTab({
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
                   placeholder="Search officers..."
                   className="
                     h-11 rounded-2xl border-slate-200 bg-white pl-9
@@ -432,7 +399,7 @@ export function OfficersTab({
                       <Input
                         id="officer-name"
                         value={fullName}
-                        onChange={(event) => setFullName(event.target.value)}
+                        onChange={(event) => setFirstName(event.target.value)}
                         className="
                           h-11 rounded-2xl border-slate-200 bg-white
                           focus-visible:border-[#D9A900]
@@ -490,6 +457,7 @@ export function OfficersTab({
                         type="button"
                         variant="ghost"
                         onClick={() => setIsAddOpen(false)}
+                        disabled={isSaving}
                         className="
                           h-11 rounded-2xl px-4
                           text-slate-600 hover:bg-slate-100 hover:text-slate-900
@@ -498,14 +466,16 @@ export function OfficersTab({
                         Cancel
                       </Button>
                       <Button
+                        type="button"
                         onClick={addOfficer}
+                        disabled={isSaving}
                         className="
                           h-11 rounded-2xl px-5
                           bg-[#D9A900] text-slate-950 shadow-sm
                           hover:bg-[#B88900]
                         "
                       >
-                        Save Officer
+                        {isSaving ? "Saving..." : "Save Officer"}
                       </Button>
                     </div>
                   </div>
@@ -531,8 +501,7 @@ export function OfficersTab({
               </div>
             )}
 
-            {filteredOfficers.map((officer) => {
-              const perfTone = getPerformanceTone(officer.performance)
+            {visibleOfficers.map((officer) => {
               const workloadTone = getWorkloadTone(officer.activeCases)
 
               return (
@@ -594,30 +563,12 @@ export function OfficersTab({
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-2 rounded-2xl border border-slate-100 bg-slate-50/70 px-3 py-2">
-                            <ShieldCheck className="h-4 w-4 text-slate-500" />
-                            <span className="text-sm text-slate-600">
-                              <span className="font-semibold text-slate-900">
-                                {officer.avgResponseTime}
-                              </span>{" "}
-                              avg response
-                            </span>
-                          </div>
                         </div>
                       </div>
                     </div>
 
                     <div className="flex shrink-0 flex-col gap-3 lg:items-end">
                       <div className="flex flex-wrap gap-2 lg:justify-end">
-                        <Badge
-                          className={cn(
-                            "rounded-full border px-3 py-1 text-xs font-medium",
-                            perfTone.badge
-                          )}
-                        >
-                          {perfTone.label} {officer.performance}%
-                        </Badge>
-
                         <Badge
                           className={cn(
                             "rounded-full border px-3 py-1 text-xs font-medium",
@@ -628,10 +579,6 @@ export function OfficersTab({
                         </Badge>
                       </div>
 
-                      <div className="flex items-center gap-2 text-sm text-slate-500">
-                        <Clock3 className="h-4 w-4" />
-                        <span>Avg response: {officer.avgResponseTime}</span>
-                      </div>
 
                       <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                         <Button
@@ -670,6 +617,14 @@ export function OfficersTab({
               )
             })}
           </div>
+          <ListPagination
+            page={visiblePage}
+            pageCount={pageCount}
+            pageSize={pageSize}
+            totalItems={filteredOfficers.length}
+            itemLabel="officers"
+            onPageChange={setCurrentPage}
+          />
         </CardContent>
       </Card>
 
@@ -677,16 +632,16 @@ export function OfficersTab({
         open={!!selectedOfficer}
         onOpenChange={(open) => !open && setSelectedOfficer(null)}
       >
-        <DialogContent className="rounded-3xl border-slate-200 bg-white shadow-xl sm:max-w-2xl">
+        <DialogContent className="flex max-h-[85dvh] min-h-0 flex-col overflow-hidden rounded-3xl border-slate-200 bg-white shadow-xl sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-slate-900">
-              {selectedOfficer?.fullName} Cases
+              {currentSelectedOfficer?.fullName} Cases
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-3">
-            {selectedOfficer?.cases?.length ? (
-              selectedOfficer.cases.map((caseItem) => (
+          <div className="min-h-0 space-y-3 overflow-y-auto overscroll-contain pr-1">
+            {currentSelectedOfficer?.cases?.length ? (
+              currentSelectedOfficer.cases.map((caseItem) => (
                 <div
                   key={caseItem.id}
                   className="
@@ -779,6 +734,7 @@ export function OfficersTab({
                 type="button"
                 variant="ghost"
                 onClick={() => setAssignOfficer(null)}
+                disabled={isSaving}
                 className="
                   h-11 rounded-2xl px-4
                   text-slate-600 hover:bg-slate-100 hover:text-slate-900
@@ -788,14 +744,16 @@ export function OfficersTab({
               </Button>
 
               <Button
+                type="button"
                 onClick={assignCase}
+                disabled={isSaving}
                 className="
                   h-11 rounded-2xl bg-[#D9A900] px-5
                   text-slate-950 shadow-sm
                   hover:bg-[#B88900]
                 "
               >
-                Assign Case
+                {isSaving ? "Assigning..." : "Assign Case"}
               </Button>
             </div>
           </div>

@@ -132,7 +132,7 @@ export function ResidentSidebar() {
                 href={item.href}
                 onClick={() => setIsMobileOpen(false)}
                 className={cn(
-                  "relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  "relative flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-nav-hover-border)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar-bg)]",
                   isActive(item.href)
                     ? "bg-[var(--sidebar-nav-active-bg)] text-[var(--sidebar-nav-active-foreground)] shadow-sm"
@@ -199,7 +199,7 @@ export function ResidentSidebar() {
       </div>
 
       {isMobileOpen && (
-        <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setIsMobileOpen(false)} />
+        <div className="fixed inset-0 z-30 animate-in fade-in duration-200 bg-black/50 motion-reduce:animate-none lg:hidden" onClick={() => setIsMobileOpen(false)} />
       )}
 
       <aside
@@ -212,7 +212,7 @@ export function ResidentSidebar() {
           "hidden lg:flex"
         )}
       >
-        <SidebarContent />
+        {SidebarContent()}
       </aside>
 
       <aside
@@ -223,7 +223,7 @@ export function ResidentSidebar() {
           "lg:hidden"
         )}
       >
-        <SidebarContent />
+        {SidebarContent()}
       </aside>
     </>
   );

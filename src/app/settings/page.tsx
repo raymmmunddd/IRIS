@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { getAuthUser } from "@/lib/auth"
+import { Skeleton } from "@/components/ui/skeleton"
 
 function parseStoredDate(value: string): Date | null {
   if (!value || value === "Never") return null
@@ -199,8 +200,17 @@ export default function SettingsPage() {
         />
 
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+          <div aria-label="Loading account security" aria-busy="true" className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+            {[0, 1].map((card) => <div key={card} className="space-y-5 rounded-xl border border-border bg-card p-5 shadow-sm">
+              <Skeleton className="h-6 w-44" />
+              <div className="space-y-4">
+                {[0, 1, 2].map((field) => <div key={field} className="space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-11 w-full" />
+                </div>)}
+              </div>
+              <Skeleton className="h-10 w-36" />
+            </div>)}
           </div>
         ) : (
         <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">

@@ -12,27 +12,11 @@ import { SettingsTab } from "@/components/admin/settings-tab";
 import { Users, Megaphone, Eye, FileText, Settings, ShieldCheck } from "lucide-react";
 import { PageHeaderSkeleton } from "@/components/ui/page-header-skeleton"
 import { AdminSkeleton } from "@/components/admin/admin-skeleton"
+import { Card, CardContent } from "@/components/ui/card"
 
 export default function AdminPage() {
   const [loading, setLoading] = useState(true)
-
-  async function loadAdminData() {
-    try {
-      setLoading(true)
-
-      const response = await fetch("/api/admin")
-      const result = await response.json()
-
-      if (result.success) {
-        setAdminData(result.data)
-      }
-    } catch (error) {
-      console.error("Failed to load admin data:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  const [loadError, setLoadError] = useState("")
   const [adminData, setAdminData] = useState<{
     users: Parameters<typeof UsersTab>[0]["users"]
     announcements: Parameters<typeof AnnouncementsTab>[0]["announcements"]
@@ -41,17 +25,31 @@ export default function AdminPage() {
 
   async function loadAdminData() {
     try {
+      setLoading(true)
+      setLoadError("")
+
       const response = await fetch("/api/admin")
       const result = await response.json()
-      if (result.success) setAdminData(result.data)
+
+      if (!response.ok || !result.success || !result.data) throw new Error(result.message || "Unable to load administration data.")
+      setAdminData(result.data)
     } catch (error) {
-      console.error("Failed to load admin data:", error)
+      setLoadError(error instanceof Error ? error.message : "Unable to load administration data.")
+    } finally {
+      setLoading(false)
     }
   }
 
   useEffect(() => {
     loadAdminData()
   }, [])
+
+  const adminSummary = [
+    { label: "Total residents", value: (adminData.users ?? []).length, detail: "Accounts in the system", icon: Users },
+    { label: "Pending review", value: (adminData.users ?? []).filter((user) => user.status === "Pending").length, detail: "Registrations awaiting review", icon: ShieldCheck },
+    { label: "Announcements", value: (adminData.announcements ?? []).length, detail: "Published notices", icon: Megaphone },
+    { label: "Recent audit events", value: (adminData.auditLogs ?? []).length, detail: "Latest activity records", icon: FileText },
+  ]
 
   if (loading) {
     return (
@@ -76,6 +74,28 @@ export default function AdminPage() {
           description="Manage system users, settings, and overall barangay system control."
           icon={<ShieldCheck className="h-5 w-5 text-white" />}
         />
+
+        {loadError && (
+          <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            <span>{loadError}</span>
+            <button type="button" onClick={loadAdminData} className="font-semibold underline">Retry</button>
+          </div>
+        )}
+
+        <section aria-label="Administration overview" className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {adminSummary.map((stat) => (
+            <Card key={stat.label} className="border-border bg-card shadow-sm">
+              <CardContent className="flex items-start justify-between gap-3 p-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                  <p className="mt-1 text-2xl font-semibold tracking-tight">{stat.value}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{stat.detail}</p>
+                </div>
+                <span className="rounded-xl bg-primary/10 p-2.5 text-primary"><stat.icon className="h-5 w-5" /></span>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
 
         <Tabs defaultValue="users" className="space-y-4 sm:space-y-6">
           <TabsList className="h-auto w-full justify-start gap-0 rounded-none border-b border-border bg-transparent p-0 overflow-x-auto">

@@ -1,9 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import {
-  Calendar,
-} from "lucide-react"
 import { toast } from "sonner"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,6 +27,8 @@ import {
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ListPagination } from "@/components/ui/list-pagination"
+import { paginateItems } from "@/lib/pagination"
 
 export type MediationSession = {
   id: string
@@ -44,129 +43,32 @@ export type MediationSession = {
 
 interface MediationTabProps {
   sessions?: MediationSession[]
-  mediators?: string[]
-  onScheduled?: () => void
 }
 
-export function MediationTab({ sessions = [], mediators = [], onScheduled }: MediationTabProps) {
-  const [caseId, setCaseId] = useState("")
-  const [mediator, setMediator] = useState("")
-  const [scheduledDate, setScheduledDate] = useState("")
-  const [scheduledTime, setScheduledTime] = useState("")
-  const [location, setLocation] = useState("")
-  const [complainant, setComplainant] = useState("")
-  const [respondent, setRespondent] = useState("")
+export function MediationTab({ sessions = [] }: MediationTabProps) {
+  const [currentPage, setCurrentPage] = useState(1)
   const [noticeOpen, setNoticeOpen] = useState(false)
   const [noticeSessionId, setNoticeSessionId] = useState("")
   const [reportSession, setReportSession] = useState<MediationSession | null>(null)
-  const today = new Date().toISOString().slice(0, 10)
-  const selectedNoticeSession = sessions.find((session) => session.id === noticeSessionId) ?? sessions[0]
-  const noticeParties = selectedNoticeSession?.parties ?? ["[Complainant]", "[Respondent]"]
-
-  async function scheduleSession() {
-    if (!caseId || !mediator || !scheduledDate || !scheduledTime || !location) {
-      toast.error("Complete the mediation schedule fields")
-      return
-    }
-
-    if (scheduledDate < today) {
-      toast.error("You cannot schedule mediation in the past")
-      return
-    }
-
-    const response = await fetch("/api/operations/hearings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ caseId, mediator, scheduledDate, scheduledTime, location }),
-    })
-    const result = await response.json()
-
-    if (result.success) {
-      toast.success("Mediation scheduled successfully")
-      setCaseId("")
-      setMediator("")
-      setScheduledDate("")
-      setScheduledTime("")
-      setLocation("")
-      setComplainant("")
-      setRespondent("")
-      onScheduled?.()
-      return
-    }
-
-    toast.error(result.message || "Unable to schedule mediation")
-  }
+  const currentReportSession = reportSession
+    ? sessions.find((session) => session.id === reportSession.id) ?? reportSession
+    : null
+  const noticeSessions = sessions.filter((session) => session.status === "Scheduled")
+  const selectedNoticeSession = noticeSessions.find((session) => session.id === noticeSessionId) ?? noticeSessions[0]
+  const pageSize = 5
+  const { page: visiblePage, pageCount, items: visibleSessions } = paginateItems(sessions, currentPage, pageSize)
 
   return (
     <div className="space-y-6">
-      {/* Mediation Actions */}
       <div className="flex gap-3">
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>Schedule Mediation</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[525px]">
-            <DialogHeader>
-              <DialogTitle>Schedule Mediation Session</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="case-id">Case ID</Label>
-                <Input id="case-id" placeholder="Paste database case ID" value={caseId} onChange={(event) => setCaseId(event.target.value)} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="mediator">Mediator</Label>
-                <Select value={mediator} onValueChange={setMediator}>
-                  <SelectTrigger id="mediator">
-                    <SelectValue placeholder="Select mediator" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mediators.filter((item) => item !== "Unassigned").map((item) => (
-                      <SelectItem key={item} value={item}>{item}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="date">Date</Label>
-                  <Input id="date" type="date" min={today} value={scheduledDate} onChange={(event) => setScheduledDate(event.target.value)} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="time">Time</Label>
-                  <Input id="time" type="time" value={scheduledTime} onChange={(event) => setScheduledTime(event.target.value)} />
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="location">Location</Label>
-                <Input id="location" placeholder="Barangay Hall - Conference Room" value={location} onChange={(event) => setLocation(event.target.value)} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="complainant">Complainant</Label>
-                  <Input id="complainant" value={complainant} onChange={(event) => setComplainant(event.target.value)} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="respondent">Respondent</Label>
-                  <Input id="respondent" value={respondent} onChange={(event) => setRespondent(event.target.value)} />
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Button onClick={scheduleSession} className="bg-black hover:bg-black/90 text-white">
-                Schedule Session
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
         <Dialog open={noticeOpen} onOpenChange={setNoticeOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline">Generate Notice</Button>
+            <Button variant="outline" disabled={noticeSessions.length === 0}>Generate Notice</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-xl">
             <DialogHeader>
               <DialogTitle>Generate Mediation Notice</DialogTitle>
-              <DialogDescription>Select a scheduled session and print the notice for the parties.</DialogDescription>
+              <DialogDescription>Confirm the hearing details below, then print a notice for each party.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-2">
               <div className="grid gap-2">
@@ -176,7 +78,7 @@ export function MediationTab({ sessions = [], mediators = [], onScheduled }: Med
                     <SelectValue placeholder="Select mediation session" />
                   </SelectTrigger>
                   <SelectContent className="z-[90] bg-background">
-                    {sessions.map((session) => (
+                    {noticeSessions.map((session) => (
                       <SelectItem key={session.id} value={session.id}>
                         {session.caseId} - {session.scheduledDate}
                       </SelectItem>
@@ -185,9 +87,11 @@ export function MediationTab({ sessions = [], mediators = [], onScheduled }: Med
                 </Select>
               </div>
               <div className="rounded-lg border bg-muted/30 p-4 text-sm leading-relaxed">
-                <p className="font-semibold">Notice of Mediation</p>
+                <p className="font-semibold">Notice of Mediation Hearing</p>
                 <p className="mt-3">
-                  This serves as notice that {noticeParties.join(" and ")} are requested to appear for barangay mediation before the Lupon Tagapamayapa.
+                  {selectedNoticeSession
+                    ? `${selectedNoticeSession.parties.join(" and ")} are requested to attend the barangay mediation hearing for case ${selectedNoticeSession.caseId}.`
+                    : "Select a scheduled mediation session to prepare a notice."}
                 </p>
                 {selectedNoticeSession && (
                   <div className="mt-3 space-y-1">
@@ -198,7 +102,7 @@ export function MediationTab({ sessions = [], mediators = [], onScheduled }: Med
                   </div>
                 )}
                 <p className="mt-3 text-muted-foreground">
-                  Bring valid identification and any supporting documents relevant to the complaint.
+                  Please arrive 15 minutes early and bring a valid ID and any receipts, photographs, messages, or other documents related to the complaint. If you cannot attend, contact the barangay office before the hearing for guidance.
                 </p>
               </div>
             </div>
@@ -238,7 +142,7 @@ export function MediationTab({ sessions = [], mediators = [], onScheduled }: Med
                   </TableCell>
                 </TableRow>
               )}
-              {sessions.map((session) => (
+              {visibleSessions.map((session) => (
                 <TableRow key={session.id}>
                   <TableCell className="font-medium">{session.caseId}</TableCell>
                   <TableCell>
@@ -321,33 +225,41 @@ export function MediationTab({ sessions = [], mediators = [], onScheduled }: Med
               ))}
             </TableBody>
           </Table>
+          <ListPagination
+            page={visiblePage}
+            pageCount={pageCount}
+            pageSize={pageSize}
+            totalItems={sessions.length}
+            itemLabel="sessions"
+            onPageChange={setCurrentPage}
+          />
         </CardContent>
       </Card>
 
-      <Dialog open={!!reportSession} onOpenChange={(open) => !open && setReportSession(null)}>
+      <Dialog open={!!currentReportSession} onOpenChange={(open) => !open && setReportSession(null)}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Mediation Report</DialogTitle>
-            <DialogDescription>{reportSession?.caseId}</DialogDescription>
+            <DialogDescription>{currentReportSession?.caseId}</DialogDescription>
           </DialogHeader>
-          {reportSession && (
+          {currentReportSession && (
             <div className="space-y-4 text-sm">
               <div className="grid gap-3 rounded-lg border bg-muted/30 p-4 sm:grid-cols-2">
                 <div>
                   <p className="text-muted-foreground">Parties</p>
-                  <p className="font-medium">{reportSession.parties.join(" vs ")}</p>
+                  <p className="font-medium">{currentReportSession.parties.join(" vs ")}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Mediator</p>
-                  <p className="font-medium">{reportSession.mediator}</p>
+                  <p className="font-medium">{currentReportSession.mediator}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Date and Time</p>
-                  <p className="font-medium">{reportSession.scheduledDate}, {reportSession.scheduledTime}</p>
+                  <p className="font-medium">{currentReportSession.scheduledDate}, {currentReportSession.scheduledTime}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Location</p>
-                  <p className="font-medium">{reportSession.location}</p>
+                  <p className="font-medium">{currentReportSession.location}</p>
                 </div>
               </div>
               <div className="rounded-lg border p-4">

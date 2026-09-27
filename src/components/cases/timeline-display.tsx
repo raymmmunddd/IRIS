@@ -1,11 +1,12 @@
 "use client"
 
 import { Calendar, User, AlertCircle } from "lucide-react"
-import type { StatusHistoryEntry, OfficerHistoryEntry } from "@/lib/types"
+import type { StatusHistoryEntry, OfficerHistoryEntry, CaseActivityEntry } from "@/lib/types"
 
 interface TimelineDisplayProps {
   statusHistory?: StatusHistoryEntry[]
   assignedOfficerHistory?: OfficerHistoryEntry[]
+  activityHistory?: CaseActivityEntry[]
   dateSubmitted: string
   actorFallback?: string
 }
@@ -41,6 +42,7 @@ function formatDateTime(isoString: string): string {
 export function TimelineDisplay({
   statusHistory = [],
   assignedOfficerHistory = [],
+  activityHistory = [],
   dateSubmitted,
   actorFallback,
 }: TimelineDisplayProps) {
@@ -61,6 +63,7 @@ export function TimelineDisplay({
 
   // Add officer assignments
   assignedOfficerHistory.forEach((entry) => {
+    if (entry.officer === "Unassigned" && entry.assignedBy === "System") return
     events.push({
       type: "officer",
       timestamp: entry.assignedAt,
@@ -68,6 +71,17 @@ export function TimelineDisplay({
       title: `Officer assigned: ${entry.officer}`,
       description: `${entry.officer === "Unassigned" ? "No officer assigned" : `Assigned to ${entry.officer}`}`,
       actor: entry.assignedBy || actorFallback || "System",
+    })
+  })
+
+  activityHistory.forEach((entry) => {
+    events.push({
+      type: "status",
+      timestamp: entry.timestamp,
+      displayTime: formatDateTime(entry.timestamp),
+      title: entry.action,
+      description: entry.details,
+      actor: entry.actor || actorFallback || "System",
     })
   })
 

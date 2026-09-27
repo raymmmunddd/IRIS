@@ -3,7 +3,6 @@
 import {
   FileText,
   CheckCircle2,
-  Clock3,
   Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -104,7 +103,7 @@ export function ReportStats({ data }: ReportStatsProps) {
   const cards: InsightCardProps[] = [
     {
       title: "Total Cases",
-      value: (data?.totalCases ?? 1247).toLocaleString(),
+      value: (data?.totalCases ?? 0).toLocaleString(),
       description: "Incident reports recorded in the system.",
       state: "normal",
       icon: <FileText className="h-6 w-6" />,
@@ -112,23 +111,15 @@ export function ReportStats({ data }: ReportStatsProps) {
 
     {
       title: "Resolution Rate",
-      value: `${data?.resolutionRate ?? 88}%`,
+      value: `${data?.resolutionRate ?? 0}%`,
       description: "Cases successfully resolved.",
       state: "positive",
       icon: <CheckCircle2 className="h-6 w-6" />,
     },
 
     {
-      title: "Average Response Time",
-      value: "2.4 Hours",
-      description: "Average officer response to new incidents.",
-      state: "warning",
-      icon: <Clock3 className="h-6 w-6" />,
-    },
-
-    {
       title: "Active Officers",
-      value: `${data?.activeOfficers ?? 8}`,
+      value: `${data?.activeOfficers ?? 0}`,
       description: "Personnel currently available for deployment.",
       state: "critical",
       icon: <Users className="h-6 w-6" />,
@@ -136,7 +127,7 @@ export function ReportStats({ data }: ReportStatsProps) {
   ]
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {cards.map((card) => (
         <InsightTile key={card.title} {...card} />
       ))}

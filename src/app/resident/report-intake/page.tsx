@@ -1,22 +1,31 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import dynamic from "next/dynamic"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
-  AlertTriangle,
   ArrowLeft,
+  CalendarDays,
+  ClipboardList,
   FileText,
   Gavel,
-  Info,
+  MapPin,
+  MapPinned,
+  Paperclip,
   Scale,
-  ShieldAlert,
+  Info,
+  UserRound,
+  Camera,
+  Phone,
 } from "lucide-react"
 
 import { useToast } from "@/hooks/use-toast"
 import { ResidentSidebar } from "@/components/resident/sidebar"
 import { ResidentNav } from "@/components/ResidentNav"
 import { PageHeader } from "@/components/ui/page-header"
+import { Skeleton } from "@/components/ui/skeleton"
+import { ImagePreviewGrid } from "@/components/evidence/image-preview-grid"
 
 import {
   Dialog,
@@ -31,15 +40,32 @@ import {
   isRoleAuthorized,
 } from "@/lib/auth"
 
-import {
-  CATEGORY_SCOPE_RULES,
-  evaluateResidentReportScope,
-  type ScopeEvaluation,
-} from "@/lib/residentReportScope"
-
 import type { CaseCategory } from "@/lib/types"
 
-const categories: CaseCategory[] = [
+const MAX_EVIDENCE_FILE_SIZE = 5 * 1024 * 1024
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"])
+const LocationPickerMap = dynamic(
+  () => import("@/components/resident/location-picker-map").then((module) => module.LocationPickerMap),
+  { ssr: false, loading: () => <div aria-label="Loading map" className="h-72 animate-pulse rounded-2xl bg-muted sm:h-96" /> },
+)
+
+function manilaDateValue(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date)
+  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? ""
+  return `${part("year")}-${part("month")}-${part("day")}`
+}
+
+function previousDateValue(dateValue: string) {
+  const [year, month, day] = dateValue.split("-").map(Number)
+  return new Date(Date.UTC(year, month - 1, day - 1)).toISOString().slice(0, 10)
+}
+
+const categories: Array<CaseCategory | "Other"> = [
   "Violence or Threats",
   "Harassment & Abuse",
   "Fraud & Scams",
@@ -47,51 +73,58 @@ const categories: CaseCategory[] = [
   "Property & Theft",
   "Community Dispute",
   "Child & Vulnerable Protection",
+  "Other",
 ]
+
+type SelectedEvidence = { file: File; previewUrl: string }
 
 export default function ResidentReportIntakePage() {
   const router = useRouter()
   const { toast } = useToast()
   const initialUser = getAuthUser()
 
-  const [fullName, setFullName] = useState(initialUser?.email ?? "")
+  const [fullName, setFullName] = useState("")
   const [contact, setContact] = useState("")
   const [email, setEmail] = useState(initialUser?.email ?? "")
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true)
+  const [profileLoadError, setProfileLoadError] = useState("")
   const [street, setStreet] = useState("")
+  const [respondentName, setRespondentName] = useState("")
+  const [respondentAddress, setRespondentAddress] = useState("")
+  const [incidentLocationMode, setIncidentLocationMode] = useState<"manual" | "map">("manual")
+  const [incidentCoordinates, setIncidentCoordinates] = useState<{
+    latitude: number
+    longitude: number
+    accuracy: number | null
+  } | null>(null)
+  const [isResolvingIncidentAddress, setIsResolvingIncidentAddress] = useState(false)
+  const [incidentLocationError, setIncidentLocationError] = useState("")
+  const locationRequestRef = useRef<AbortController | null>(null)
   const [incidentDate, setIncidentDate] = useState("")
-  const [incidentCity, setIncidentCity] = useState("Olongapo City")
   const [category, setCategory] =
-    useState<CaseCategory>("Community Dispute")
+    useState<CaseCategory | "Other">("Community Dispute")
+  const [otherCategory, setOtherCategory] = useState("")
+  const [reportType, setReportType] = useState("Resident Report")
   const [details, setDetails] = useState("")
-  const [estimatedClaimAmount, setEstimatedClaimAmount] = useState("")
-
-  const [respondentWithinBarangay, setRespondentWithinBarangay] =
-    useState(true)
-
-  const [respondentHomeless, setRespondentHomeless] =
-    useState(false)
-
-  const [possiblePenaltyOverOneYear, setPossiblePenaltyOverOneYear] =
-    useState(false)
-
-  const [coveredByBarangayOrdinance, setCoveredByBarangayOrdinance] =
-    useState(true)
-
-  const [flagCybercrime, setFlagCybercrime] = useState(false)
-  const [flagDefamation, setFlagDefamation] = useState(false)
-  const [flagVehicularAccident, setFlagVehicularAccident] =
-    useState(false)
-  const [flagHumanRights, setFlagHumanRights] = useState(false)
-
-  const [submitEvaluation, setSubmitEvaluation] =
-    useState<ScopeEvaluation | null>(null)
+  const [selectedEvidence, setSelectedEvidence] = useState<SelectedEvidence[]>([])
+  const evidencePreviewUrlsRef = useRef(new Set<string>())
+  const [evidenceError, setEvidenceError] = useState("")
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const [openGuide, setOpenGuide] = useState(true)
-  const [openScopeModal, setOpenScopeModal] = useState(false)
-  const [openRestrictionModal, setOpenRestrictionModal] =
-    useState(false)
+  const [openGuide, setOpenGuide] = useState(false)
+
+  useEffect(() => {
+    return () => locationRequestRef.current?.abort()
+  }, [])
+
+  useEffect(() => {
+    const previewUrls = evidencePreviewUrlsRef.current
+    return () => {
+      previewUrls.forEach((url) => URL.revokeObjectURL(url))
+      previewUrls.clear()
+    }
+  }, [])
 
   useEffect(() => {
     const user = getAuthUser()
@@ -105,72 +138,117 @@ export default function ResidentReportIntakePage() {
       router.push(getRoleLandingPath(user.role))
       return
     }
+
+    setEmail(user.email)
+    const controller = new AbortController()
+    fetch(`/api/resident/profile?email=${encodeURIComponent(user.email)}`, { signal: controller.signal })
+      .then(async (response) => {
+        const result = await response.json()
+        if (!response.ok || !result.success || typeof result.data?.fullName !== "string" || !result.data.fullName.trim()) {
+          throw new Error(result.message || "Your account name could not be loaded. Refresh the page or contact support.")
+        }
+        setFullName(result.data.fullName)
+        setContact(result.data.phone ?? "")
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          setProfileLoadError(error instanceof Error ? error.message : "Your account name could not be loaded.")
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoadingProfile(false)
+      })
+    return () => controller.abort()
   }, [router])
 
-  useEffect(() => {
-    if (
-      flagCybercrime ||
-      flagHumanRights ||
-      flagVehicularAccident ||
-      possiblePenaltyOverOneYear
-    ) {
-      setOpenRestrictionModal(true)
+  const today = manilaDateValue()
+  const yesterday = previousDateValue(today)
+
+  const resolveSelectedIncidentLocation = async (coordinates: { latitude: number; longitude: number }) => {
+    locationRequestRef.current?.abort()
+    const controller = new AbortController()
+    locationRequestRef.current = controller
+    setIncidentCoordinates({ ...coordinates, accuracy: null })
+    setStreet("")
+    setIncidentLocationError("")
+    setIsResolvingIncidentAddress(true)
+
+    try {
+      const response = await fetch("/api/location/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify(coordinates),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success || !result.data) {
+        throw new Error(result.message || "Address lookup could not identify this map location.")
+      }
+      if (controller.signal.aborted) return
+      setStreet([
+        result.data.street,
+        result.data.barangay && (result.data.barangay === "Other / outside Olongapo" ? result.data.barangay : `Barangay ${result.data.barangay}`),
+        result.data.city,
+      ].filter(Boolean).join(", "))
+      setIncidentCoordinates({
+        latitude: result.data.latitude,
+        longitude: result.data.longitude,
+        accuracy: result.data.accuracy ?? null,
+      })
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        setIncidentLocationError(error instanceof Error
+          ? `${error.message} The pin is saved; enter the address manually below.`
+          : "The pin is saved; enter the address manually below.")
+      }
+    } finally {
+      if (!controller.signal.aborted) setIsResolvingIncidentAddress(false)
     }
-  }, [
-    flagCybercrime,
-    flagHumanRights,
-    flagVehicularAccident,
-    possiblePenaltyOverOneYear,
-  ])
+  }
 
-  const scopeProfile = CATEGORY_SCOPE_RULES[category]
+  const handleEvidenceSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const accepted: File[] = []
+    const rejected: string[] = []
 
-  const parsedAmount = estimatedClaimAmount
-    ? Number(estimatedClaimAmount)
-    : null
+    for (const file of Array.from(event.currentTarget.files ?? [])) {
+      if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+        rejected.push(`${file.name}: choose a JPG, PNG, WEBP, or GIF image.`)
+      } else if (file.size === 0 || file.size > MAX_EVIDENCE_FILE_SIZE) {
+        rejected.push(`${file.name}: each image must be greater than 0 bytes and no larger than 5 MB.`)
+      } else {
+        accepted.push(file)
+      }
+    }
 
-  const liveEvaluation = useMemo(
-    () =>
-      evaluateResidentReportScope({
-        category,
-        incidentCity,
-        respondentWithinBarangay,
-        respondentHomeless,
-        estimatedClaimAmount: parsedAmount,
-        possiblePenaltyOverOneYear,
-        coveredByBarangayOrdinance,
-        flags: {
-          cybercrime: flagCybercrime,
-          defamationOutsideScope: flagDefamation,
-          vehicularAccident: flagVehicularAccident,
-          humanRightsViolation: flagHumanRights,
-        },
-      }),
-    [
-      category,
-      incidentCity,
-      respondentWithinBarangay,
-      respondentHomeless,
-      parsedAmount,
-      possiblePenaltyOverOneYear,
-      coveredByBarangayOrdinance,
-      flagCybercrime,
-      flagDefamation,
-      flagVehicularAccident,
-      flagHumanRights,
-    ]
-  )
+    if (accepted.length) {
+      const selected = accepted.map((file) => {
+        const previewUrl = URL.createObjectURL(file)
+        evidencePreviewUrlsRef.current.add(previewUrl)
+        return { file, previewUrl }
+      })
+      setSelectedEvidence((current) => [...current, ...selected])
+    }
+    setEvidenceError(rejected.join(" "))
+    event.currentTarget.value = ""
+  }
+
+  const removeSelectedEvidence = (index: number) => {
+    const removed = selectedEvidence[index]
+    if (!removed) return
+    URL.revokeObjectURL(removed.previewUrl)
+    evidencePreviewUrlsRef.current.delete(removed.previewUrl)
+    setSelectedEvidence((current) => current.filter((_, fileIndex) => fileIndex !== index))
+  }
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
 
-    if (
-      !fullName ||
-      !contact ||
-      !street ||
-      !incidentDate ||
-      !details
-    ) {
+    if (isLoadingProfile || !fullName.trim()) {
+      toast({ title: "Account name unavailable", description: profileLoadError || "Your account name must load before filing a report.", variant: "destructive" })
+      return
+    }
+
+    if (!contact || !street || !respondentName.trim() || !respondentAddress.trim() || !incidentDate || !reportType.trim() || !details || (category === "Other" && !otherCategory.trim())) {
       toast({
         title: "Missing details",
         description:
@@ -181,60 +259,43 @@ export default function ResidentReportIntakePage() {
 
     setIsSubmitting(true)
 
-    const evaluation = evaluateResidentReportScope({
-      category,
-      incidentCity,
-      respondentWithinBarangay,
-      respondentHomeless,
-      estimatedClaimAmount: parsedAmount,
-      possiblePenaltyOverOneYear,
-      coveredByBarangayOrdinance,
-      flags: {
-        cybercrime: flagCybercrime,
-        defamationOutsideScope: flagDefamation,
-        vehicularAccident: flagVehicularAccident,
-        humanRightsViolation: flagHumanRights,
-      },
-    })
-
-    setSubmitEvaluation(evaluation)
-
-    if (!evaluation.allowed) {
-      setIsSubmitting(false)
-
-      toast({
-        title: "Report outside barangay scope",
-        description:
-          "Please review restrictions before filing.",
-        variant: "destructive",
-      })
-
-      setOpenRestrictionModal(true)
-      return
-    }
-
     let created: { id: string } | null = null
+    let submissionError = ""
 
     try {
+      const formData = new FormData()
+      const reportFields: Record<string, string> = {
+        fullName,
+        respondentName,
+        respondentAddress,
+        category,
+        otherCategory: category === "Other" ? otherCategory.trim() : "",
+        type: reportType,
+        incidentDate,
+        contact,
+        email,
+        street,
+        incidentLocation: street,
+        details,
+      }
+      if (incidentCoordinates) {
+        reportFields.incidentLatitude = String(incidentCoordinates.latitude)
+        reportFields.incidentLongitude = String(incidentCoordinates.longitude)
+        if (incidentCoordinates.accuracy != null) reportFields.incidentAccuracy = String(incidentCoordinates.accuracy)
+      }
+      for (const [key, value] of Object.entries(reportFields)) formData.append(key, value)
+      for (const evidence of selectedEvidence) formData.append("evidence", evidence.file, evidence.file.name)
+
       const response = await fetch("/api/resident/cases", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fullName,
-          category,
-          incidentDate,
-          contact,
-          email,
-          street,
-          details,
-        }),
+        body: formData,
       })
 
       const result = await response.json()
-      created = result.success ? result.data : null
-    } catch {
+      if (!response.ok || !result.success) throw new Error(result.message || "Unable to save report. Please try again.")
+      created = result.data
+    } catch (error) {
+      submissionError = error instanceof Error ? error.message : "Unable to save report. Please try again."
       created = null
     }
 
@@ -244,7 +305,7 @@ export default function ResidentReportIntakePage() {
       toast({
         title: "Submission failed",
         description:
-          "Unable to save report. Please try again.",
+          submissionError || "Unable to save report. Please try again.",
         variant: "destructive",
       })
       return
@@ -260,22 +321,22 @@ export default function ResidentReportIntakePage() {
 
   return (
     <>
-      <div className="flex h-screen overflow-hidden bg-background text-foreground">
-        <div className="hidden lg:flex h-screen shrink-0">
+      <div className="flex min-h-dvh bg-background text-foreground">
+        <div className="sticky top-0 hidden h-dvh shrink-0 self-start lg:flex">
           <ResidentSidebar />
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <main className="flex-1 p-4 sm:p-6 lg:p-8">
             <div className="hidden lg:block">
               <PageHeader
                 title="Submit A Report"
-                description="Submit incidents within barangay scope. Category restrictions are shown per report."
+                description="Share what happened, when it happened, and where officers can find it."
                 icon={<Gavel className="h-5 w-5 text-white" />}
               />
             </div>
 
-            <div className="mx-auto w-full max-w-4xl space-y-6 pb-24">
+            <div className="mx-auto w-full max-w-5xl space-y-6 pb-24">
               <div className="flex items-center justify-between">
                 <Link
                   href="/resident"
@@ -288,7 +349,7 @@ export default function ResidentReportIntakePage() {
                 <button
                   type="button"
                   onClick={() => setOpenGuide(true)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm hover:bg-muted"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm hover:bg-muted"
                 >
                   <Info className="h-4 w-4" />
                   Help Guide
@@ -296,54 +357,69 @@ export default function ResidentReportIntakePage() {
               </div>
 
               <div className="grid gap-3 md:grid-cols-3">
-                <div className="rounded-2xl border border-border bg-card p-5 text-center">
-                  <p className="text-3xl">📝</p>
-                  <p className="mt-2 text-sm font-medium">
+                <div className="flex items-center gap-4 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                  <span className="rounded-xl bg-primary p-3 text-primary-foreground"><ClipboardList className="h-5 w-5" /></span>
+                  <div><p className="text-sm font-semibold">
                     Fill Out Report
-                  </p>
+                  </p><p className="mt-1 text-xs text-muted-foreground">Describe the incident clearly.</p></div>
                 </div>
 
-                <div className="rounded-2xl border border-border bg-card p-5 text-center">
-                  <p className="text-3xl">📎</p>
-                  <p className="mt-2 text-sm font-medium">
+                <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4">
+                  <span className="rounded-xl bg-muted p-3 text-foreground"><Paperclip className="h-5 w-5" /></span>
+                  <div><p className="text-sm font-semibold">
                     Submit Evidence
-                  </p>
+                  </p><p className="mt-1 text-xs text-muted-foreground">Attach supporting files when asked.</p></div>
                 </div>
 
-                <div className="rounded-2xl border border-border bg-card p-5 text-center">
-                  <p className="text-3xl">⚖</p>
-                  <p className="mt-2 text-sm font-medium">
+                <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4">
+                  <span className="rounded-xl bg-muted p-3 text-foreground"><Scale className="h-5 w-5" /></span>
+                  <div><p className="text-sm font-semibold">
                     Wait For Hearing
-                  </p>
+                  </p><p className="mt-1 text-xs text-muted-foreground">Follow status updates in your portal.</p></div>
                 </div>
               </div>
 
-              <section className="rounded-2xl border border-border bg-card p-6">
-                <h1 className="text-2xl font-semibold">
+              <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+                <div className="border-b border-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-6 py-6 sm:px-8">
+                  <div className="flex items-start gap-4">
+                    <span className="rounded-2xl bg-primary p-3 text-primary-foreground"><FileText className="h-6 w-6" /></span>
+                    <div><h1 className="text-2xl font-semibold">
                   Submit A Report
-                </h1>
+                    </h1>
 
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Please provide complete and accurate details.
-                </p>
+                      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                        Provide the incident details and a location officers can verify. Type an address or select a point on the map.
+                      </p></div>
+                  </div>
+                </div>
 
                 <form
-                  className="mt-6 space-y-5"
+                  className="space-y-6 p-5 sm:p-8"
                   onSubmit={handleSubmit}
                 >
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <section className="space-y-4 rounded-2xl border border-border p-5">
+                    <div className="flex items-center gap-3 border-b border-border pb-3">
+                      <UserRound className="h-5 w-5 text-primary" />
+                      <div><h2 className="font-semibold">Your contact details</h2><p className="text-xs text-muted-foreground">Officers may use these details to follow up.</p></div>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
                     <label className="space-y-2">
                       <span className="text-sm font-medium">
                         Complainant Name *
                       </span>
 
-                      <input
-                        value={fullName}
-                        onChange={(event) =>
-                          setFullName(event.target.value)
-                        }
-                        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm"
-                      />
+                      {isLoadingProfile ? (
+                          <Skeleton aria-label="Loading account name" aria-busy="true" className="h-11 w-full rounded-xl" />
+                      ) : (
+                        <input
+                          value={fullName}
+                          readOnly
+                          aria-readonly="true"
+                          aria-invalid={Boolean(profileLoadError)}
+                          className="w-full cursor-not-allowed rounded-xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground"
+                        />
+                      )}
+                      {profileLoadError && <span role="alert" className="block text-xs text-destructive">{profileLoadError}</span>}
                     </label>
 
                     <label className="space-y-2">
@@ -379,32 +455,115 @@ export default function ResidentReportIntakePage() {
                         Incident Date *
                       </span>
 
+                      <div className="space-y-2">
                       <input
                         type="date"
+                        max={today}
                         value={incidentDate}
                         onChange={(event) =>
                           setIncidentDate(event.target.value)
                         }
                         className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm"
                       />
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" disabled={isSubmitting} onClick={() => setIncidentDate(today)} aria-pressed={incidentDate === today} className={`min-h-10 rounded-full border px-4 text-xs font-semibold transition-colors ${incidentDate === today ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted"}`}>
+                          <CalendarDays className="mr-1.5 inline h-3.5 w-3.5" />Today
+                        </button>
+                        <button type="button" disabled={isSubmitting} onClick={() => setIncidentDate(yesterday)} aria-pressed={incidentDate === yesterday} className={`min-h-10 rounded-full border px-4 text-xs font-semibold transition-colors ${incidentDate === yesterday ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted"}`}>
+                          Yesterday
+                        </button>
+                      </div>
+                      </div>
                     </label>
-                  </div>
+                    </div>
+                  </section>
 
-                  <label className="space-y-2 block">
-                    <span className="text-sm font-medium">
-                      Address / Street *
-                    </span>
+                  <section className="space-y-4 rounded-2xl border border-border p-5">
+                    <div className="flex items-center gap-3 border-b border-border pb-3">
+                      <UserRound className="h-5 w-5 text-primary" />
+                      <div><h2 className="font-semibold">Respondent details</h2><p className="text-xs text-muted-foreground">Provide the other party’s name and address so the barangay can arrange notice.</p></div>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium">Respondent name *</span>
+                        <input required value={respondentName} onChange={(event) => setRespondentName(event.target.value)} autoComplete="off" className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm" />
+                      </label>
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium">Respondent address *</span>
+                        <input required value={respondentAddress} onChange={(event) => setRespondentAddress(event.target.value)} autoComplete="street-address" className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm" />
+                      </label>
+                    </div>
+                  </section>
 
-                    <input
-                      value={street}
-                      onChange={(event) =>
-                        setStreet(event.target.value)
-                      }
-                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm"
-                    />
-                  </label>
+                  <section className="space-y-4 rounded-2xl border border-border p-5">
+                    <div className="flex flex-col gap-3 border-b border-border pb-3">
+                      <div className="flex items-center gap-3">
+                        <MapPin className="h-5 w-5 text-primary" />
+                        <div><h2 className="font-semibold">Incident location</h2><p className="text-xs text-muted-foreground">Type the address or choose a point on the map. Device location is never requested.</p></div>
+                      </div>
+                      <div role="group" aria-label="Choose how to enter the incident location" className="grid grid-cols-2 gap-2">
+                        <button type="button" onClick={() => {
+                          locationRequestRef.current?.abort()
+                          setIncidentLocationMode("manual")
+                          setIncidentCoordinates(null)
+                          setIncidentLocationError("")
+                          setIsResolvingIncidentAddress(false)
+                        }} aria-pressed={incidentLocationMode === "manual"} className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold ${incidentLocationMode === "manual" ? "border-primary bg-primary/10 text-primary" : "border-border bg-background hover:bg-muted"}`}>
+                          Type location
+                        </button>
+                        <button type="button" onClick={() => setIncidentLocationMode("map")} aria-pressed={incidentLocationMode === "map"} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold ${incidentLocationMode === "map" ? "border-primary bg-primary/10 text-primary" : "border-border bg-background hover:bg-muted"}`}>
+                          <MapPinned className="h-4 w-4" />Choose on map
+                        </button>
+                      </div>
+                    </div>
+                    {incidentLocationMode === "map" && <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">Click the map to place the pin. Drag the pin to fine-tune the incident location.</p>
+                      <LocationPickerMap selectedLocation={incidentCoordinates} onSelectLocation={resolveSelectedIncidentLocation} />
+                      {incidentCoordinates && <p className="rounded-xl bg-primary/5 px-3 py-2 text-xs text-muted-foreground">Selected pin: {incidentCoordinates.latitude.toFixed(5)}, {incidentCoordinates.longitude.toFixed(5)}{isResolvingIncidentAddress ? " · Finding the nearby address…" : ""}</p>}
+                      {incidentLocationError && <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">{incidentLocationError}</p>}
+                    </div>}
+                    <div className="grid gap-4">
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium">Incident address *</span>
+                        <input required value={street} onChange={(event) => setStreet(event.target.value)} placeholder="Street or landmark, barangay, city" className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm" />
+                      </label>
+                    </div>
+                    {incidentLocationMode === "map" && <p className="text-xs text-muted-foreground">The map opens at Olongapo City. Address lookup is a suggestion; confirm or edit the full address. If lookup cannot identify the pin, the coordinates remain selected and you can type the address.</p>}
+                  </section>
 
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <section className="space-y-4 rounded-2xl border border-border p-5">
+                    <div className="flex items-center gap-3 border-b border-border pb-3">
+                      <Paperclip className="h-5 w-5 text-primary" />
+                      <div><h2 className="font-semibold">Submit Evidence</h2><p className="text-xs text-muted-foreground">Attach clear images that support your report. This is optional.</p></div>
+                    </div>
+                    <label htmlFor="report-evidence" className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-primary/40 bg-primary/5 px-4 py-5 text-center transition-colors hover:bg-primary/10">
+                      <Camera className="h-6 w-6 text-primary" />
+                      <span className="text-sm font-semibold">Choose image files</span>
+                      <span className="text-xs text-muted-foreground">JPG, JPEG, PNG, WEBP, or GIF · maximum 5 MB per image</span>
+                      <input id="report-evidence" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" multiple onChange={handleEvidenceSelection} disabled={isSubmitting} className="sr-only" />
+                    </label>
+                    {evidenceError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{evidenceError}</p>}
+                    {selectedEvidence.length > 0 && <ImagePreviewGrid
+                      items={selectedEvidence.map(({ file, previewUrl }, index) => ({
+                        id: `${file.name}-${file.lastModified}-${index}`,
+                        name: file.name,
+                        src: previewUrl,
+                        details: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+                      }))}
+                      onRemove={removeSelectedEvidence}
+                      disabled={isSubmitting}
+                    />}
+                  </section>
+
+                  <section className="space-y-4 rounded-2xl border border-border p-5">
+                    <div className="flex items-center gap-3 border-b border-border pb-3">
+                      <ClipboardList className="h-5 w-5 text-primary" />
+                      <div>
+                        <h2 className="font-semibold">Incident details</h2>
+                        <p className="text-xs text-muted-foreground">Select a category and explain what happened.</p>
+                      </div>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
                     <label className="space-y-2">
                       <span className="text-sm font-medium">
                         Report Category *
@@ -414,9 +573,8 @@ export default function ResidentReportIntakePage() {
                         value={category}
                         onChange={(event) => {
                           setCategory(
-                            event.target.value as CaseCategory
+                            event.target.value as CaseCategory | "Other"
                           )
-                          setOpenScopeModal(true)
                         }}
                         className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm"
                       >
@@ -427,20 +585,15 @@ export default function ResidentReportIntakePage() {
                         ))}
                       </select>
                     </label>
-
+                    {category === "Other" && <label className="space-y-2">
+                      <span className="text-sm font-medium">Specify category *</span>
+                      <input required maxLength={80} value={otherCategory} onChange={(event) => setOtherCategory(event.target.value)} placeholder="Enter the case category" className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm" />
+                    </label>}
                     <label className="space-y-2">
-                      <span className="text-sm font-medium">
-                        Incident City *
-                      </span>
-
-                      <input
-                        value={incidentCity}
-                        onChange={(event) =>
-                          setIncidentCity(event.target.value)
-                        }
-                        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm"
-                      />
+                      <span className="text-sm font-medium">Report type *</span>
+                      <input required maxLength={100} value={reportType} onChange={(event) => setReportType(event.target.value)} placeholder="Describe the type of incident" className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm" />
                     </label>
+
                   </div>
 
                   <label className="space-y-2 block">
@@ -463,194 +616,7 @@ export default function ResidentReportIntakePage() {
                     </p>
                   </label>
 
-                  <label className="space-y-2 block">
-                    <span className="text-sm font-medium">
-                      Estimated Claim Amount (PHP)
-                    </span>
-
-                    <input
-                      type="number"
-                      min={0}
-                      value={estimatedClaimAmount}
-                      onChange={(event) =>
-                        setEstimatedClaimAmount(
-                          event.target.value
-                        )
-                      }
-                      className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm"
-                    />
-                  </label>
-
-                  <div className="space-y-3 rounded-2xl border border-border p-4">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">
-                        Quick Scope Check
-                      </p>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setOpenScopeModal(true)
-                        }
-                        className="text-sm text-primary hover:underline"
-                      >
-                        View Guide
-                      </button>
-                    </div>
-
-                    <label className="flex items-center gap-3 rounded-xl border p-4">
-                      <input
-                        type="checkbox"
-                        checked={
-                          respondentWithinBarangay
-                        }
-                        onChange={(e) =>
-                          setRespondentWithinBarangay(
-                            e.target.checked
-                          )
-                        }
-                      />
-
-                      <span className="text-sm">
-                        Respondent is within barangay
-                        jurisdiction
-                      </span>
-                    </label>
-
-                    <label className="flex items-center gap-3 rounded-xl border p-4">
-                      <input
-                        type="checkbox"
-                        checked={
-                          coveredByBarangayOrdinance
-                        }
-                        onChange={(e) =>
-                          setCoveredByBarangayOrdinance(
-                            e.target.checked
-                          )
-                        }
-                      />
-
-                      <span className="text-sm">
-                        Covered by barangay
-                        ordinance/law
-                      </span>
-                    </label>
-
-                    <label className="flex items-center gap-3 rounded-xl border p-4">
-                      <input
-                        type="checkbox"
-                        checked={
-                          possiblePenaltyOverOneYear
-                        }
-                        onChange={(e) =>
-                          setPossiblePenaltyOverOneYear(
-                            e.target.checked
-                          )
-                        }
-                      />
-
-                      <span className="text-sm">
-                        Possible penalty is over 1 year
-                        imprisonment
-                      </span>
-                    </label>
-                  </div>
-
-                  <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                    <p className="font-medium text-amber-900">
-                      Restricted Handling
-                    </p>
-
-                    <label className="flex items-center gap-3 rounded-xl bg-white p-4">
-                      <input
-                        type="checkbox"
-                        checked={flagCybercrime}
-                        onChange={(e) =>
-                          setFlagCybercrime(
-                            e.target.checked
-                          )
-                        }
-                      />
-
-                      <span className="text-sm">
-                        Cybercrime
-                      </span>
-                    </label>
-
-                    <label className="flex items-center gap-3 rounded-xl bg-white p-4">
-                      <input
-                        type="checkbox"
-                        checked={flagDefamation}
-                        onChange={(e) =>
-                          setFlagDefamation(
-                            e.target.checked
-                          )
-                        }
-                      />
-
-                      <span className="text-sm">
-                        Defamation outside scope
-                      </span>
-                    </label>
-
-                    <label className="flex items-center gap-3 rounded-xl bg-white p-4">
-                      <input
-                        type="checkbox"
-                        checked={flagVehicularAccident}
-                        onChange={(e) =>
-                          setFlagVehicularAccident(
-                            e.target.checked
-                          )
-                        }
-                      />
-
-                      <span className="text-sm">
-                        Vehicular accident
-                      </span>
-                    </label>
-
-                    <label className="flex items-center gap-3 rounded-xl bg-white p-4">
-                      <input
-                        type="checkbox"
-                        checked={flagHumanRights}
-                        onChange={(e) =>
-                          setFlagHumanRights(
-                            e.target.checked
-                          )
-                        }
-                      />
-
-                      <span className="text-sm">
-                        Human rights violation
-                      </span>
-                    </label>
-
-                    <label className="flex items-center gap-3 rounded-xl bg-white p-4">
-                      <input
-                        type="checkbox"
-                        checked={respondentHomeless}
-                        onChange={(e) =>
-                          setRespondentHomeless(
-                            e.target.checked
-                          )
-                        }
-                      />
-
-                      <span className="text-sm">
-                        Respondent is homeless
-                      </span>
-                    </label>
-                  </div>
-
-                  {!liveEvaluation.allowed && (
-                    <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-                      <p className="flex items-center gap-2 text-sm font-medium text-rose-800">
-                        <ShieldAlert className="h-4 w-4" />
-                        Some report conditions may require
-                        referral.
-                      </p>
-                    </div>
-                  )}
+                  </section>
 
                   <button
                     type="submit"
@@ -682,129 +648,51 @@ export default function ResidentReportIntakePage() {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="rounded-2xl bg-muted p-4">
-              <p className="text-lg">📝</p>
-              <p className="mt-2 font-medium">
+            <div className="flex gap-3 rounded-2xl bg-muted p-4">
+              <ClipboardList className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div><p className="font-medium">
                 Prepare Your Information
               </p>
               <p className="text-sm text-muted-foreground">
                 Provide complete names, dates, and
                 incident details.
-              </p>
+              </p></div>
             </div>
 
-            <div className="rounded-2xl bg-muted p-4">
-              <p className="text-lg">📷</p>
-              <p className="mt-2 font-medium">
+            <div className="flex gap-3 rounded-2xl bg-muted p-4">
+              <Camera className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div><p className="font-medium">
                 Submit Clear Evidence
               </p>
               <p className="text-sm text-muted-foreground">
                 Photos and screenshots help validate
                 reports.
-              </p>
+              </p></div>
             </div>
 
-            <div className="rounded-2xl bg-muted p-4">
-              <p className="text-lg">📞</p>
-              <p className="mt-2 font-medium">
+            <div className="flex gap-3 rounded-2xl bg-muted p-4">
+              <Phone className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div><p className="font-medium">
                 Stay Reachable
               </p>
               <p className="text-sm text-muted-foreground">
                 Barangay officers may contact you.
-              </p>
+              </p></div>
             </div>
 
-            <div className="rounded-2xl bg-muted p-4">
-              <p className="text-lg">⚖</p>
-              <p className="mt-2 font-medium">
+            <div className="flex gap-3 rounded-2xl bg-muted p-4">
+              <Scale className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div><p className="font-medium">
                 Attend Hearings
               </p>
               <p className="text-sm text-muted-foreground">
                 Both parties may attend mediation.
-              </p>
+              </p></div>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* CATEGORY MODAL */}
-      <Dialog
-        open={openScopeModal}
-        onOpenChange={setOpenScopeModal}
-      >
-        <DialogContent className="rounded-3xl sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              {scopeProfile.title}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-              <p className="font-medium text-emerald-800">
-                Allowed
-              </p>
-
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-emerald-900">
-                {scopeProfile.inScope
-                  .slice(0, 3)
-                  .map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-              </ul>
-            </div>
-
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-              <p className="font-medium text-rose-800">
-                Outside Scope
-              </p>
-
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-rose-900">
-                {scopeProfile.outOfScope
-                  .slice(0, 2)
-                  .map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-              </ul>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* RESTRICTION MODAL */}
-      <Dialog
-        open={openRestrictionModal}
-        onOpenChange={setOpenRestrictionModal}
-      >
-        <DialogContent className="rounded-3xl sm:max-w-md">
-          <div className="flex flex-col items-center text-center">
-            <div className="mb-4 rounded-full bg-amber-100 p-4">
-              <AlertTriangle className="h-6 w-6 text-amber-600" />
-            </div>
-
-            <h2 className="text-xl font-semibold">
-              Restricted Case Detected
-            </h2>
-
-            <p className="mt-2 text-sm text-muted-foreground">
-              This report may require referral to
-              authorities outside the barangay.
-            </p>
-
-            <div className="mt-5 w-full rounded-2xl bg-muted p-4 text-left">
-              <p className="font-medium">
-                Possible referrals:
-              </p>
-
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                <li>PNP Station</li>
-                <li>City Prosecutor</li>
-                <li>Human Rights Office</li>
-              </ul>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   )
 }

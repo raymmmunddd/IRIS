@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, type ComponentProps, type ReactElement } from "react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, LabelList, Cell } from "recharts"
 
@@ -22,6 +22,9 @@ const fallbackData: DayEntry[] = [
 
 const TRACKER_COLOR = { base: "#D4A017", light: "#F4C95D", dark: "#B3860F" }
 
+type TotalLabelContent = Exclude<ComponentProps<typeof LabelList>["content"], ReactElement>
+type TotalLabelProps = Parameters<NonNullable<TotalLabelContent>>[0]
+
 export function IncidentCategoryChart({ height }: { height?: number }) {
   // Sum category values into a single `total` per day
   const chartData = useMemo(() => {
@@ -37,11 +40,13 @@ export function IncidentCategoryChart({ height }: { height?: number }) {
   const defaultHeight = isMobile ? 200 : 300
   const effectiveHeight = typeof height === "number" ? height : defaultHeight
 
-  const renderTotalLabel = (props: { x: number; y: number; width: number; value: number }) => {
+  const renderTotalLabel = (props: TotalLabelProps) => {
     const { x, y, width, value } = props
+    const numericValue = Number(value)
+    if (typeof x !== "number" || typeof y !== "number" || typeof width !== "number" || !Number.isFinite(numericValue)) return null
     return (
       <text x={x + width / 2} y={y - 6} fill="var(--foreground)" fontSize={10} textAnchor="middle" fontWeight={600}>
-        {value}
+        {numericValue}
       </text>
     )
   }
@@ -118,7 +123,7 @@ export function IncidentCategoryChart({ height }: { height?: number }) {
 
                         {/* Percentage */}
                         <div className="mt-2 text-[11px] text-muted-foreground">
-                          {percentage}% of this week's incidents
+                          {percentage}% of this week&apos;s incidents
                         </div>
 
                         {/* Highest day */}

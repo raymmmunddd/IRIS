@@ -27,7 +27,6 @@ export async function PATCH(request: Request) {
     }
 
     const data = await updateResidentProfileData(body.email, {
-      fullName: body.fullName,
       phone: body.phone,
       street: body.street,
     })

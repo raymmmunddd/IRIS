@@ -95,6 +95,7 @@ export function signup(
 
 export function logout(): void {
   if (typeof window !== "undefined") {
+    void fetch("/api/auth/logout", { method: "POST", credentials: "same-origin", keepalive: true }).catch(() => undefined)
     addActivityLog({
       label: "Session ended",
       detail: "You signed out from the current browser session.",

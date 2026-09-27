@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Search, SlidersHorizontal, X, FolderOpen, Archive } from "lucide-react"
-import type { CaseRecord, CaseStatus, CaseCategory, CasePriority } from "@/lib/types"
+import { Search, SlidersHorizontal, X, FolderOpen, Archive, ArrowLeft, ArrowRight } from "lucide-react"
+import { toast } from "sonner"
+import type { CaseRecord, CaseStatus, CaseCategory, CasePriority, CaseProcessStatus } from "@/lib/types"
 import { CaseActionDropdown } from "./case-action-dropdown"
 import { cn } from "@/lib/utils"
 import {
@@ -24,30 +25,32 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { ArrowUpDown, ArrowUp, ArrowDown, TriangleAlert } from "lucide-react"
+import { matchesCaseSearch } from "@/lib/case-search"
 
-const allStatuses: ("All" | CaseStatus)[] = [
-  "All",
-  "Pending",
-  "Under Review",
-  "Mediation",
-  "Resolved",
-  "Closed",
-  "Dismissed",
+const allStatuses: CaseProcessStatus[] = [
+  "SCHEDULED",
+  "MEDIATION",
+  "CONCILIATION",
+  "ARBITRATION",
+  "RESOLVED",
+  "REPUDIATION",
+  "DISMISSED",
+  "WITHDRAWN",
 ]
 const allCategories: ("All" | CaseCategory)[] = [
   "All",
-  "Physical Injury",
-  "Threats",
-  "Theft",
-  "Public Order",
-  "Property",
-  "Privacy",
-  "Family",
-  "Morality",
+  "Violence or Threats",
+  "Harassment & Abuse",
+  "Fraud & Scams",
+  "Public Disturbance",
+  "Property & Theft",
+  "Community Dispute",
+  "Child & Vulnerable Protection",
 ]
-const allPriorities: ("All" | CasePriority)[] = ["All", "High", "Medium", "Low"]
+const allPriorities: ("All" | CasePriority)[] = ["All", "Urgent", "High", "Medium", "Low"]
 
 const priorityColors: Record<string, string> = {
+  Urgent: "bg-red-100 text-red-800 border border-red-300",
   High: "bg-red-100 text-red-700 border-red-200",
   Medium: "bg-orange-100 text-orange-700 border-orange-200",
   Low: "bg-yellow-100 text-yellow-700 border-yellow-200",
@@ -55,64 +58,69 @@ const priorityColors: Record<string, string> = {
 
 const categoryMeta = [
   {
-    key: "physical",
-    name: "Physical Injury",
-    shortName: "Physical Injury",
+    key: "violence",
+    name: "Violence or Threats",
+    shortName: "Violence or Threats",
     badge: "bg-red-100 text-red-700 border border-red-200",
   },
   {
-    key: "threats",
-    name: "Threats",
-    shortName: "Threats",
-    badge: "bg-orange-100 text-orange-700 border border-orange-200",
+    key: "harassment",
+    name: "Harassment & Abuse",
+    shortName: "Harassment & Abuse",
+    badge: "bg-purple-100 text-purple-700 border border-purple-200",
   },
   {
-    key: "theft",
-    name: "Theft",
-    shortName: "Theft",
+    key: "fraud",
+    name: "Fraud & Scams",
+    shortName: "Fraud & Scams",
     badge: "bg-amber-100 text-amber-700 border border-amber-200",
   },
   {
-    key: "publicOrder",
-    name: "Public Order",
-    shortName: "Public Order",
+    key: "disturbance",
+    name: "Public Disturbance",
+    shortName: "Public Disturbance",
     badge: "bg-green-100 text-green-700 border border-green-200",
   },
   {
     key: "property",
-    name: "Property",
-    shortName: "Property",
+    name: "Property & Theft",
+    shortName: "Property & Theft",
     badge: "bg-blue-100 text-blue-700 border border-blue-200",
   },
   {
-    key: "privacy",
-    name: "Privacy",
-    shortName: "Privacy",
+    key: "community",
+    name: "Community Dispute",
+    shortName: "Community Dispute",
     badge: "bg-indigo-100 text-indigo-700 border border-indigo-200",
   },
   {
-    key: "family",
-    name: "Family",
-    shortName: "Family",
-    badge: "bg-purple-100 text-purple-700 border border-purple-200",
-  },
-  {
-    key: "morality",
-    name: "Morality",
-    shortName: "Morality",
+    key: "protection",
+    name: "Child & Vulnerable Protection",
+    shortName: "Child & Vulnerable Protection",
     badge: "bg-pink-100 text-pink-700 border border-pink-200",
   },
 ]
 
 const getCategoryMeta = (category: string) => {
-  return (
-    categoryMeta.find(
-      (c) => c.name.toLowerCase() === category.toLowerCase()
-    ) ?? categoryMeta[0]
-  )
+  return categoryMeta.find(
+    (item) => item.name.toLowerCase() === category.toLowerCase()
+  ) ?? {
+    key: "other",
+    name: category,
+    shortName: category,
+    badge: "bg-slate-100 text-slate-700 border border-slate-200",
+  }
 }
 
 const statusStyles: Record<string, string> = {
+  SCHEDULED: "bg-blue-100 text-blue-700 border border-blue-200",
+  MEDIATION: "bg-purple-100 text-purple-700 border border-purple-200",
+  CONCILIATION: "bg-indigo-100 text-indigo-700 border border-indigo-200",
+  ARBITRATION: "bg-orange-100 text-orange-700 border border-orange-200",
+  RESOLVED: "bg-green-100 text-green-700 border border-green-200",
+  REPUDIATION: "bg-amber-100 text-amber-700 border border-amber-200",
+  DISMISSED: "bg-red-100 text-red-700 border border-red-200",
+  WITHDRAWN: "bg-slate-100 text-slate-600 border border-slate-200",
   Pending: "bg-yellow-100 text-yellow-700 border border-yellow-200",
   "Under Review": "bg-blue-100 text-blue-700 border border-blue-200",
   Mediation: "bg-purple-100 text-purple-700 border border-purple-200",
@@ -128,19 +136,17 @@ const avatarColors: Record<string, string> = {
 }
 
 const priorityWeight: Record<string, number> = {
+  Urgent: 4,
   High: 3,
   Medium: 2,
   Low: 1,
 }
 
-type CaseAction = "verify" | "assign" | "mediation" | "resolve" | "close"
+type CaseAction = "assign" | "mediation"
 
 const actionTitles: Record<CaseAction, string> = {
-  verify: "Verify Case",
   assign: "Assign Officer",
-  mediation: "Move to Mediation",
-  resolve: "Resolve Case",
-  close: "Close Case",
+  mediation: "Schedule Mediation",
 }
 
 const categoryStyles: Record<string, string> = Object.fromEntries(
@@ -148,15 +154,17 @@ const categoryStyles: Record<string, string> = Object.fromEntries(
 )
 
 interface CasesTableProps {
+  cases: CaseRecord[]
   onViewCase?: (caseData: CaseRecord) => void
+  onUpdated?: () => void
 }
 
 export function CasesTable({
   cases,
   onViewCase,
+  onUpdated,
 }: CasesTableProps) {
-  const [activeTab, setActiveTab] =
-    useState<"cases" | "archive">("cases")
+  const [activeTab, setActiveTab] = useState<"ALL" | "ARCHIVED" | CaseProcessStatus>("ALL")
 
   const [filterOpen, setFilterOpen] = useState(false)
   const filterRef = useRef<HTMLDivElement>(null)
@@ -190,14 +198,20 @@ export function CasesTable({
   const [dateTo, setDateTo] = useState("")
 
   const [searchQuery, setSearchQuery] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
   const [openActionId, setOpenActionId] = useState<string | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const categoryOptions = useMemo(
+    () => ["All", ...new Set([...allCategories.slice(1), ...cases.map((caseItem) => caseItem.category).filter(Boolean)])],
+    [cases],
+  )
   const [sortBy, setSortBy] = useState<"Latest" | "Oldest" | "Priority">("Latest")
   const [officers, setOfficers] = useState<string[]>(["Unassigned"])
   const [pendingAction, setPendingAction] = useState<{ action: CaseAction; caseItem: CaseRecord } | null>(null)
   const [selectedOfficer, setSelectedOfficer] = useState("")
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
   const [actionError, setActionError] = useState("")
+  const [workflowSavingId, setWorkflowSavingId] = useState<string | null>(null)
   const router = useRouter()
 
   const [scheduledAt, setScheduledAt] = useState("")
@@ -206,7 +220,7 @@ export function CasesTable({
     setRefreshTrigger((prev) => prev + 1)
   }
 
-  const handleTabChange = (tab: "cases" | "archive") => {
+  const handleTabChange = (tab: "ALL" | "ARCHIVED" | CaseProcessStatus) => {
     if (tab === activeTab) return
 
     setSelectedStatuses([])
@@ -214,39 +228,52 @@ export function CasesTable({
     setActiveTab(tab)
   }
 
-  async function updateCase(caseId: string, input: { status?: CaseStatus; assignedOfficer?: string }) {
+  async function updateCase(caseId: string, input: { status?: CaseStatus; assignedOfficer?: string; scheduledAt?: string }) {
     const response = await fetch(`/api/cases/${encodeURIComponent(caseId)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     })
     const result = await response.json()
-    if (!result.success) throw new Error(result.message)
-    await loadCases()
+    if (!response.ok || !result.success) throw new Error(result.message || "Unable to update case.")
+    onUpdated?.()
     return result.data as CaseRecord
+  }
+
+  async function sendWorkflowEvent(caseItem: CaseRecord, event: string, payload: Record<string, unknown> = {}) {
+    setWorkflowSavingId(caseItem.id)
+    try {
+      const response = await fetch(`/api/cases/${encodeURIComponent(caseItem.id)}/transition`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event, payload }),
+      })
+      const body = await response.text()
+      const result = body.trim() ? JSON.parse(body) as { success?: boolean; message?: string } : null
+      if (!response.ok || !result?.success) throw new Error(result?.message || "Unable to update case status.")
+      toast.success(result.message || "Case status updated.")
+      onUpdated?.()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to update case status.")
+    } finally {
+      setWorkflowSavingId(null)
+    }
   }
 
   const filtered = useMemo(() => {
     const sourceCases = cases.filter((caseItem) => {
-      if (activeTab === "archive") {
-        return (
-          caseItem.status === "Resolved" ||
-          caseItem.status === "Closed" ||
-          caseItem.status === "Dismissed"
-        )
+      if (activeTab === "ARCHIVED") {
+        return caseItem.isArchived === true
       }
 
-      return (
-        caseItem.status === "Pending" ||
-        caseItem.status === "Under Review" ||
-        caseItem.status === "Mediation"
-      )
+      return caseItem.isArchived !== true
+        && (activeTab === "ALL" || (caseItem.currentStatus ?? "SCHEDULED") === activeTab)
     })
 
     let result = sourceCases.filter((c) => {
       if (
         selectedStatuses.length > 0 &&
-        !selectedStatuses.includes(c.status)
+        !selectedStatuses.includes(c.currentStatus ?? "SCHEDULED")
       ) {
         return false
       }
@@ -270,13 +297,7 @@ export function CasesTable({
       }
 
       if (searchQuery) {
-        const q = searchQuery.toLowerCase()
-        return (
-          c.fullName.toLowerCase().includes(q) ||
-          c.shortName.toLowerCase().includes(q) ||
-          c.caseNumber.toLowerCase().includes(q) ||
-          c.assignedOfficer.toLowerCase().includes(q)
-        )
+        return matchesCaseSearch(c, searchQuery)
       }
 
       return true
@@ -313,27 +334,24 @@ export function CasesTable({
       dateTo,
     ])
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [activeTab, selectedStatuses, categoryFilter, priorityFilter, dateFrom, dateTo, searchQuery, sortBy])
+
+  const pageSize = 12
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const visiblePage = Math.min(currentPage, pageCount)
+  const visibleCases = filtered.slice((visiblePage - 1) * pageSize, visiblePage * pageSize)
+
   function handleAction(action: string, caseItem: CaseRecord) {
     let mappedAction: CaseAction
 
     switch (action) {
-      case "approve":
-        mappedAction = "verify"
-        break
-      case "reject":
-        mappedAction = "close"
-        break
       case "assign_officer":
         mappedAction = "assign"
         break
       case "schedule_mediation":
         mappedAction = "mediation"
-        break
-      case "resolve":
-        mappedAction = "resolve"
-        break
-      case "dismiss":
-        mappedAction = "close"
         break
       default:
         return
@@ -362,7 +380,6 @@ export function CasesTable({
       scheduledAt?: string
     } = {}
 
-    if (action === "verify") input.status = "Under Review"
     if (action === "assign") {
       if (!selectedOfficer) {
         setActionError("Select an officer before assigning this case.")
@@ -379,8 +396,6 @@ export function CasesTable({
       input.status = "Mediation"
       input.scheduledAt = scheduledAt
     }
-    if (action === "resolve") input.status = "Resolved"
-    if (action === "close") input.status = "Closed"
 
     try {
       setIsSubmittingAction(true)
@@ -403,18 +418,16 @@ export function CasesTable({
   ).length
 
   const archiveCount = cases.filter(
-    (c) => c.status === "Resolved" || c.status === "Closed"
+    (c) => c.isArchived === true
   ).length
 
   const activeCount = cases.filter(
     (c) =>
-      c.status !== "Pending" &&
-      c.status !== "Resolved" &&
-      c.status !== "Closed" &&
-      c.status !== "Dismissed"
+      c.isArchived !== true
   ).length
 
   const prioritySummaryStyles: Record<string, string> = {
+    Urgent: "bg-red-100 text-red-800 border border-red-300",
     High: "bg-red-100 text-red-700 border border-red-200",
     Medium: "bg-orange-100 text-orange-700 border border-orange-200",
     Low: "bg-yellow-100 text-yellow-700 border border-yellow-200",
@@ -450,59 +463,46 @@ export function CasesTable({
       <div className="mt-2 mb-2 flex items-center gap-2 overflow-x-auto border-b border-border pb-2">
         {/* Tabs */}
         <div className="flex items-center gap-2">
-          {/* Cases */}
-          <button
-            onClick={() => handleTabChange("cases")}
-            className={cn(
-              "group flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200",
-              activeTab === "cases"
-                ? "border-[#1e4fa3] bg-[#e8f0ff] text-[#1e4fa3] shadow-sm"
-                : "border-border bg-card text-muted-foreground"
-            )}
-          >
-            <FolderOpen className="h-4 w-4" />
-            <span>Cases</span>
-            <span
+          {[{ value: "ALL" as const, label: "All Cases", count: activeCount }, ...allStatuses.map((status) => ({ value: status, label: status[0] + status.slice(1).toLowerCase(), count: cases.filter((item) => item.isArchived !== true && (item.currentStatus ?? "SCHEDULED") === status).length }))].map((tab) => (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => handleTabChange(tab.value)}
+              aria-pressed={activeTab === tab.value}
               className={cn(
-                "rounded-full px-2 py-0.5 text-[11px] font-semibold",
-                activeTab === "cases"
-                  ? "bg-[#1e4fa3] text-white"
-                  : "bg-muted text-muted-foreground"
+                "group flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200",
+                activeTab === tab.value
+                  ? "border-[#1e4fa3] bg-[#e8f0ff] text-[#1e4fa3] shadow-sm"
+                  : "border-border bg-card text-muted-foreground"
               )}
             >
-              {cases.length}
-            </span>
-          </button>
-          {/* Schedules */}
-
-          {/* Archive */}
+              {tab.value === "ALL" && <FolderOpen className="h-4 w-4" />}
+              <span>{tab.label}</span>
+              <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", activeTab === tab.value ? "bg-[#1e4fa3] text-white" : "bg-muted text-muted-foreground")}>{tab.count}</span>
+            </button>
+          ))}
           <button
-            onClick={() => handleTabChange("archive")}
+            onClick={() => handleTabChange("ARCHIVED")}
+            type="button"
+            aria-pressed={activeTab === "ARCHIVED"}
             className={cn(
-              "group flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all duration-200",
-              activeTab === "archive"
+              "group flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200",
+              activeTab === "ARCHIVED"
                 ? "border-green-500 bg-green-50 text-green-700 shadow-sm"
                 : "border-border bg-card text-muted-foreground"
             )}
           >
             <Archive className="h-4 w-4" />
-            <span>Archive</span>
+            <span>Archived</span>
             <span
               className={cn(
                 "rounded-full px-2 py-0.5 text-[11px] font-semibold",
-                activeTab === "archive"
+                activeTab === "ARCHIVED"
                   ? "border-green-500 bg-green-50 text-green-700 shadow-sm"
                   : "bg-muted text-muted-foreground"
               )}
             >
-              {
-                cases.filter(
-                  (c) =>
-                    c.status === "Resolved" ||
-                    c.status === "Closed" ||
-                    c.status === "Dismissed"
-                ).length
-              }
+              {archiveCount}
             </span>
           </button>
         </div>
@@ -554,7 +554,7 @@ export function CasesTable({
           <Search className="absolute left-14 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search case number, resident, or officer..."
+            placeholder="Search case number, complainant, respondent, or officer..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="
@@ -722,11 +722,7 @@ export function CasesTable({
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                {(
-                  activeTab === "cases"
-                    ? ["Pending", "Under Review", "Mediation"]
-                    : ["Resolved", "Closed", "Dismissed"]
-                ).map((status) => {
+                {allStatuses.map((status) => {
                   const selected = selectedStatuses.includes(status)
 
                   return (
@@ -780,7 +776,7 @@ export function CasesTable({
                     scrollbar-track-transparent
                   "
                 >
-                  {allCategories
+                  {categoryOptions
                     .filter((c) => c !== "All")
                     .map((category) => {
                       const selected = categoryFilter === category
@@ -967,7 +963,7 @@ export function CasesTable({
       </div>
 
       <div className="mt-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.map((caseItem) => (
+        {visibleCases.map((caseItem) => (
           <div
             key={caseItem.id}
             onClick={() =>
@@ -976,6 +972,8 @@ export function CasesTable({
             className={cn(
               "group relative cursor-pointer overflow-hidden rounded-2xl border bg-card p-5 shadow-sm",
               "transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg",
+              caseItem.priority === "Urgent" &&
+                "border-red-300 hover:border-red-400 dark:border-red-800",
               caseItem.priority === "High" &&
                 "border-red-200 hover:border-red-300 dark:border-red-900/40",
               caseItem.priority === "Medium" &&
@@ -1095,11 +1093,47 @@ export function CasesTable({
               <span
                 className={cn(
                   "rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
-                  statusStyles[caseItem.status]
+                  statusStyles[caseItem.currentStatus ?? "SCHEDULED"]
                 )}
               >
-                {caseItem.status}
+                {caseItem.currentStatus ?? "SCHEDULED"}
               </span>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
+              {(caseItem.currentStatus ?? "SCHEDULED") === "SCHEDULED" && (
+                <Button type="button" size="sm" variant="outline" onClick={() => handleAction("schedule_mediation", caseItem)}>
+                  <ArrowRight className="mr-1.5 h-3.5 w-3.5" />Forward: Schedule mediation
+                </Button>
+              )}
+              {(caseItem.currentStatus === "MEDIATION" || caseItem.currentStatus === "CONCILIATION") && (
+                <>
+                  <Button type="button" size="sm" variant="outline" disabled={workflowSavingId === caseItem.id || (caseItem.currentStatus === "CONCILIATION" && (caseItem.conciliationAttemptCount ?? 0) >= 3)} onClick={() => sendWorkflowEvent(caseItem, "not_settled")}>
+                    Continue stage
+                  </Button>
+                  <Button type="button" size="sm" disabled={workflowSavingId === caseItem.id} onClick={() => sendWorkflowEvent(caseItem, "settled")}>
+                    <ArrowRight className="mr-1.5 h-3.5 w-3.5" />Forward: Resolve
+                  </Button>
+                  {caseItem.currentStatus === "CONCILIATION" && (caseItem.conciliationAttemptCount ?? 0) >= 3 && (
+                    <Button type="button" size="sm" variant="ghost" onClick={() => onViewCase?.(caseItem)}>Choose next stage</Button>
+                  )}
+                </>
+              )}
+              {caseItem.currentStatus === "ARBITRATION" && (
+                <Button type="button" size="sm" disabled={workflowSavingId === caseItem.id} onClick={() => sendWorkflowEvent(caseItem, "award_rendered")}>
+                  <ArrowRight className="mr-1.5 h-3.5 w-3.5" />Forward: Record award
+                </Button>
+              )}
+              {caseItem.currentStatus === "RESOLVED" && !caseItem.closedDate && caseItem.settlementSource !== "ARBITRATION" && (
+                <Button type="button" size="sm" variant="outline" onClick={() => onViewCase?.(caseItem)}>
+                  <ArrowRight className="mr-1.5 h-3.5 w-3.5" />Forward: File repudiation
+                </Button>
+              )}
+              {caseItem.currentStatus === "REPUDIATION" && (
+                <Button type="button" size="sm" variant="outline" disabled={workflowSavingId === caseItem.id} onClick={() => sendWorkflowEvent(caseItem, "resume")}>
+                  <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />Backward: Resume prior stage
+                </Button>
+              )}
             </div>
 
             {/* Divider */}
@@ -1119,6 +1153,23 @@ export function CasesTable({
       {filtered.length === 0 && (
         <div className="col-span-full text-center py-12 text-muted-foreground">
           No cases found matching your filters.
+        </div>
+      )}
+
+      {filtered.length > 0 && (
+        <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {(visiblePage - 1) * pageSize + 1}–{Math.min(visiblePage * pageSize, filtered.length)} of {filtered.length} cases
+          </p>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={visiblePage <= 1}>
+              Previous
+            </Button>
+            <span className="min-w-20 text-center text-sm text-muted-foreground">Page {visiblePage} of {pageCount}</span>
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage((page) => Math.min(pageCount, page + 1))} disabled={visiblePage >= pageCount}>
+              Next
+            </Button>
+          </div>
         </div>
       )}
 
@@ -1168,8 +1219,6 @@ export function CasesTable({
       ) : (
         <div className="space-y-2">
           <div className="text-sm text-card-foreground">
-            {pendingAction?.action === "verify" && "This will move the case to Under Review."}
-            {pendingAction?.action === "close" && "This will permanently close and archive the case."}
             {pendingAction?.action === "mediation" && (
               <div className="space-y-3">
                 <Label className="text-xs font-semibold text-muted-foreground">
@@ -1179,27 +1228,13 @@ export function CasesTable({
                 <input
                   type="datetime-local"
                   value={scheduledAt}
-                  max={new Date().toISOString().slice(0, 16)}
-                  onChange={(e) => {
-                    const value = e.target.value
-
-                    const selected = new Date(value)
-                    const now = new Date()
-
-                    if (selected > now) {
-                      setActionError("Mediation date cannot be in the future.")
-                      return
-                    }
-
-                    setActionError("")
-                    setScheduledAt(value)
-                  }}
+                  onChange={(e) => { setActionError(""); setScheduledAt(e.target.value) }}
                   className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm
                             focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
 
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
-                  You can only select today or past dates. Future scheduling is not allowed.
+                  Choose the date and time for the mediation hearing.
                 </div>
 
                 {scheduledAt && (
@@ -1212,8 +1247,6 @@ export function CasesTable({
                 )}
               </div>
             )}
-            {pendingAction?.action === "resolve" && "This will mark the case as resolved and archive it."}
-            {pendingAction?.action === "close" && "This will close and archive the case."}
           </div>
         </div>
       )}
@@ -1237,12 +1270,7 @@ export function CasesTable({
       <Button
         onClick={confirmAction}
         disabled={isSubmittingAction}
-        className={cn(
-          "flex-1",
-          pendingAction?.action === "close"
-            ? "bg-red-600 hover:bg-red-700 text-white"
-            : "bg-primary hover:bg-primary/90"
-        )}
+        className="flex-1 bg-primary hover:bg-primary/90"
       >
         {isSubmittingAction ? "Processing..." : "Confirm"}
       </Button>

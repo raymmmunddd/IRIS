@@ -19,23 +19,46 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   type NotificationItem,
 } from "@/lib/notifications"
+import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh"
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState("")
+  const [actionError, setActionError] = useState("")
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [updatingAll, setUpdatingAll] = useState(false)
 
-  useEffect(() => {
-    loadNotifications()
-  }, [])
-
-  async function loadNotifications() {
+  async function loadNotifications({ background = false, signal }: { background?: boolean; signal?: AbortSignal } = {}) {
     try {
-      const response = await fetch("/api/notifications")
+      if (!background) {
+        setLoading(true)
+        setLoadError("")
+      }
+      const response = await fetch("/api/notifications", { signal })
       const result = await response.json()
-      if (result.success) setNotifications(result.data)
+      if (!response.ok || !result.success || !Array.isArray(result.data)) {
+        throw new Error(result.message || "Unable to load notifications.")
+      }
+      setNotifications(result.data)
+      setLoadError("")
     } catch (error) {
-      console.error("Failed to load notifications:", error)
+      if (!signal?.aborted && !background) {
+        setLoadError(error instanceof Error ? error.message : "Unable to load notifications.")
+      }
+    } finally {
+      if (!signal?.aborted && !background) setLoading(false)
     }
   }
+
+  useEffect(() => {
+    void loadNotifications()
+  }, [])
+
+  useRealtimeRefresh((signal) => loadNotifications({ background: true, signal }), {
+    topics: ["iris:notifications"],
+    fetchOnMount: false,
+  })
 
   const unreadCount = useMemo(
     () => notifications.filter((item) => !item.read).length,
@@ -46,13 +69,33 @@ export default function NotificationsPage() {
   const allRead = unreadCount === 0
 
   const handleMarkSingleRead = async (id: string) => {
-    await fetch(`/api/notifications/${encodeURIComponent(id)}`, { method: "PATCH" })
-    loadNotifications()
+    setUpdatingId(id)
+    setActionError("")
+    try {
+      const response = await fetch(`/api/notifications/${encodeURIComponent(id)}`, { method: "PATCH" })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.message || "Unable to update notification.")
+      setNotifications((current) => current.map((item) => item.id === id ? { ...item, read: true } : item))
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Unable to update notification.")
+    } finally {
+      setUpdatingId(null)
+    }
   }
 
   const handleMarkAllRead = async () => {
-    await fetch("/api/notifications", { method: "PATCH" })
-    loadNotifications()
+    setUpdatingAll(true)
+    setActionError("")
+    try {
+      const response = await fetch("/api/notifications", { method: "PATCH" })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.message || "Unable to update notifications.")
+      setNotifications((current) => current.map((item) => ({ ...item, read: true })))
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Unable to update notifications.")
+    } finally {
+      setUpdatingAll(false)
+    }
   }
 
   const getCategoryIcon = (category: NotificationItem["category"]) => {
@@ -81,10 +124,24 @@ export default function NotificationsPage() {
               <p className="text-xs text-muted-foreground">Tap an item to mark it as read</p>
             </div>
           </div>
-          <Button onClick={handleMarkAllRead} className="rounded-lg" disabled={allRead}>
-            Mark all as read
+          <Button onClick={handleMarkAllRead} className="rounded-lg" disabled={allRead || updatingAll || loading}>
+            {updatingAll ? "Updating..." : "Mark all as read"}
           </Button>
         </div>
+
+        {actionError && <p role="alert" className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{actionError}</p>}
+        {loadError && (
+          <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+            <span>{loadError}</span>
+            <button type="button" onClick={() => void loadNotifications()} className="font-semibold underline">Retry</button>
+          </div>
+        )}
+
+        {loading ? (
+          <div aria-label="Loading notifications" className="space-y-3">
+            {[0, 1, 2].map((item) => <div key={item} className="h-20 animate-pulse rounded-xl bg-muted" />)}
+          </div>
+        ) : (
 
         <div className="space-y-6">
           <Card className="border-[var(--iris-border)] bg-[var(--iris-surface)]/95">
@@ -95,9 +152,10 @@ export default function NotificationsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {recentNotifications.map((item) => (
+              {recentNotifications.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">No recent notifications.</p> : recentNotifications.map((item) => (
                 <button
                   key={item.id}
+                  disabled={updatingId === item.id || updatingAll}
                   onClick={() => handleMarkSingleRead(item.id)}
                   className="w-full rounded-lg border border-border bg-background p-3 text-left transition-colors hover:bg-muted"
                 >
@@ -140,9 +198,10 @@ export default function NotificationsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {notifications.map((item) => (
+              {notifications.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">You have no notifications.</p> : notifications.map((item) => (
                 <button
                   key={item.id}
+                  disabled={updatingId === item.id || updatingAll}
                   onClick={() => handleMarkSingleRead(item.id)}
                   className="w-full rounded-lg border border-border bg-background p-3 text-left transition-colors hover:bg-muted"
                 >
@@ -177,6 +236,7 @@ export default function NotificationsPage() {
             </CardContent>
           </Card>
         </div>
+        )}
       </main>
     </div>
   )

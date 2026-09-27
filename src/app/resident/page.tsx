@@ -9,22 +9,25 @@ import { ResidentSidebar } from "@/components/resident/sidebar";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ResidentNav } from "@/components/ResidentNav";
 import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ResidentCalendar, type ResidentScheduledCase } from "@/components/resident/resident-calendar";
+import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh";
 
 const fallbackRecentUpdates = [
   {
-    title: "Noise complaint #IR-219",
+    title: "Noise complaint",
     detail: "Assigned to BPAT Team 2",
     status: "In progress",
     when: "2h ago",
   },
   {
-    title: "Streetlight outage #IR-202",
+    title: "Streetlight outage",
     detail: "Marked for barangay utility visit",
     status: "Scheduled",
     when: "Yesterday",
   },
   {
-    title: "Public disturbance #IR-180",
+    title: "Public disturbance",
     detail: "Resolved with mediation",
     status: "Closed",
     when: "3 days ago",
@@ -46,32 +49,38 @@ const shortcuts = [
 
 export default function ResidentPage() {
   const router = useRouter();
+  const user = getAuthUser();
   const [recentUpdates, setRecentUpdates] = useState(fallbackRecentUpdates);
+  const [isLoadingUpdates, setIsLoadingUpdates] = useState(true);
+  const [scheduledCases, setScheduledCases] = useState<ResidentScheduledCase[]>([]);
 
   useEffect(() => {
-    const user = getAuthUser();
-
-    if (!user) {
+    const currentUser = getAuthUser();
+    if (!currentUser) {
       router.push("/login");
       return;
     }
 
     if (!isRoleAuthorized(["resident"])) {
-      router.push(getRoleLandingPath(user.role));
-      return;
+      router.push(getRoleLandingPath(currentUser.role));
     }
-
-    fetch(`/api/resident/dashboard?email=${encodeURIComponent(user.email)}`)
-      .then((response) => response.json())
-      .then((result) => {
-        if (result.success && result.data?.recentUpdates) {
-          setRecentUpdates(result.data.recentUpdates);
-        }
-      })
-      .catch(() => setRecentUpdates(fallbackRecentUpdates));
   }, [router]);
 
-  const user = getAuthUser();
+  useRealtimeRefresh(async (signal) => {
+    const currentUser = getAuthUser();
+    if (!currentUser || !isRoleAuthorized(["resident"])) return;
+    try {
+      const response = await fetch(`/api/resident/dashboard?email=${encodeURIComponent(currentUser.email)}`, { signal });
+      const result = await response.json();
+      if (!response.ok || !result.success || !result.data) throw new Error(result.message || "Unable to load resident dashboard.");
+      if (Array.isArray(result.data.recentUpdates)) setRecentUpdates(result.data.recentUpdates);
+      if (Array.isArray(result.data.scheduledCases)) setScheduledCases(result.data.scheduledCases);
+    } catch {
+      // Keep the dashboard data already shown and retry on the next refresh.
+    } finally {
+      if (!signal.aborted) setIsLoadingUpdates(false);
+    }
+  }, { topics: ["iris:cases", "iris:notifications"], enabled: Boolean(user && isRoleAuthorized(["resident"])) });
 
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
@@ -90,7 +99,7 @@ export default function ResidentPage() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-4 pb-24 sm:p-6 sm:pb-24 lg:p-8 lg:pb-8">
           <div className="hidden lg:block">
             <PageHeader
               title="Resident Portal"
@@ -140,7 +149,11 @@ export default function ResidentPage() {
                   </div>
 
                   <div className="space-y-3">
-                    {recentUpdates.map((item) => (
+                    {isLoadingUpdates ? (
+                      <div aria-label="Loading recent updates" className="space-y-3">
+                        {[0, 1, 2].map((item) => <Skeleton key={item} className="h-20 w-full" />)}
+                      </div>
+                    ) : recentUpdates.map((item) => (
                       <article key={item.title} className="rounded-xl bg-[var(--muted)] p-3">
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -184,6 +197,8 @@ export default function ResidentPage() {
                 </div>
               </section>
             </div>
+
+            <ResidentCalendar scheduledCases={scheduledCases} loading={isLoadingUpdates} />
           </div>
         </main>
 

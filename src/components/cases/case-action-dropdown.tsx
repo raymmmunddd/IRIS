@@ -3,11 +3,8 @@
 import { useEffect, useRef } from "react"
 import {
   MoreHorizontal,
-  CheckCircle2,
   UserPlus,
   Calendar,
-  CircleCheck,
-  XCircle,
 } from "lucide-react"
 import type { CaseStatus } from "@/lib/types"
 
@@ -23,11 +20,6 @@ interface CaseActionDropdownProps {
 function getActions(status: CaseStatus, hasOfficer: boolean) {
   switch (status) {
     case "Pending":
-      return [
-        { label: "Approve Case", icon: <CheckCircle2 className="h-4 w-4" />, key: "approve" },
-        { label: "Reject Case", icon: <XCircle className="h-4 w-4" />, key: "reject" },
-      ]
-
     case "Under Review":
       return [
         {
@@ -40,26 +32,10 @@ function getActions(status: CaseStatus, hasOfficer: boolean) {
           icon: <Calendar className="h-4 w-4" />,
           key: "schedule_mediation",
         },
-        {
-          label: "Dismiss Case",
-          icon: <XCircle className="h-4 w-4" />,
-          key: "dismiss",
-        },
       ]
 
     case "Mediation":
-      return [
-        {
-          label: "Mark as Resolved",
-          icon: <CircleCheck className="h-4 w-4" />,
-          key: "resolve",
-        },
-        {
-          label: "Dismiss Case",
-          icon: <XCircle className="h-4 w-4" />,
-          key: "dismiss",
-        },
-      ]
+      return []
 
     default:
       return []

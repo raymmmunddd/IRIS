@@ -17,6 +17,7 @@ import { getAuthUser, getRoleLandingPath, isRoleAuthorized } from "@/lib/auth";
 import { BpatCaseDialog } from "@/components/bpat-case-dialog";
 import { BpatSidebar } from "@/components/bpat/sidebar";
 import { PageHeader } from "@/components/ui/page-header";
+import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh";
 
 type Priority = "High" | "Medium" | "Low";
 type CaseStatus = "Assigned" | "In Progress" | "Pending Review";
@@ -31,7 +32,6 @@ interface AssignedCase {
   priority: Priority;
   status: CaseStatus;
   scheduledDate: string;
-  eta: string;
   complainant: string;
   complainantContact: string;
   dateSubmitted: string;
@@ -63,25 +63,38 @@ export default function DispatchBoardPage() {
   const [filter, setFilter] = useState<CaseStatus | "All">("All");
   const [assignedCases, setAssignedCases] = useState<AssignedCase[]>([]);
   const [selectedCase, setSelectedCase] = useState<AssignedCase | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [reloadCount, setReloadCount] = useState(0);
+  const user = getAuthUser();
 
   useEffect(() => {
-    const user = getAuthUser();
-    if (!user) {
+    const currentUser = getAuthUser();
+    if (!currentUser) {
       router.push("/login");
       return;
     }
     if (!isRoleAuthorized(["bpat"])) {
-      router.push(getRoleLandingPath(user.role));
-      return;
+      router.push(getRoleLandingPath(currentUser.role));
     }
-
-    fetch(`/api/bpat-officers/dispatch?email=${encodeURIComponent(user.email)}`)
-      .then((response) => response.json())
-      .then((result) => {
-        if (result.success) setAssignedCases(result.data);
-      })
-      .catch(() => undefined);
   }, [router]);
+
+  useRealtimeRefresh(async (signal) => {
+    const currentUser = getAuthUser();
+    if (!currentUser || !isRoleAuthorized(["bpat"])) return;
+    try {
+      const response = await fetch(`/api/bpat-officers/dispatch?email=${encodeURIComponent(currentUser.email)}`, { signal });
+      const result = await response.json();
+      if (!response.ok || !result.success || !Array.isArray(result.data)) throw new Error(result.message || "Unable to load the dispatch board.");
+      setAssignedCases(result.data);
+      setSelectedCase((current) => current ? result.data.find((item: AssignedCase) => item.id === current.id) ?? current : null);
+      setLoadError("");
+    } catch (error) {
+      if (!signal.aborted && assignedCases.length === 0) setLoadError(error instanceof Error ? error.message : "Unable to load the dispatch board.");
+    } finally {
+      if (!signal.aborted) setLoading(false);
+    }
+  }, { topics: ["iris:cases"], refreshKey: reloadCount, enabled: Boolean(user && isRoleAuthorized(["bpat"])) });
 
   const filtered = filter === "All" ? assignedCases : assignedCases.filter((item) => item.status === filter);
 
@@ -91,6 +104,8 @@ export default function DispatchBoardPage() {
     "In Progress": assignedCases.filter((item) => item.status === "In Progress").length,
     "Pending Review": assignedCases.filter((item) => item.status === "Pending Review").length,
   };
+
+  if (loading) return <div className="flex h-screen overflow-hidden bg-background"><div className="hidden lg:flex h-screen shrink-0"><BpatSidebar /></div><main aria-label="Loading dispatch board" className="flex-1 space-y-4 p-6">{[0, 1, 2].map((item) => <div key={item} className="h-24 animate-pulse rounded-xl bg-muted" />)}</main></div>;
 
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
@@ -130,6 +145,7 @@ export default function DispatchBoardPage() {
           </div>
 
           <div className="mx-auto w-full max-w-md space-y-4 lg:max-w-6xl lg:space-y-6">
+        {loadError && <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><span>{loadError}</span><button type="button" onClick={() => { setLoading(true); setReloadCount((count) => count + 1) }} className="font-semibold underline">Retry</button></div>}
             <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
               <section className="order-2 space-y-3 lg:order-1">
                 {filtered.length === 0 ? (
@@ -180,7 +196,6 @@ export default function DispatchBoardPage() {
                           </p>
                           <span className="flex items-center gap-1 text-xs font-semibold text-[var(--primary)]">
                             <Clock className="h-3 w-3" />
-                            ETA {item.eta}
                           </span>
                         </div>
                       </article>

@@ -1,98 +1,52 @@
-﻿  "use client"
+  "use client"
 
   import { useEffect, useState } from "react"
+  import Link from "next/link"
   import {
-    ArrowLeft,
     X,
-    CheckCircle2,
+    Download,
     FileText,
     Image as ImageIcon,
     MapPin,
-    Phone,
-    User,
     Calendar,
     MessageSquare,
     Save,
     ShieldCheck,
     Check,
-    Badge,
     Pencil,
-    ArrowDown,
     Maximize2,
-    AlertTriangle,
+    ArrowLeft,
+    ArrowRight,
   } from "lucide-react"
   import { useToast } from "@/hooks/use-toast"
   import type { CaseRecord } from "@/lib/types"
   import { cn } from "@/lib/utils"
+import { downloadHtmlReport } from "@/lib/report-export"
   import { TimelineDisplay } from "./timeline-display"
   import { EvidenceViewer } from "./evidence-viewer"
-  import { OfficerSelector } from "./officer-selector"
-  import { StatusSelector } from "./status-selector"
+import { ImagePreviewCard } from "@/components/evidence/image-preview-grid"
+  import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh"
   import { Button } from "@/components/ui/button"
-  import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-  } from "@/components/ui/select"
-  import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, } from "@/components/ui/dialog"
+  import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
   import { Textarea } from "@/components/ui/textarea"
   import {
     Avatar,
     AvatarFallback,
   } from "@/components/ui/avatar"
 
-  const priorityColors: Record<string, string> = {
-    High: "bg-red-100 text-red-700 border-red-200",
-    Medium: "bg-orange-100 text-orange-700 border-orange-200",
-    Low: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  }
+  type ApiResponse = { success?: boolean; message?: string; data?: unknown }
 
-  const categoryMeta = [
-    {
-      key: "violence",
-      name: "Violence or Threats",
-      shortName: "Violence/Threats",
-      badge: "bg-pink-100 text-pink-700 border border-pink-200",
-    },
-    {
-      key: "harassment",
-      name: "Harassment & Abuse",
-      shortName: "Harassment",
-      badge: "bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200",
-    },
-    {
-      key: "fraud",
-      name: "Fraud & Scams",
-      shortName: "Fraud/Scams",
-      badge: "bg-lime-100 text-lime-700 border border-lime-200",
-    },
-    {
-      key: "disturbance",
-      name: "Public Disturbance",
-      shortName: "Public Disturb.",
-      badge: "bg-sky-100 text-sky-700 border border-sky-200",
-    },
-    {
-      key: "property",
-      name: "Property & Theft",
-      shortName: "Property/Theft",
-      badge: "bg-indigo-100 text-indigo-700 border border-indigo-200",
-    },
-    {
-      key: "community",
-      name: "Community Dispute",
-      shortName: "Community Disp.",
-      badge: "bg-teal-100 text-teal-700 border border-teal-200",
-    },
-    {
-      key: "child",
-      name: "Child & Vulnerable",
-      shortName: "Child/Vulnerable",
-      badge: "bg-violet-100 text-violet-700 border border-violet-200",
-    },
-  ]
+  async function readApiResponse(response: Response): Promise<ApiResponse> {
+    const body = await response.text()
+    if (!body.trim()) {
+      return { success: false, message: `The server returned an empty response (${response.status}).` }
+    }
+    try {
+      return JSON.parse(body) as ApiResponse
+    } catch {
+      return { success: false, message: "The server returned an invalid response." }
+    }
+  }
 
   const getCategoryStyle = (category: string) => {
     switch (category) {
@@ -108,31 +62,11 @@
         return "bg-indigo-100 text-indigo-700 border-indigo-200"
       case "Community Dispute":
         return "bg-teal-100 text-teal-700 border-teal-200"
-      case "Child & Vulnerable":
+      case "Child & Vulnerable Protection":
         return "bg-violet-100 text-violet-700 border-violet-200"
       default:
         return "bg-muted text-muted-foreground border-border"
     }
-  }
-
-  const getCategoryMeta = (category: string) => {
-    return (
-      categoryMeta.find(
-        (c) =>
-          category
-            .toLowerCase()
-            .includes(c.name.toLowerCase())
-      ) ?? categoryMeta[0]
-    )
-  }
-
-  const statusStyles: Record<string, string> = {
-    Pending: "bg-yellow-100 text-yellow-700 border border-yellow-200",
-    "Under Review": "bg-blue-100 text-blue-700 border border-blue-200",
-    Mediation: "bg-purple-100 text-purple-700 border border-purple-200",
-    Resolved: "bg-green-100 text-green-700 border border-green-200",
-    Closed: "bg-slate-100 text-slate-600 border border-slate-200",
-    Dismissed: "bg-red-100 text-red-700 border border-red-200",
   }
 
   const getStatusStyle = (status: string) => {
@@ -152,39 +86,6 @@
       }
   }
 
-  const getStatusCardBorder = (status: string) => {
-    switch (status) {
-      case "Pending":
-        return "border-yellow-200"
-
-      case "Under Review":
-        return "border-sky-200"
-
-      case "Mediation":
-        return "border-violet-200"
-
-      case "Resolved":
-        return "border-emerald-200"
-
-      case "Closed":
-        return "border-slate-300"
-
-      case "Dismissed":
-        return "border-rose-200"
-
-      default:
-        return "border-border"
-    }
-  }
-
-  const getOfficerCardBorder = (officer?: string | null) => {
-    if (!officer || officer === "Unassigned") {
-      return "border-slate-200"
-    }
-
-    return "border-blue-200"
-  }
-
   const getPriorityStyle = (priority: string) => {
       switch (priority) {
           case "High":
@@ -198,239 +99,68 @@
       }
   }
 
-  const statusMessages: Record<
-    string,
-    {
-      title: string
-      button: string
-      body: string
-    }
-  > = {
-    "Pending->Under Review": {
-      title: "Move Case to Under Review",
-      button: "Continue",
-      body:
-        "You are about to move this case from Pending to Under Review.\n\nOnce this change has been made, it cannot be automatically reverted.\n\nThis action will be recorded in the case timeline.",
-    },
-
-    "Under Review->Mediation": {
-      title: "Move Case to Mediation",
-      button: "Continue",
-      body:
-        "The case will now proceed to mediation.\n\nResidents and assigned officers may receive updates.\n\nThis action is permanent.",
-    },
-
-    "Mediation->Resolved": {
-      title: "Resolve Case",
-      button: "Resolve Case",
-      body:
-        "This case will be marked as Resolved.\n\nResolved cases are removed from Active Cases and placed into the Archive.\n\nYou can still access archived cases at any time.",
-    },
-
-    "Resolved->Closed": {
-      title: "Close Case",
-      button: "Close Case",
-      body:
-        "Closing this case finalizes all case activities.\n\nThe case will permanently remain in the Archive.",
-    },
-
-    "Any->Dismissed": {
-      title: "Dismiss Case",
-      button: "Dismiss Case",
-      body:
-        "This case will be marked as Dismissed.\n\nThis action is permanent and will be recorded in the case timeline.",
-    },
-  }
   interface CaseDetailPanelProps {
     caseData: CaseRecord
     onClose: () => void
     onUpdate?: () => void
     onCaseUpdated?: (updatedCase: CaseRecord) => void
-    officers?: string[]
   }
-
-  type ActionKey =
-    | "verify"
-    | "assign"
-    | "mediation"
-    | "resolve"
-    | "close"
-    | "request"
 
   export function CaseDetailPanel({
     caseData,
     onClose,
     onUpdate,
     onCaseUpdated,
-    officers,
   }: CaseDetailPanelProps) {
     const [timelineExpanded, setTimelineExpanded] = useState(false)
     const timelineCount =
       1 + // Initial "Case Submitted"
       (caseData.statusHistory?.length ?? 0) +
-      (caseData.assignedOfficerHistory?.length ?? 0)
+      (caseData.assignedOfficerHistory?.length ?? 0) +
+      (caseData.activityHistory?.length ?? 0)
 
     const TIMELINE_VISIBLE_LIMIT = 5
 
     const canExpandTimeline = timelineCount > TIMELINE_VISIBLE_LIMIT
 
     const { toast } = useToast()
-    const statusFlow = {
-      Pending: ["Under Review", "Dismissed"],
-
-      "Under Review": ["Mediation", "Dismissed"],
-
-      Mediation: ["Resolved", "Dismissed"],
-
-      Resolved: ["Closed"],
-
-      Closed: [],
-
-      Dismissed: [],
-    }
-    const [editingStatus, setEditingStatus] = useState(false)
-    const [selectedStatus, setSelectedStatus] = useState(caseData.status)
-    const [confirmStatusOpen, setConfirmStatusOpen] = useState(false)
-    const [editingOfficer, setEditingOfficer] = useState(false)
-
-    const [dismissReason, setDismissReason] = useState("")
-
-    const [reassignmentReason, setReassignmentReason] = useState("")
-    const [confirmOfficerOpen, setConfirmOfficerOpen] = useState(false)
-
     const [showEvidenceViewer, setShowEvidenceViewer] = useState(false)
     const [activeEvidenceIndex, setActiveEvidenceIndex] = useState(0)
 
-    const transitionKey =
-      `${caseData.status}->${selectedStatus}`
+    const [processReason, setProcessReason] = useState("")
+    const [absenceParty, setAbsenceParty] = useState<"complainant" | "respondent">("complainant")
+    const [arbitrationAgreement, setArbitrationAgreement] = useState("")
+    const [repudiatedBy, setRepudiatedBy] = useState<"complainant" | "respondent">("complainant")
+    const [updatingProcess, setUpdatingProcess] = useState(false)
+    const [updatingArchive, setUpdatingArchive] = useState(false)
 
-    const dialog =
-      statusMessages[transitionKey] ??
-      statusMessages["Any->Dismissed"]
-    const isDismissAction = selectedStatus === "Dismissed"
+    const evidenceFiles = caseData.evidenceFiles
 
-    const [quickOfficer, setQuickOfficer] = useState(caseData.assignedOfficer)
-    const [requestInfoOpen, setRequestInfoOpen] = useState(false)
-    const [requestMessage, setRequestMessage] = useState("")
-
-    const [selectedActions, setSelectedActions] = useState<Set<ActionKey>>(new Set())
-
-    const evidenceFiles = (caseData as any)?.evidenceFiles ??
-      (caseData as any)?.evidence ??
-      []
-
-    const getExternalUrl = (file: {
-      url?: string
-      fileUrl?: string
-    }) => {
-      return file.url ?? file.fileUrl ?? "#"
-    }
-    const normalizedEvidenceFiles = (caseData: any) => {
-    const raw = caseData?.evidenceFiles ?? caseData?.evidence ?? []
-
-    return raw.map((file: any) => ({
-      id: file.id,
-      name: file.name ?? file.fileUrl?.split("/").at(-1) ?? "Evidence",
-      type: file.type ?? file.fileType ?? "file",
-      url: file.url ?? file.fileUrl,
-      thumbnail: file.thumbnail ?? file.fileUrl,
-      size: file.size ?? "Unknown size",
-      uploadedAt: file.uploadedAt ?? "Unknown date",
-    }))
+  const downloadCaseReport = () => {
+    const fields = [
+      ["Case number", caseData.caseNumber],
+      ["Status", caseData.status],
+      ["Category", caseData.category],
+      ["Report type", caseData.type],
+      ["Priority", caseData.priority],
+      ["Complainant", caseData.fullName],
+      ["Respondent", caseData.respondentName || "Not provided"],
+      ["Respondent address", caseData.respondentAddress || "Not provided"],
+      ["Contact", caseData.contact],
+      ["Email", caseData.email],
+      ["Incident location", caseData.street],
+      ["Incident date", caseData.incidentDate],
+      ["Date submitted", caseData.dateSubmitted],
+      ["Assigned personnel", caseData.assignedOfficer || "Unassigned"],
+      ["Resolution", caseData.resolution || "No resolution recorded."],
+      ["Incident details", caseData.details || "No details provided."],
+    ]
+    downloadHtmlReport(
+      `${caseData.caseNumber.replace(/[^a-z0-9-_]/gi, "_")}-report.html`,
+      "IRIS Case Report",
+      [{ title: `Case ${caseData.caseNumber}`, rows: fields }],
+    )
   }
-
-    useEffect(() => {
-      console.log("CASE DATA:", caseData)
-      console.log("EVIDENCE:", caseData?.evidenceFiles)
-    }, [caseData])
-
-    const isArchived = caseData.status === "Resolved" || caseData.status === "Closed"
-
-    useEffect(() => {
-      setQuickOfficer(caseData.assignedOfficer)
-    }, [caseData.assignedOfficer])
-
-    const toggleAction = (key: ActionKey) => {
-      setSelectedActions((prev) => {
-        const next = new Set(prev)
-        next.has(key) ? next.delete(key) : next.add(key)
-        return next
-      })
-    }
-
-    const updateCase = async (
-      input: Partial<CaseRecord>
-    ): Promise<CaseRecord> => {
-      const res = await fetch(
-        `/api/cases/${encodeURIComponent(caseData.id)}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(input),
-        }
-      )
-
-      const json = await res.json()
-
-      if (!json.success) {
-        throw new Error(json.message)
-      }
-
-      onUpdate?.()
-
-      return json.data
-    }
-
-    const executeActions = async () => {
-      try {
-        if (selectedActions.has("verify")) {
-          const updatedCase = await updateCase({
-            status: "Under Review",
-          })
-          onCaseUpdated?.(updatedCase)
-        }
-
-        if (selectedActions.has("resolve")) {
-          const updatedCase = await updateCase({
-            status: "Resolved",
-          })
-          onCaseUpdated?.(updatedCase)
-        }
-
-        if (selectedActions.has("close")) {
-          const updatedCase = await updateCase({
-            status: "Closed",
-          })
-          onCaseUpdated?.(updatedCase)
-        }
-
-        if (selectedActions.has("assign")) {
-          const updatedCase = await updateCase({
-            assignedOfficer: quickOfficer,
-          })
-          onCaseUpdated?.(updatedCase)
-        }
-
-        if (selectedActions.has("mediation")) {
-          const updatedCase = await updateCase({
-            status: "Mediation",
-          })
-          onCaseUpdated?.(updatedCase)
-        }
-        if (selectedActions.has("request")) {
-          setRequestInfoOpen(true)
-        }
-
-        setSelectedActions(new Set())
-      } catch (e) {
-        toast({
-          variant: "destructive",
-          title: "Action failed",
-        })
-      }
-    }
 
     type CaseNote = {
       id: string
@@ -443,6 +173,9 @@
     const [notes, setNotes] = useState<CaseNote[]>([])
     const [newNote, setNewNote] = useState("")
     const [savingNote, setSavingNote] = useState(false)
+    const [notesLoading, setNotesLoading] = useState(true)
+    const [notesError, setNotesError] = useState("")
+    const [notesReloadCount, setNotesReloadCount] = useState(0)
 
     const [editingNoteId, setEditingNoteId] =
       useState<string | null>(null)
@@ -453,40 +186,46 @@
     useEffect(() => {
       async function fetchNotes() {
         try {
+          setNotesLoading(true)
+          setNotesError("")
           const res = await fetch(`/api/cases/${caseData.id}/notes`)
-
-          if (!res.ok) return
-
-          const json = await res.json()
-
-          if (json.success) {
-            setNotes(json.notes)
-          }
-        } catch (err) {
-          console.error(err)
+          const json = await readApiResponse(res)
+          if (!res.ok || !json.success || !Array.isArray(json.data)) throw new Error(json.message || "Unable to load case notes.")
+          setNotes(json.data as CaseNote[])
+        } catch (error) {
+          setNotesError(error instanceof Error ? error.message : "Unable to load case notes.")
+        } finally {
+          setNotesLoading(false)
         }
       }
 
       fetchNotes()
-    }, [caseData.id])
+    }, [caseData.id, notesReloadCount])
+
+    useRealtimeRefresh(async (signal) => {
+      try {
+        const response = await fetch(`/api/cases/${encodeURIComponent(caseData.id)}/notes`, { signal })
+        const result = await readApiResponse(response)
+        if (!response.ok || !result.success || !Array.isArray(result.data)) throw new Error(result.message || "Unable to refresh case notes.")
+        setNotes(result.data as CaseNote[])
+      } catch {
+        // Keep the current note list and retry on the next refresh.
+      }
+    }, { topics: ["iris:cases"], enabled: Boolean(caseData.id), fetchOnMount: false, refreshKey: caseData.id })
 
     async function updateNote(id: string) {
-      const res = await fetch(`/api/cases/${caseData.id}/notes/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          content: editingNoteContent,
-        }),
-      })
-
-      const json = await res.json()
-
-      if (json.success) {
+      try {
+        const res = await fetch(`/api/cases/${caseData.id}/notes/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: editingNoteContent }),
+        })
+        const json = await readApiResponse(res)
+        if (!res.ok || !json.success || !json.data) throw new Error(json.message || "Unable to update note.")
+        const updatedNote = json.data as CaseNote
         setNotes((prev) =>
           prev.map((note) =>
-            note.id === id ? json.note : note
+            note.id === id ? updatedNote : note
           )
         )
 
@@ -494,6 +233,8 @@
         toast({
           title: "Note updated",
         })
+      } catch (error) {
+        toast({ variant: "destructive", title: "Note update failed", description: error instanceof Error ? error.message : "Unable to update note." })
       }
     }
 
@@ -509,96 +250,64 @@
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            content: newNote,
+            note: newNote,
           }),
         })
 
-        const json = await res.json()
-
-        if (json.success) {
-          setNotes((prev) => [json.note, ...prev])
-          setNewNote("")
-          toast({
-            title: "Note added",
-          })
-        }
+        const json = await readApiResponse(res)
+        if (!res.ok || !json.success || !json.data) throw new Error(json.message || "Unable to add note.")
+        setNotes((prev) => [json.data as CaseNote, ...prev])
+        setNewNote("")
+        toast({ title: "Note added" })
+      } catch (error) {
+        toast({ variant: "destructive", title: "Note could not be added", description: error instanceof Error ? error.message : "Unable to add note." })
       } finally {
         setSavingNote(false)
       }
     }
 
-    const hasAssignedOfficer =
-      quickOfficer &&
-      quickOfficer !== "Unassigned"
-
-    const hasCurrentOfficer =
-      caseData.assignedOfficer &&
-      caseData.assignedOfficer !== "Unassigned"
-
-    const [updatingStatus, setUpdatingStatus] = useState(false)
-
-    const handleConfirmStatusUpdate = async () => {
-      if (selectedStatus === caseData.status) return
-
+    const sendCaseProcessEvent = async (event: string, payload: Record<string, unknown> = {}) => {
+      setUpdatingProcess(true)
       try {
-        setUpdatingStatus(true)
-
-        const updatedCase = await updateCase({
-          status: selectedStatus,
+        const response = await fetch(`/api/cases/${encodeURIComponent(caseData.id)}/transition`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event, payload }),
         })
-
-        onCaseUpdated?.(updatedCase)
-
-        toast({
-          variant: "success",
-          title: "Status updated successfully",
-          description: `This case is now marked as ${selectedStatus}.`,
-        })
-
-        setConfirmStatusOpen(false)
-        setDismissReason("")
-        setEditingStatus(false)
-      } catch {
-        toast({
-          variant: "error",
-          title: "Status update failed",
-          description: "The changes were not saved. Please try again.",
-        })
+        const result = await readApiResponse(response)
+        if (!response.ok || !result.success || !result.data) throw new Error(result.message || "Unable to update the case workflow.")
+        onCaseUpdated?.(result.data as CaseRecord)
+        onUpdate?.()
+        setProcessReason("")
+        setArbitrationAgreement("")
+        toast({ title: "Case workflow updated", description: result.message })
+      } catch (error) {
+        toast({ variant: "destructive", title: "Workflow update failed", description: error instanceof Error ? error.message : "Please try again." })
       } finally {
-        setUpdatingStatus(false)
+        setUpdatingProcess(false)
       }
     }
 
-    const closeOfficerDialog = () => {
-      setConfirmOfficerOpen(false)
-      setReassignmentReason("")
-    }
-
-    const handleConfirmOfficerUpdate = async () => {
+    const setCaseArchived = async (archived: boolean) => {
+      setUpdatingArchive(true)
       try {
-        const updatedCase = await updateCase({
-          assignedOfficer: quickOfficer,
-          reassignmentReason,
-        })
-
-        onCaseUpdated?.(updatedCase)
-
-        toast({
-          variant: "success",
-          title: "Officer updated",
-          description: `${quickOfficer} has been assigned to this case.`,
-        })
-
-        setEditingOfficer(false)
-        closeOfficerDialog()
-      } catch {
-        toast({
-          variant: "destructive",
-          title: "Assignment failed",
-          description: "Please try again.",
-        })
+        const response = await fetch(`/api/cases/${encodeURIComponent(caseData.id)}/archive`, { method: archived ? "POST" : "DELETE" })
+        const result = await readApiResponse(response)
+        if (!response.ok || !result.success || !result.data) throw new Error(result.message || "Unable to update archive status.")
+        onCaseUpdated?.(result.data as CaseRecord)
+        onUpdate?.()
+        toast({ title: archived ? "Case archived" : "Case restored" })
+      } catch (error) {
+        toast({ variant: "destructive", title: archived ? "Archive failed" : "Restore failed", description: error instanceof Error ? error.message : "Please try again." })
+      } finally {
+        setUpdatingArchive(false)
       }
     }
+
+    const processStatus = caseData.currentStatus ?? "SCHEDULED"
+    const canArchiveProcess = processStatus === "DISMISSED"
+      || processStatus === "WITHDRAWN"
+      || (processStatus === "RESOLVED" && Boolean(caseData.closedDate))
 
     return (
       <>
@@ -625,6 +334,7 @@
                 <p className="mt-1 text-sm text-muted-foreground">
                   {caseData.caseNumber}
                 </p>
+                <p className="mt-1 text-xs text-muted-foreground">{caseData.type}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <span
                     className={cn(
@@ -652,14 +362,20 @@
                   </span>
                 </div>
               </div>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={onClose}
-                className="shrink-0"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex shrink-0 items-center gap-2">
+                <Button type="button" variant="outline" onClick={downloadCaseReport} title="Download case report">
+                  <Download className="mr-2 h-4 w-4" />
+                  Download report
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={onClose}
+                  title="Close case details"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -700,632 +416,126 @@
                     </div>
                   </div>
                 </div>
-
-                {/* CASE STATUS */}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold tracking-tight">
-                    Case Status
-                  </h3>
-
-                  <div
-                    className={cn(
-                      "rounded-xl border bg-background p-4 transition-colors",
-                      getStatusCardBorder(caseData.status)
-                    )}
-                  >
-
-                    {!editingStatus ? (
-
-                      <div className="flex items-center justify-between">
-
-                        <div className="space-y-1">
-                          <p className="text-xs text-muted-foreground">
-                            Current Status
-                          </p>
-
-                          <p className="text-base font-semibold">
-                            {caseData.status}
-                          </p>
-                        </div>
-
-                        {statusFlow[caseData.status].length > 0 && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => setEditingStatus(true)}
-                            className="
-                              border border-slate-200
-                              bg-background
-                              hover:bg-slate-50
-                              hover:border-slate-300
-                              transition-colors
-                            "
-                          >
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Change
-                          </Button>
-                        )}
-
-                      </div>
-
-                    ) : (
-
-                      <div className="space-y-3">
-
-                        <div>
-                          <p className="mb-2 text-xs text-muted-foreground">
-                            Select new status
-                          </p>
-
-                          <Select
-                            value={selectedStatus}
-                            onValueChange={(value) =>
-                              setSelectedStatus(value as CaseRecord["status"])
-                            }
-                          >
-                            <SelectTrigger
-                              className="
-                                w-full
-                                h-11
-                                rounded-lg
-                                border
-                                border-border
-                                bg-background
-                                shadow-none
-                                focus:ring-2
-                                focus:ring-primary/20
-                                focus:ring-offset-0
-                              "
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-
-                            <SelectContent
-                              className="
-                                rounded-lg
-                                border
-                                border-border
-                                bg-background
-                                shadow-lg
-                              "
-                            >
-                              <SelectItem value={caseData.status}>
-                                {caseData.status}
-                              </SelectItem>
-
-                              {statusFlow[caseData.status].map((status) => (
-                                <SelectItem
-                                  key={status}
-                                  value={status}
-                                >
-                                  {status}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-
-                        </div>
-
-                        <div className="flex justify-end gap-2">
-
-                          <Button
-                            variant="ghost"
-                            className="
-                              border border-slate-200
-                              bg-background
-                              text-muted-foreground
-                              hover:bg-slate-50
-                              hover:text-foreground
-                              hover:border-slate-300
-                              transition-colors
-                            "
-                            onClick={() => {
-                              setEditingStatus(false)
-                              setSelectedStatus(caseData.status)
-                              setDismissReason("")
-                              setConfirmStatusOpen(false)
-                            }}
-                          >
-                            Cancel
-                          </Button>
-
-                          {selectedStatus !== caseData.status && (
-
-                            <Button
-                              className="
-                                border border-primary/20
-                                hover:bg-primary/90
-                                hover:border-primary/40
-                              "
-                              onClick={() => setConfirmStatusOpen(true)}
-                            >
-                              Review Change
-                            </Button>
-
-                          )}
-
-                        </div>
-
-                      </div>
-
-                    )}
-
-                  </div>
+                <div className="grid gap-3 rounded-xl border bg-background p-4 sm:grid-cols-2">
+                  <div><p className="text-xs text-muted-foreground">Respondent</p><p className="text-sm font-medium">{caseData.respondentName || "Not provided"}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Respondent address</p><p className="text-sm font-medium">{caseData.respondentAddress || "Not provided"}</p></div>
                 </div>
 
-                {/* CASE ASSIGNMENT */}
-                <div className="space-y-3">
-
-                  <h3 className="text-sm font-semibold tracking-tight">
-                    Case Assignment
-                  </h3>
-
-                  <div
-                    className={cn(
-                      "rounded-xl border bg-background p-4 transition-colors",
-                      getOfficerCardBorder(quickOfficer)
-                    )}
-                  >
-
-                    {!editingOfficer ? (
-
-                      <div className="flex items-center justify-between">
-
-                        <div className="space-y-1">
-
-                          <p className="text-sm font-medium">
-                            {hasAssignedOfficer
-                              ? "Assigned Officer:"
-                              : "Assign Officer:"}
-                          </p>
-
-                          <p className="text-sm text-muted-foreground">
-                            {hasAssignedOfficer
-                              ? quickOfficer
-                              : "No officer assigned"}
-                          </p>
-
-                        </div>
-
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setEditingOfficer(true)}
-                          className="
-                            border border-slate-200
-                            bg-background
-                            hover:bg-slate-50
-                            hover:border-slate-300
-                            transition-colors
-                          "
-                        >
-                          <Pencil className="mr-2 h-4 w-4" />
-                          {hasAssignedOfficer ? "Reassign" : "Assign"}
-                        </Button>
-
-                      </div>
-
+                <section className="space-y-4 rounded-xl border bg-background p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold tracking-tight">Dispute resolution stage</h3>
+                      <p className="mt-1 text-base font-semibold">{processStatus}</p>
+                    </div>
+                    {caseData.statusDaysAllotted == null ? (
+                      <p className="text-sm text-muted-foreground">No day limit is set for this stage.</p>
                     ) : (
-
-                      <div className="space-y-3">
-
-                        <div>
-                          <p className="mb-2 text-xs text-muted-foreground">
-                            Select Officer
-                          </p>
-
-                          <p className="mb-2 text-sm font-medium">
-                            {hasAssignedOfficer
-                              ? "Assigned Officer:"
-                              : "Assign Officer:"}
-                          </p>
-
-                          <OfficerSelector
-                            currentOfficer={quickOfficer}
-                            officers={(officers ?? []).filter(
-                              officer => officer !== "Unassigned"
-                            )}
-                            onOfficerChange={setQuickOfficer}
-                          />
-
-                          {!hasAssignedOfficer && (
-                            <p className="mt-2 text-sm text-muted-foreground">
-                              No officer assigned
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="flex justify-end gap-2">
-
-                          <Button
-                            variant="ghost"
-                            className="
-                              border border-slate-200
-                              bg-background
-                              text-muted-foreground
-                              hover:bg-slate-50
-                              hover:text-foreground
-                              hover:border-slate-300
-                              transition-colors
-                            "
-                            onClick={() => {
-                              setEditingOfficer(false)
-                              setQuickOfficer(caseData.assignedOfficer)
-                            }}
-                          >
-                            Cancel
-                          </Button>
-
-                          {quickOfficer !== caseData.assignedOfficer && (
-
-                            <Button
-                            className="
-                              border border-slate-200
-                              bg-background
-                              hover:bg-slate-50
-                              hover:border-slate-300
-                              transition-colors
-                            "
-                              onClick={() => setConfirmOfficerOpen(true)}
-                            >
-                              {hasAssignedOfficer ? "Reassign" : "Assign"}
-                            </Button>
-
-                          )}
-
-                        </div>
-
+                      <div className="text-right text-sm">
+                        <p>{caseData.statusDaysElapsed ?? 0} of {caseData.statusDaysAllotted} business days elapsed</p>
+                        <p className={caseData.statusOverdue ? "font-semibold text-destructive" : "text-muted-foreground"}>
+                          {caseData.statusOverdue ? `Overdue by ${Math.abs(caseData.statusDaysRemaining ?? 0)} business days` : `${caseData.statusDaysRemaining ?? 0} business days remaining`}
+                        </p>
                       </div>
-
                     )}
-
                   </div>
-
-                </div>
-                <Dialog
-                  open={confirmStatusOpen}
-                  onOpenChange={(open) => {
-                    // Ignore outside click and Esc
-                    if (!open) return
-                    setConfirmStatusOpen(open)
-                  }}
-                >
-                  <DialogContent
-                    onPointerDownOutside={(e) => e.preventDefault()}
-                    onEscapeKeyDown={(e) => e.preventDefault()}
-                    className="
-                      sm:max-w-lg
-                      overflow-hidden
-                      rounded-2xl
-                      border-0
-                      bg-white
-                      p-0
-                      gap-0
-                      shadow-2xl
-                    "
-                  >
-                    {/* HEADER */}
-                    <div className="bg-white px-6 py-4">
-                      <div className="flex items-start gap-3">
-
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-orange-100">
-                          <AlertTriangle className="h-5 w-5 text-orange-600" />
-                        </div>
-
-                        <div className="min-w-0">
-                          <DialogTitle className="text-xl font-bold tracking-tight  text-slate-900">
-                            Review Status Change
-                          </DialogTitle>
-
-                          <p className="mt-1 text-sm text-amber-800">
-                            Please review the changes below before continuing.
-                          </p>
-                        </div>
-
-                      </div>
-                    </div>
-
-                    {/* BODY */}
-                    <div className="pt-3 pb-5">
-                      <div className="space-y-3 px-8">
-                        <p className="text-sm leading-7 text-slate-700">
-                          You are about to change the status of this case from{" "}
-                          <span className="font-semibold text-slate-900">
-                            {caseData.status}
-                          </span>{" "}
-                          to{" "}
-                          <span className="font-semibold text-slate-900">
-                            {selectedStatus}
-                          </span>.
-                        </p>
-                        <p className="text-sm leading-7 text-slate-700">
-                          This change will be recorded in the case timeline and may affect how
-                          this case is processed and displayed throughout the system.
-                        </p>
-                        <p className="text-sm leading-7 text-slate-700">
-                          Do you want to apply this change?
-                        </p>
-                      </div>
-
-                      <div className="flex justify-end gap-3 px-6 pt-6">
-                        <Button
-                          variant="outline"
-                          onClick={() => setConfirmStatusOpen(false)}
-                          className="border-slate-300 hover:bg-slate-50"
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          disabled={updatingStatus}
-                          onClick={handleConfirmStatusUpdate}
-                          className="bg-amber-600 text-white hover:bg-amber-700"
-                        >
-                          {updatingStatus ? "Updating..." : "Update Status"}
-                        </Button>
-                      </div>
-
-                    </div>
-                  </DialogContent>
-                </Dialog>
-                <Dialog
-                  open={confirmOfficerOpen}
-                  onOpenChange={(open) => {
-                    if (!open) return
-                    setConfirmOfficerOpen(open)
-                  }}
-                >
-                  <DialogContent
-                    onPointerDownOutside={(e) => e.preventDefault()}
-                    onEscapeKeyDown={(e) => e.preventDefault()}
-                    className="
-                      sm:max-w-lg
-                      overflow-hidden
-                      rounded-2xl
-                      border-2 border-blue-200
-                      bg-white
-                      p-0
-                      gap-0
-                      shadow-2xl
-                    "
-                  >
-                    {isDismissAction ? (
-                      <>
-                        {/* Header */}
-                        <div className="bg-white px-6 py-4">
-                          <div className="flex items-start gap-3">
-
-                            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-100">
-                              <AlertTriangle className="h-5 w-5 text-red-600" />
-                            </div>
-
-                            <div>
-                              <DialogTitle className="text-xl font-bold tracking-tight text-slate-900">
-                                Case Dismissal
-                              </DialogTitle>
-
-                              <p className="mt-1 text-sm text-slate-500">
-                                Please state the reason for dismissing this case.
-                              </p>
-                            </div>
-
-                            {/* Body */}
-                            <div className="pt-3 pb-5">
-
-                              <div className="space-y-4 px-8">
-
-                                <p className="text-sm leading-7 text-slate-700">
-                                  You are about to dismiss this case.
-                                </p>
-
-                                <p className="text-sm leading-7 text-slate-700">
-                                  Dismissing this case will end barangay proceedings and record the selected reason in the case history.
-                                </p>
-
-                                <div className="space-y-2">
-
-                                  <label className="text-sm font-medium">
-                                    Reason for Dismissal
-                                    <span className="ml-1 text-red-500">*</span>
-                                  </label>
-
-                                  <Select
-                                    value={dismissReason}
-                                    onValueChange={setDismissReason}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select a dismissal reason" />
-                                    </SelectTrigger>
-
-                                    <SelectContent>
-
-                                      <SelectItem value="jurisdiction">
-                                        Outside Barangay Jurisdiction
-                                      </SelectItem>
-
-                                      <SelectItem value="venue">
-                                        Filed in the Wrong Barangay
-                                      </SelectItem>
-
-                                      <SelectItem value="absence">
-                                        Complainant Failed to Appear
-                                      </SelectItem>
-
-                                      <SelectItem value="prescription">
-                                        Complaint Filed Too Late
-                                      </SelectItem>
-
-                                    </SelectContent>
-                                  </Select>
-
-                                  <p className="text-xs text-muted-foreground">
-                                    This reason will be recorded in the case timeline.
-                                  </p>
-
-                                </div>
-
-                              </div>
-
-                              <div className="flex justify-end gap-3 px-6 pt-6">
-
-                                <Button
-                                  variant="outline"
-                                  onClick={() => setConfirmStatusOpen(false)}
-                                >
-                                  Cancel
-                                </Button>
-
-                                <Button
-                                  disabled={!dismissReason || updatingStatus}
-                                  onClick={handleConfirmStatusUpdate}
-                                  className="bg-red-600 text-white hover:bg-red-700"
-                                >
-                                  {updatingStatus ? "Dismissing..." : "Dismiss Case"}
-                                </Button>
-
-                              </div>
-
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                      ) : (
-                    <>
-                    {/* Header */}
-                    <div className="bg-blue-50 px-6 py-5">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-100">
-                          <Badge className="h-5 w-5 text-blue-700" />
-                        </div>
-
-                        <div>
-                          <DialogTitle className="text-xl font-bold text-blue-950">
-                            Confirm Officer Assignment
-                          </DialogTitle>
-
-                          <p className="mt-1 text-sm text-blue-800">
-                            Please review the assignment before continuing.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Body */}
-                    <div className="space-y-4 px-6 py-5">
-                      <p className="text-sm leading-7 text-slate-700">
-                        {caseData.assignedOfficer &&
-                        caseData.assignedOfficer !== "Unassigned" ? (
-                          <>
-                            You are about to reassign this case from{" "}
-                            <span className="font-semibold text-slate-900">
-                              {caseData.assignedOfficer}
-                            </span>{" "}
-                            to{" "}
-                            <span className="font-semibold text-slate-900">
-                              {quickOfficer}
-                            </span>.
-                          </>
-                        ) : (
-                          <>
-                            You are about to assign this case to{" "}
-                            <span className="font-semibold text-slate-900">
-                              {quickOfficer}
-                            </span>.
-                          </>
-                        )}
-                      </p>
-
-                      <p className="text-sm leading-7 text-slate-700">
-                        This assignment will be recorded in the case timeline and the selected
-                        officer will become responsible for handling this case.
-                      </p>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">
-                          Reason for Reassignment
-                          <span className="ml-1 text-red-500">*</span>
-                        </label>
-
-                        <Select
-                          value={reassignmentReason}
-                          onValueChange={setReassignmentReason}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a reason" />
-                          </SelectTrigger>
-
-                          <SelectContent>
-                            <SelectItem value="workload">
-                              Officer currently has too many assigned cases
-                            </SelectItem>
-
-                            <SelectItem value="expertise">
-                              Another officer has more relevant expertise
-                            </SelectItem>
-
-                            <SelectItem value="availability">
-                              Current officer is unavailable
-                            </SelectItem>
-
-                            <SelectItem value="location">
-                              Another officer is assigned to the incident area
-                            </SelectItem>
-
-                            <SelectItem value="conflict">
-                              Potential conflict of interest
-                            </SelectItem>
-
-                            <SelectItem value="rotation">
-                              Routine workload balancing
-                            </SelectItem>
-
-                            <SelectItem value="supervisor">
-                              Supervisor-directed reassignment
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-
-                        <p className="text-xs text-muted-foreground">
-                          A reason is required before this reassignment can be confirmed.
-                        </p>
-                      </div>
-
-                      <p className="font-semibold text-slate-900">
-                        Do you want to continue?
-                      </p>
-
-                      <div className="flex justify-end gap-3 pt-2">
-                        <Button
-                          variant="ghost"
-                          onClick={closeOfficerDialog}
-                          className="
-                            border-slate-300
-                            hover:bg-slate-50
-                          "
-                        >
-                          Cancel
-                        </Button>
-
-                        <Button
-                          disabled={!reassignmentReason}
-                          onClick={handleConfirmOfficerUpdate}
-                          className="
-                            bg-blue-600
-                            text-white
-                            hover:bg-blue-700
-                            disabled:opacity-50
-                            disabled:pointer-events-none
-                          "
-                        >
-                          {hasAssignedOfficer
-                            ? "Confirm Reassignment"
-                            : "Confirm Assignment"}
-                        </Button>
-                      </div>
-                    </div>
-                  </>
+                  <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+                    <span>Mediation attempts: {caseData.mediationAttemptCount ?? 0}/3</span>
+                    <span>Conciliation attempts: {caseData.conciliationAttemptCount ?? 0}/3</span>
+                    <span>Complainant absences: {caseData.absenceCount ?? 0}/3</span>
+                  </div>
+                  {(processStatus === "MEDIATION" || processStatus === "CONCILIATION") && (
+                    <p className="text-sm text-muted-foreground">Schedule each follow-up hearing in <Link href="/operations" className="font-medium text-primary underline">Operations</Link> before recording its outcome.</p>
                   )}
-                  </DialogContent>
-                </Dialog>
+                  {caseData.needsCertificateToFileAction && <p role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">Certificate to File Action is needed after conciliation was exhausted without an arbitration agreement.</p>}
+                  {caseData.arbitrationAgreementSigned && <p className="text-sm text-muted-foreground">Arbitration agreement signed {caseData.arbitrationAgreementDate ?? "date not recorded"}.</p>}
+                  {caseData.settlementDate && <p className="text-sm text-muted-foreground">Settlement recorded {caseData.settlementDate} through {caseData.settlementSource?.toLowerCase() ?? "an unrecorded source"}.</p>}
+                  {caseData.arbitrationAwardDate && <p className="text-sm text-muted-foreground">Arbitration award rendered {caseData.arbitrationAwardDate}.</p>}
+                  {processStatus === "REPUDIATION" && <p className="rounded-lg border bg-muted/40 p-3 text-sm">Repudiated by {caseData.repudiatedBy?.toLowerCase() ?? "a party"} on {caseData.repudiationDate ?? "an unrecorded date"}{caseData.repudiationReason ? `: ${caseData.repudiationReason}` : "."}</p>}
+                  {processStatus === "DISMISSED" && caseData.dismissalReason && <p className="rounded-lg border bg-muted/40 p-3 text-sm">Dismissal reason: {caseData.dismissalReason}</p>}
+                  {processStatus === "WITHDRAWN" && caseData.withdrawalReason && <p className="rounded-lg border bg-muted/40 p-3 text-sm">Withdrawal reason: {caseData.withdrawalReason}</p>}
+
+                  {processStatus === "SCHEDULED" && (
+                    <p className="text-sm text-muted-foreground">Schedule the first mediation hearing in <Link href="/operations" className="font-medium text-primary underline">Operations</Link> to begin this stage.</p>
+                  )}
+                  {(processStatus === "MEDIATION" || processStatus === "CONCILIATION") && (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" disabled={updatingProcess || (processStatus === "CONCILIATION" && (caseData.conciliationAttemptCount ?? 0) >= 3 && !arbitrationAgreement)} onClick={() => sendCaseProcessEvent("not_settled", processStatus === "CONCILIATION" && arbitrationAgreement ? { arbitration_agreement_signed: arbitrationAgreement === "true" } : {})}>
+                          {processStatus === "MEDIATION" ? "Continue mediation" : "Continue conciliation"}
+                        </Button>
+                        <Button type="button" variant="outline" disabled={updatingProcess} onClick={() => sendCaseProcessEvent("settled")}><ArrowRight className="mr-1.5 h-4 w-4" />Forward: Resolve case</Button>
+                      </div>
+                      {processStatus === "CONCILIATION" && (caseData.conciliationAttemptCount ?? 0) >= 3 && (
+                        <label className="block space-y-1 text-sm">
+                          <span>Arbitration agreement signed?</span>
+                          <select value={arbitrationAgreement} onChange={(event) => setArbitrationAgreement(event.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2">
+                            <option value="">Choose one</option>
+                            <option value="true">Yes, signed</option>
+                            <option value="false">No agreement</option>
+                          </select>
+                        </label>
+                      )}
+                      <div className="flex flex-wrap items-end gap-2">
+                        <label className="space-y-1 text-sm">
+                          <span>Absent party</span>
+                          <select value={absenceParty} onChange={(event) => setAbsenceParty(event.target.value as "complainant" | "respondent")} className="block rounded-lg border border-border bg-background px-3 py-2">
+                            <option value="complainant">Complainant</option>
+                            <option value="respondent">Respondent</option>
+                          </select>
+                        </label>
+                        <Button type="button" variant="outline" disabled={updatingProcess} onClick={() => sendCaseProcessEvent("absent", { absent_by: absenceParty })}>Record absence</Button>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-2">
+                        <label className="min-w-60 flex-1 space-y-1 text-sm">
+                          <span>Withdrawal reason</span>
+                          <input value={processReason} onChange={(event) => setProcessReason(event.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2" />
+                        </label>
+                        <Button type="button" variant="outline" disabled={updatingProcess || !processReason.trim()} onClick={() => sendCaseProcessEvent("withdrawn", { reason: processReason })}>Withdraw case</Button>
+                      </div>
+                    </div>
+                  )}
+                  {processStatus === "ARBITRATION" && <Button type="button" disabled={updatingProcess} onClick={() => sendCaseProcessEvent("award_rendered")}><ArrowRight className="mr-1.5 h-4 w-4" />Forward: Record arbitration award</Button>}
+                  {processStatus === "RESOLVED" && !caseData.closedDate && caseData.settlementSource !== "ARBITRATION" && (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">File any repudiation by {caseData.repudiationDeadline ?? "the end of the 10 business day window"}.</p>
+                      <div className="flex flex-wrap items-end gap-2">
+                        <label className="space-y-1 text-sm">
+                          <span>Repudiated by</span>
+                          <select value={repudiatedBy} onChange={(event) => setRepudiatedBy(event.target.value as "complainant" | "respondent")} className="block rounded-lg border border-border bg-background px-3 py-2">
+                            <option value="complainant">Complainant</option>
+                            <option value="respondent">Respondent</option>
+                          </select>
+                        </label>
+                        <label className="min-w-60 flex-1 space-y-1 text-sm">
+                          <span>Repudiation reason</span>
+                          <input value={processReason} onChange={(event) => setProcessReason(event.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2" />
+                        </label>
+                        <Button type="button" variant="outline" disabled={updatingProcess || !processReason.trim()} onClick={() => sendCaseProcessEvent("repudiated", { repudiated_by: repudiatedBy, reason: processReason })}><ArrowRight className="mr-1.5 h-4 w-4" />Forward: File repudiation</Button>
+                      </div>
+                    </div>
+                  )}
+                  {processStatus === "RESOLVED" && caseData.closedDate && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">{caseData.settlementSource === "ARBITRATION" ? `Arbitration award became binding on ${caseData.closedDate}.` : `Closed ${caseData.closedDate}.`} Execution deadline: {caseData.executionDeadline ?? "not set"}{caseData.executionMethod ? ` · ${caseData.executionMethod.toLowerCase()} execution` : ""}</p>
+                      <Button type="button" variant="outline" disabled={updatingProcess} onClick={() => sendCaseProcessEvent("execution_needed")}>Track execution</Button>
+                    </div>
+                  )}
+                  {processStatus === "REPUDIATION" && (
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" disabled={updatingProcess} onClick={() => sendCaseProcessEvent("resume")}><ArrowLeft className="mr-1.5 h-4 w-4" />Backward: Resume prior stage</Button>
+                      <Button type="button" variant="outline" disabled={updatingProcess} onClick={() => sendCaseProcessEvent("withdrawn")}>Withdraw after repudiation</Button>
+                    </div>
+                  )}
+                  <div className="border-t pt-3">
+                    {caseData.isArchived ? (
+                      <Button type="button" variant="outline" disabled={updatingArchive} onClick={() => setCaseArchived(false)}>{updatingArchive ? "Restoring…" : "Restore from archive"}</Button>
+                    ) : (
+                      <Button type="button" variant="outline" disabled={updatingArchive || !canArchiveProcess} onClick={() => setCaseArchived(true)} title={!canArchiveProcess ? "Close, dismiss, or withdraw the case before archiving it." : undefined}>
+                        {updatingArchive ? "Archiving…" : "Archive case"}
+                      </Button>
+                    )}
+                  </div>
+                </section>
 
                 {/* EVIDENCE */}
                 <div className="space-y-3">
@@ -1334,9 +544,9 @@
                   </h3>
 
                   <div className="rounded-xl border border-border bg-background p-4">
-                    <div className="space-y-3">
+                    <ul className="grid list-none gap-3 p-0 sm:grid-cols-2 xl:grid-cols-3">
                       {evidenceFiles.length === 0 && (
-                        <div className="flex items-center gap-3 rounded-lg border border-dashed border-border p-4">
+                        <li className="flex items-center gap-3 rounded-lg border border-dashed border-border p-4">
                           <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-muted">
                             <ImageIcon className="h-5 w-5 text-muted-foreground" />
                           </div>
@@ -1350,70 +560,40 @@
                               Photos and documents will appear here.
                             </p>
                           </div>
-                        </div>
+                        </li>
                       )}
 
                       {evidenceFiles.map((file, index) => (
-                        <div
-                          key={file.id}
-                          className="
-                            flex
-                            items-center
-                            justify-between
-                            rounded-lg
-                            border
-                            border-border
-                            bg-background
-                            p-3
-                            transition-colors
-                            hover:bg-muted/40
-                          "
-                        >
-                          <div className="flex items-center gap-3">
-
-                            <div
-                              className={cn(
-                                "flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border",
-                                file.type === "image"
-                                  ? "bg-blue-50 text-blue-600"
-                                  : "bg-orange-50 text-orange-600"
-                              )}
-                            >
-                              {file.type === "image" ? (
-                                <img
-                                  src={file.thumbnail || file.url}
-                                  alt={file.name}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <FileText className="h-5 w-5" />
-                              )}
-                            </div>
-
-                            <div>
-                              <p className="text-sm font-medium">
-                                {file.name}
-                              </p>
-
-                              <p className="text-xs text-muted-foreground">
-                                {file.size} • Uploaded {file.uploadedAt}
-                              </p>
-                            </div>
-                          </div>
-
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
+                        file.type === "image" ? (
+                          <ImagePreviewCard
+                            key={file.id}
+                            item={{
+                              id: file.id,
+                              name: file.name,
+                              src: file.thumbnail || file.url,
+                              details: `${file.size} · Uploaded ${file.uploadedAt}`,
+                            }}
+                            onPreview={() => {
                               setActiveEvidenceIndex(index)
                               setShowEvidenceViewer(true)
                             }}
-                          >
-                            View
-                          </Button>
-                        </div>
+                          />
+                        ) : (
+                          <li key={file.id} className="overflow-hidden rounded-xl border border-border bg-background">
+                            <button type="button" onClick={() => { setActiveEvidenceIndex(index); setShowEvidenceViewer(true) }} className="group block w-full text-left">
+                              <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-orange-50 text-orange-600">
+                                <FileText className="h-5 w-5" />
+                                <span className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-semibold text-white">Preview</span>
+                              </div>
+                              <div className="min-w-0 p-3">
+                                <p className="truncate text-sm font-semibold">{file.name}</p>
+                                <p className="mt-1 truncate text-xs text-muted-foreground">{file.size} · Uploaded {file.uploadedAt}</p>
+                              </div>
+                            </button>
+                          </li>
+                        )
                       ))}
-                    </div>
+                    </ul>
                   </div>
                 </div>
 
@@ -1457,6 +637,7 @@
                       dateSubmitted={caseData.dateSubmitted}
                       statusHistory={caseData.statusHistory}
                       assignedOfficerHistory={caseData.assignedOfficerHistory}
+                      activityHistory={caseData.activityHistory}
                       actorFallback={caseData.assignedOfficer}
                     />
                   </div>
@@ -1489,6 +670,8 @@
                         variant="ghost"
                         size="icon"
                         onClick={() => setTimelineExpanded(false)}
+                        title="Close timeline"
+                        aria-label="Close timeline"
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -1504,6 +687,7 @@
                         dateSubmitted={caseData.dateSubmitted}
                         statusHistory={caseData.statusHistory}
                         assignedOfficerHistory={caseData.assignedOfficerHistory}
+                        activityHistory={caseData.activityHistory}
                         actorFallback={caseData.assignedOfficer}
                       />
 
@@ -1601,16 +785,25 @@
                   rows={4}
                 />
 
-                <Button
+              <Button
                   onClick={saveNote}
                   disabled={savingNote || !newNote.trim()}
                   className="w-full"
                 >
                   <Save className="mr-2 h-4 w-4" />
-                  Save Note
+                  {savingNote ? "Saving note..." : "Save Note"}
                 </Button>
 
-              {notes.length === 0 && (
+              {notesError && (
+                <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                  <span>{notesError}</span>
+                  <button type="button" onClick={() => setNotesReloadCount((count) => count + 1)} className="font-semibold underline">Retry</button>
+                </div>
+              )}
+
+              {notesLoading && <div aria-label="Loading notes" className="h-20 animate-pulse rounded-lg bg-muted" />}
+
+              {!notesLoading && !notesError && notes.length === 0 && (
                 <div className="rounded-lg border border-dashed p-6 text-center">
                   <MessageSquare className="mx-auto h-6 w-6 text-muted-foreground" />
 
@@ -1624,7 +817,7 @@
                 </div>
               )}
 
-                  <div className="space-y-3">
+                  {!notesLoading && notes.length > 0 && <div className="space-y-3">
 
                     {notes.map((note) => (
 
@@ -1671,6 +864,8 @@
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  title="Edit note"
+                                  aria-label="Edit note"
                                   onClick={() => {
                                     setEditingNoteId(note.id)
                                     setEditingNoteContent(note.content)
@@ -1746,7 +941,7 @@
 
                     ))}
 
-                  </div>
+                  </div>}
 
                 </div>
 
@@ -1754,21 +949,7 @@
 
             <div className="flex items-center justify-between border-t border-border/40 bg-muted/20 px-6 py-4">
 
-              <Button
-                variant="outline"
-                onClick={() => setRequestInfoOpen(true)}
-                className="
-                  border-blue-200
-                  text-blue-700
-                  hover:bg-blue-50
-                  hover:border-blue-300
-                "
-              >
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Request Information
-              </Button>
-
-              <Button
+<Button
                 variant="secondary"
                 className="
                   border border-border
@@ -1794,36 +975,7 @@
           />
         )}
 
-        {/* REQUEST INFO MODAL */}
-        <Dialog open={requestInfoOpen} onOpenChange={setRequestInfoOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Request Info</DialogTitle>
-            </DialogHeader>
 
-            <Textarea
-              value={requestMessage}
-              onChange={(e) => setRequestMessage(e.target.value)}
-            />
-
-            <Button
-              className="w-full"
-              onClick={async () => {
-                await fetch(`/api/cases/${caseData.id}/request-info`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ message: requestMessage }),
-                })
-                toast({
-                  title: "Request sent",
-                })
-                setRequestInfoOpen(false)
-              }}
-            >
-              Send
-            </Button>
-          </DialogContent>
-        </Dialog>
       </>
     )
   }

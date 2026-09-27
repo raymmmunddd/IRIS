@@ -36,14 +36,6 @@ enum OfficerRoleTitle {
   BARANGAY_SECRETARY
 }
 
-enum CaseCategory {
-  DISPUTE
-  INJURY
-  VAWC
-  ORDINANCE_VIOLATION
-  OTHER
-}
-
 enum CasePriority {
   LOW
   MEDIUM
@@ -51,7 +43,7 @@ enum CasePriority {
   URGENT
 }
 
-enum CaseStatus {
+enum CaseReviewStatus {
   PENDING
   UNDER_REVIEW
   ACCEPTED
@@ -100,91 +92,212 @@ enum AuditAction {
   STATUS_CHANGE
   ASSIGN
   ARCHIVE
+  LOGIN
+}
+
+enum CaseStatus {
+  SCHEDULED
+  MEDIATION
+  CONCILIATION
+  ARBITRATION
+  RESOLVED
+  REPUDIATION
+  DISMISSED
+  WITHDRAWN
+}
+
+enum SettlementSource {
+  MEDIATION
+  CONCILIATION
+  ARBITRATION
+}
+
+enum RepudiatedBy {
+  COMPLAINANT
+  RESPONDENT
+}
+
+enum ExecutionMethod {
+  LUPON
+  COURT
 }
 
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
-  id              String    @id @default(uuid())
-  fullName        String    @map("full_name")
-  email           String    @unique
-  password        String?
-  contact         String?
-  street          String?
-  bio             String?
-  photoUrl        String?   @map("photo_url")
-  gender          Gender?
-  passwordLastUpdated DateTime? @map("password_last_updated")
-  twoFactorEnabled Boolean  @default(false) @map("two_factor_enabled")
-  role            UserRole  @default(RESIDENT)
-  status          UserStatus @default(ACTIVE)
-  isArchived      Boolean   @default(false) @map("is_archived")
-  archivedAt      DateTime? @map("archived_at")
-  archivedReason  String?   @map("archived_reason")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id                  String     @id @default(uuid())
+  fullName            String     @map("full_name")
+  email               String     @unique
+  password            String?
+  contact             String?
+  street              String?
+  locationLatitude    Float?     @map("location_latitude")
+  locationLongitude   Float?     @map("location_longitude")
+  locationAccuracy    Float?     @map("location_accuracy")
+  locationAddress     String?    @map("location_address")
+  locationCapturedAt  DateTime?  @map("location_captured_at") @db.Timestamp(6)
+  bio                 String?
+  photoUrl            String?    @map("photo_url")
+  gender              Gender?
+  genderDetails       String?    @map("gender_details")
+  passwordLastUpdated DateTime?  @map("password_last_updated")
+  twoFactorEnabled    Boolean    @default(false) @map("two_factor_enabled")
+  role                UserRole   @default(RESIDENT)
+  status              UserStatus @default(ACTIVE)
+  isArchived          Boolean    @default(false) @map("is_archived")
+  archivedAt          DateTime?  @map("archived_at")
+  archivedReason      String?    @map("archived_reason")
+  suspensionReason    String?    @map("suspension_reason")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
 
-  officer             Officer?
-  casesAsComplainant  Case[]             @relation("Complainant")
-  casesAsRespondent   Case[]             @relation("Respondent")
-  notifications       Notification[]
-  announcements       Announcement[]
-  caseStatusHistory   CaseStatusHistory[]
-  activities          UserActivity[]
+  officer            Officer?
+  identity           ResidentIdentity?
+  casesAsComplainant Case[]              @relation("Complainant")
+  casesAsRespondent  Case[]              @relation("Respondent")
+  notifications      Notification[]
+  announcements      Announcement[]
+  caseStatusHistory  CaseStatusHistory[]
+  activities         UserActivity[]
 
+  @@index([isArchived, createdAt])
+  @@index([role, isArchived])
   @@map("users")
 }
 
+model ResidentIdentity {
+  id                   String   @id @default(uuid())
+  userId               String   @unique @map("user_id")
+  dateOfBirth          DateTime @map("date_of_birth") @db.Date
+  governmentIdImage    Bytes    @map("government_id_image")
+  governmentIdMimeType String   @map("government_id_mime_type")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("resident_identities")
+}
+
+model PasswordResetCode {
+  email      String    @id
+  codeHash   String    @map("code_hash")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamp(6)
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  consumedAt DateTime? @map("consumed_at") @db.Timestamp(6)
+
+  @@index([expiresAt])
+  @@map("password_reset_codes")
+}
+
 model Officer {
-  id          String           @id @default(uuid())
-  userId      String           @unique @map("user_id")
-  fullName    String           @map("full_name")
-  roleTitle   OfficerRoleTitle @map("role_title")
-  createdAt   DateTime         @default(now()) @map("created_at")
+  id        String           @id @default(uuid())
+  userId    String           @unique @map("user_id")
+  fullName  String           @map("full_name")
+  roleTitle OfficerRoleTitle @map("role_title")
+  createdAt DateTime         @default(now()) @map("created_at")
 
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cases     Case[]
-  hearings  Hearing[]
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cases    Case[]
+  hearings Hearing[]
 
+  @@index([fullName])
   @@map("officers")
 }
 
 model Case {
-  id                 String       @id @default(uuid())
-  complainantId      String       @map("complainant_id")
-  respondentId       String?      @map("respondent_id")
-  respondentName     String?      @map("respondent_name")
-  respondentContact  String?      @map("respondent_contact")
-  respondentAddress  String?      @map("respondent_address")
-  assignedOfficerId  String?      @map("assigned_officer_id")
-  category           CaseCategory
-  type               String
-  details            String
-  priority           CasePriority @default(MEDIUM)
-  status             CaseStatus   @default(PENDING)
-  referredTo         String?      @map("referred_to")
-  deadlineDate       DateTime?    @map("deadline_date")
-  dismissedReason    String?      @map("dismissed_reason")
-  imageUrl           String?      @map("image_url")
-  isArchived         Boolean      @default(false) @map("is_archived")
-  archivedAt         DateTime?    @map("archived_at")
-  archivedReason     String?      @map("archived_reason")
-  dateSubmitted      DateTime     @default(now()) @map("date_submitted")
-  incidentDate       DateTime     @map("incident_date")
-  updatedAt          DateTime     @updatedAt @map("updated_at")
+  id                           String            @id @default(uuid())
+  caseNumber                   String            @unique @map("case_number")
+  complainantId                String            @map("complainant_id")
+  respondentId                 String?           @map("respondent_id")
+  respondentName               String?           @map("respondent_name")
+  respondentAddress            String?           @map("respondent_address")
+  incidentStreet               String?           @map("incident_street")
+  incidentLatitude             Decimal?          @map("incident_latitude") @db.Decimal(9, 6)
+  incidentLongitude            Decimal?          @map("incident_longitude") @db.Decimal(10, 6)
+  incidentAccuracy             Float?            @map("incident_accuracy")
+  incidentLocation             String?           @map("incident_location")
+  assignedOfficerId            String?           @map("assigned_officer_id")
+  category                     String
+  type                         String
+  details                      String            @db.Text
+  priority                     CasePriority      @default(MEDIUM)
+  status                       CaseReviewStatus  @default(PENDING)
+  currentStatus                CaseStatus        @default(SCHEDULED) @map("current_status")
+  previousStatus               CaseStatus?       @map("previous_status")
+  filingDate                   DateTime          @default(now()) @map("filing_date") @db.Date
+  statusEnteredDate            DateTime          @default(now()) @map("status_entered_date") @db.Date
+  statusDaysAllotted           Int?              @map("status_days_allotted")
+  mediationAttemptCount        Int               @default(0) @map("mediation_attempt_count")
+  conciliationAttemptCount     Int               @default(0) @map("conciliation_attempt_count")
+  absenceCount                 Int               @default(0) @map("absence_count")
+  arbitrationAgreementSigned   Boolean           @default(false) @map("arbitration_agreement_signed")
+  arbitrationAgreementDate     DateTime?         @map("arbitration_agreement_date") @db.Date
+  arbitrationAwardDate         DateTime?         @map("arbitration_award_date") @db.Date
+  settlementDate               DateTime?         @map("settlement_date") @db.Date
+  settlementSource             SettlementSource? @map("settlement_source")
+  repudiationDate              DateTime?         @map("repudiation_date") @db.Date
+  repudiationDeadline          DateTime?         @map("repudiation_deadline") @db.Date
+  repudiationReason            String?           @map("repudiation_reason") @db.Text
+  repudiatedBy                 RepudiatedBy?     @map("repudiated_by")
+  closedDate                   DateTime?         @map("closed_date") @db.Date
+  executionDeadline            DateTime?         @map("execution_deadline") @db.Date
+  executionMethod              ExecutionMethod?  @map("execution_method")
+  needsCertificateToFileAction Boolean           @default(false) @map("needs_certificate_to_file_action")
+  withdrawalReason             String?           @map("withdrawal_reason") @db.Text
+  deadlineDate                 DateTime?         @map("deadline_date")
+  dismissedReason              String?           @map("dismissed_reason")
+  isArchived                   Boolean           @default(false) @map("is_archived")
+  archivedAt                   DateTime?         @map("archived_at")
+  dateSubmitted                DateTime          @default(now()) @map("date_submitted")
+  incidentDate                 DateTime          @map("incident_date") @db.Date
+  updatedAt                    DateTime          @updatedAt @map("updated_at")
 
-  complainant        User         @relation("Complainant", fields: [complainantId], references: [id])
-  respondent         User?        @relation("Respondent", fields: [respondentId], references: [id])
-  assignedOfficer    Officer?     @relation(fields: [assignedOfficerId], references: [id], onDelete: SetNull)
-  evidence           Evidence[]
-  hearings           Hearing[]
-  statusHistory      CaseStatusHistory[]
-  settlement         Settlement?
-  monitoring         CaseMonitoring?
-  auditLogs          AuditLog[]
-  chatMessages       CaseChatMessage[]
+  complainant     User                 @relation("Complainant", fields: [complainantId], references: [id])
+  respondent      User?                @relation("Respondent", fields: [respondentId], references: [id])
+  assignedOfficer Officer?             @relation(fields: [assignedOfficerId], references: [id], onDelete: SetNull)
+  evidence        Evidence[]
+  hearings        Hearing[]
+  statusHistory   CaseStatusHistory[]
+  processHistory  CaseProcessHistory[]
+  settlement      Settlement?
+  auditLogs       AuditLog[]
+  chatMessages    CaseChatMessage[]
 
+  @@index([status, dateSubmitted])
+  @@index([status, priority, dateSubmitted])
+  @@index([assignedOfficerId, status])
+  @@index([dateSubmitted])
+  @@index([category])
+  @@index([complainantId, dateSubmitted])
+  @@index([currentStatus, statusEnteredDate])
+  @@index([isArchived, filingDate])
   @@map("cases")
+}
+
+model CaseMonthlySequence {
+  year      Int
+  month     Int
+  lastNumber Int @map("last_number")
+
+  @@id([year, month])
+  @@map("case_monthly_sequences")
+}
+
+model CaseProcessHistory {
+  id                String     @id @default(uuid())
+  caseId            String     @map("case_id")
+  event             String
+  fromStatus        CaseStatus @map("from_status")
+  toStatus          CaseStatus @map("to_status")
+  changedAt         DateTime   @default(now()) @map("changed_at") @db.Timestamp(6)
+  businessDaysSpent Int        @default(0) @map("business_days_spent")
+  details           String?    @db.Text
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId, changedAt])
+  @@map("case_process_history")
 }
 
 model Hearing {
@@ -199,7 +312,7 @@ model Hearing {
   notes               String?
   complainantAttended Boolean         @default(false) @map("complainant_attended")
   respondentAttended  Boolean         @default(false) @map("respondent_attended")
-  outcome             HearingOutcome? 
+  outcome             HearingOutcome?
   status              HearingStatus   @default(SCHEDULED)
   createdAt           DateTime        @default(now()) @map("created_at")
   updatedAt           DateTime        @updatedAt @map("updated_at")
@@ -207,6 +320,8 @@ model Hearing {
   case    Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
   officer Officer? @relation(fields: [conductedBy], references: [id], onDelete: SetNull)
 
+  @@index([caseId, scheduledDate])
+  @@index([conductedBy, scheduledDate])
   @@map("hearings")
 }
 
@@ -215,55 +330,41 @@ model Evidence {
   caseId     String   @map("case_id")
   fileUrl    String   @map("file_url")
   fileType   String   @map("file_type")
+  fileName   String?  @map("file_name")
+  fileData   Bytes?   @map("file_data")
   uploadedAt DateTime @default(now()) @map("uploaded_at")
 
   case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
+  @@index([caseId, uploadedAt])
   @@map("evidence")
 }
 
 model Settlement {
-  id                 String    @id @default(uuid())
-  caseId             String    @unique @map("case_id")
-  agreementText      String    @map("agreement_text")
-  proofUrl           String?   @map("proof_url")
-  complainantSigned  Boolean   @default(false) @map("complainant_signed")
-  respondentSigned   Boolean   @default(false) @map("respondent_signed")
-  signedAt           DateTime? @map("signed_at")
-  createdAt          DateTime  @default(now()) @map("created_at")
+  id                String    @id @default(uuid())
+  caseId            String    @unique @map("case_id")
+  agreementText     String    @map("agreement_text")
+  proofUrl          String?   @map("proof_url")
+  complainantSigned Boolean   @default(false) @map("complainant_signed")
+  respondentSigned  Boolean   @default(false) @map("respondent_signed")
+  signedAt          DateTime? @map("signed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
 
   case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   @@map("settlements")
 }
 
-model CaseMonitoring {
-  id                String    @id @default(uuid())
-  caseId            String    @unique @map("case_id")
-  monitoringStart   DateTime  @map("monitoring_start")
-  monitoringEnd     DateTime  @map("monitoring_end")
-  isRepudiated      Boolean   @default(false) @map("is_repudiated")
-  repudiatedAt      DateTime? @map("repudiated_at")
-  repudiationReason String?   @map("repudiation_reason")
-  isClosed          Boolean   @default(false) @map("is_closed")
-  closedAt          DateTime? @map("closed_at")
-  createdAt         DateTime  @default(now()) @map("created_at")
+model CaseStatusHistory {
+  id        String           @id @default(uuid())
+  caseId    String           @map("case_id")
+  changedBy String           @map("changed_by")
+  oldStatus CaseReviewStatus @map("old_status")
+  newStatus CaseReviewStatus @map("new_status")
+  changedAt DateTime         @default(now()) @map("changed_at")
 
   case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
-
-  @@map("case_monitoring")
-}
-
-model CaseStatusHistory {
-  id        String   @id @default(uuid())
-  caseId    String   @map("case_id")
-  changedBy String   @map("changed_by")
-  oldStatus CaseStatus @map("old_status")
-  newStatus CaseStatus @map("new_status")
-  changedAt DateTime @default(now()) @map("changed_at")
-
-  case    Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  user    User @relation(fields: [changedBy], references: [id])
+  user User @relation(fields: [changedBy], references: [id])
 
   @@map("case_status_history")
 }
@@ -287,11 +388,15 @@ model AuditLog {
   action      AuditAction
   targetTable String      @map("target_table")
   targetId    String      @map("target_id")
+  caseId      String?     @map("case_id")
   changes     Json
   loggedAt    DateTime    @default(now()) @map("logged_at")
 
-  case Case? @relation(fields: [targetId], references: [id], onDelete: SetNull, map: "audit_logs_case_fk")
+  case Case? @relation(fields: [caseId], references: [id], onDelete: SetNull)
 
+  @@index([loggedAt])
+  @@index([targetTable, targetId, loggedAt])
+  @@index([caseId, loggedAt])
   @@map("audit_logs")
 }
 
@@ -305,19 +410,21 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, isRead, createdAt])
   @@map("notifications")
 }
 
 model CaseChatMessage {
-  id        String   @id @default(uuid())
-  caseId    String   @map("case_id")
-  senderId  String   @map("sender_id")
-  senderRole String  @map("sender_role")
-  message   String
-  createdAt DateTime @default(now()) @map("created_at")
+  id         String   @id @default(uuid())
+  caseId     String   @map("case_id")
+  senderId   String   @map("sender_id")
+  senderRole String   @map("sender_role")
+  message    String
+  createdAt  DateTime @default(now()) @map("created_at")
 
   case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
+  @@index([caseId, createdAt])
   @@map("case_chat_messages")
 }
 
@@ -332,6 +439,7 @@ model UserActivity {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, createdAt])
   @@map("user_activities")
 }
 

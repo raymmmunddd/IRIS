@@ -29,7 +29,6 @@ export async function PATCH(request: Request) {
     }
 
     const data = await updateAdminProfileData(body.email, {
-      fullName: body.fullName,
       phone: body.phone,
       address: body.address,
       bio: body.bio,

@@ -28,8 +28,8 @@ export function PublicDataTab() {
         <CardContent className="space-y-6">
           <div>
             <h3 className="text-lg font-medium mb-4">Public Statistics</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-xl border border-[var(--iris-border)] bg-white p-4">
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="flex min-h-28 items-center justify-between gap-3 rounded-xl border border-[var(--iris-border)] bg-white p-4 shadow-sm">
                 <div className="space-y-0.5">
                   <Label className="text-base">Display Total Case Count</Label>
                   <p className="text-sm text-muted-foreground">
@@ -38,7 +38,7 @@ export function PublicDataTab() {
                 </div>
                 <Switch defaultChecked />
               </div>
-              <div className="flex items-center justify-between rounded-xl border border-[var(--iris-border)] bg-white p-4">
+              <div className="flex min-h-28 items-center justify-between gap-3 rounded-xl border border-[var(--iris-border)] bg-white p-4 shadow-sm">
                 <div className="space-y-0.5">
                   <Label className="text-base">Show Resolution Rate</Label>
                   <p className="text-sm text-muted-foreground">
@@ -47,7 +47,7 @@ export function PublicDataTab() {
                 </div>
                 <Switch defaultChecked />
               </div>
-              <div className="flex items-center justify-between rounded-xl border border-[var(--iris-border)] bg-white p-4">
+              <div className="flex min-h-28 items-center justify-between gap-3 rounded-xl border border-[var(--iris-border)] bg-white p-4 shadow-sm">
                 <div className="space-y-0.5">
                   <Label className="text-base">Category Breakdown</Label>
                   <p className="text-sm text-muted-foreground">
@@ -66,7 +66,7 @@ export function PublicDataTab() {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {categories.map((category) => (
-                <div key={category} className="flex items-center justify-between space-x-2">
+                <div key={category} className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-[var(--iris-border)] bg-white px-4 py-3 shadow-sm">
                     <Label htmlFor={`hide-${category}`} className="flex-1">{category}</Label>
                     <Switch id={`hide-${category}`} />
                 </div>

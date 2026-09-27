@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Bell, Clock } from "lucide-react";
 import { getAuthUser } from "@/lib/auth";
+import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh";
 
 export interface ResidentNotif {
   id: number | string;
@@ -14,29 +15,7 @@ export interface ResidentNotif {
   category?: string;
 }
 
-const INITIAL_NOTIFS: ResidentNotif[] = [
-  {
-    id: 1,
-    title: "New Case Escalated",
-    message: "Case #C-2045 has been escalated for admin review.",
-    time: "5m ago",
-    read: false,
-  },
-  {
-    id: 2,
-    title: "Officer Assignment Updated",
-    message: "Officer Dela Cruz was assigned to your mediation request.",
-    time: "22m ago",
-    read: false,
-  },
-  {
-    id: 3,
-    title: "Daily Report Ready",
-    message: "The daily incident summary is now available.",
-    time: "1h ago",
-    read: false,
-  },
-];
+const INITIAL_NOTIFS: ResidentNotif[] = [];
 
 const STORAGE_KEY = "iris_resident_notifs";
 
@@ -60,22 +39,39 @@ function saveNotifs(notifs: ResidentNotif[]) {
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [notifs, setNotifs] = useState<ResidentNotif[]>(loadNotifs);
+  const [notifs, setNotifs] = useState<ResidentNotif[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const hasLoadedNotifications = useRef(false);
+
+  const hasUser = Boolean(getAuthUser());
 
   useEffect(() => {
+    if (!hasUser) setLoading(false);
+  }, [hasUser]);
+
+  useRealtimeRefresh(async (signal) => {
     const user = getAuthUser();
     if (!user) {
+      setLoading(false);
       return;
     }
 
-    fetch(`/api/resident/notifications?email=${encodeURIComponent(user.email)}&limit=3`)
-      .then((response) => response.json())
-      .then((result) => {
-        setNotifs(result.success ? result.data : loadNotifs());
-      })
-      .catch(() => setNotifs(loadNotifs()));
-  }, []);
+    try {
+      const response = await fetch(`/api/resident/notifications?email=${encodeURIComponent(user.email)}&limit=3`, { signal });
+      const result = await response.json();
+      if (!response.ok || !result.success || !Array.isArray(result.data)) throw new Error(result.message || "Unable to load notifications.");
+      setNotifs(result.data);
+      hasLoadedNotifications.current = true;
+      setLoadError("");
+    } catch (error) {
+      if (!signal.aborted && !hasLoadedNotifications.current) setLoadError(error instanceof Error ? error.message : "Unable to load notifications.");
+    } finally {
+      if (!signal.aborted) setLoading(false);
+    }
+  }, { topics: ["iris:notifications"], enabled: hasUser });
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -90,17 +86,25 @@ export function NotificationBell() {
   const unread = notifs.filter((n) => !n.read).length;
   const recent = notifs.slice(0, 3);
 
-  const markAllRead = () => {
-    const updated = notifs.map((n) => ({ ...n, read: true }));
-    setNotifs(updated);
-    saveNotifs(updated);
+  const markAllRead = async () => {
     const user = getAuthUser();
     if (user) {
-      fetch("/api/resident/notifications", {
+      setIsUpdating(true);
+      setLoadError("");
+      try {
+        const response = await fetch("/api/resident/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: user.email }),
-      }).catch(() => undefined);
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || "Unable to update notifications.");
+        setNotifs((current) => current.map((notification) => ({ ...notification, read: true })));
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : "Unable to update notifications.");
+      } finally {
+        setIsUpdating(false);
+      }
     }
   };
 
@@ -129,18 +133,20 @@ export function NotificationBell() {
             </div>
             <button
               onClick={markAllRead}
+              disabled={isUpdating || unread === 0}
               className="text-xs font-semibold text-[var(--primary)] hover:underline"
             >
-              Mark all read
+              {isUpdating ? "Updating..." : "Mark all read"}
             </button>
           </div>
 
           {/* List */}
           <div className="px-2 py-2">
+            {loadError && <p role="alert" className="p-2 text-xs text-destructive">{loadError}</p>}
             <p className="mb-1 px-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               Recent
             </p>
-            {recent.map((n) => (
+            {loading ? <div aria-label="Loading notifications" className="h-16 animate-pulse rounded-lg bg-muted" /> : recent.length === 0 ? <p className="px-2 py-4 text-xs text-muted-foreground">No notifications yet.</p> : recent.map((n) => (
               <div
                 key={n.id}
                 className={`flex gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-muted ${

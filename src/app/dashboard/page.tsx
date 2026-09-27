@@ -1,37 +1,51 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { isAuthenticated } from "@/lib/auth"
+import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh"
 import { useIsMobile } from "@/hooks/use-mobile"
 
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { PageHeader } from "@/components/ui/page-header"
-import { StatCards } from "@/components/dashboard/stat-cards"
-import { MonthlyTrendChart } from "@/components/dashboard/bar-chart-section"
-import { IncidentCategoryChart } from "@/components/dashboard/incident-category-chart"
+import { StatCards, type DashboardStat } from "@/components/dashboard/stat-cards"
 import { SideStatCards } from "@/components/dashboard/side-stat-cards"
 
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import { PageHeaderSkeleton } from "@/components/ui/page-header-skeleton"
 import { RecentCases } from "@/components/dashboard/recent-cases"
+import { ResidentCalendar, type ResidentScheduledCase } from "@/components/resident/resident-calendar"
+import type { MonthlyTrendItem } from "@/components/dashboard/bar-chart-section"
+
+const ChartPlaceholder = () => <div className="h-full min-h-64 animate-pulse rounded-2xl bg-muted" />
+const MonthlyTrendChart = dynamic(
+  () => import("@/components/dashboard/bar-chart-section").then((module) => module.MonthlyTrendChart),
+  { loading: ChartPlaceholder },
+)
+const AIPriorityDistribution = dynamic(
+  () => import("@/components/reports/priority-distribution").then((module) => module.AIPriorityDistribution),
+  { loading: ChartPlaceholder },
+)
 
 type DashboardData = {
-  stats?: Parameters<typeof StatCards>[0]["data"]
-  monthlyTrend?: Parameters<typeof MonthlyTrendChart>[0]["data"]
-  categoryBreakdown?: Parameters<typeof IncidentCategoryChart>[0]["data"]
-  sideStats?: Parameters<typeof SideStatCards>[0]["data"]
+  stats?: DashboardStat[]
+  monthlyTrend?: MonthlyTrendItem[]
+  priorityDistribution?: { name: string; value: number }[]
+  sideStats?: { pending: number; underReview: number; officers: number; users: number }
+  recentCases?: Parameters<typeof RecentCases>[0]["data"]
+  upcomingHearings?: ResidentScheduledCase[]
 }
 
 export default function DashboardPage() {
   const router = useRouter()
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState("")
+  const [reloadCount, setReloadCount] = useState(0)
 
   const [trendFilter, setTrendFilter] = useState<"cases" | "category">("cases")
 
-  const [trendMode, setTrendMode] =
-  useState<"cases" | "category">("cases")
   const isMobile = useIsMobile()
   const baseCasesHeight = isMobile ? 200 : 300
   const baseCategoryHeight = isMobile ? 240 : 340
@@ -45,34 +59,33 @@ export default function DashboardPage() {
     }
   }, [router])
 
-  // data fetch
-  useEffect(() => {
-    async function loadDashboard() {
-      try {
-        setLoading(true)
+  useRealtimeRefresh(async (signal) => {
+    try {
+      const response = await fetch("/api/dashboard", { signal })
+      const result = await response.json()
 
-        const response = await fetch("/api/dashboard")
-        const result = await response.json()
-
-        if (!result.success) return
-
-        const data = result.data
-
-        setDashboardData({
-          stats: data.stats ?? [],
-          monthlyTrend: data.monthlyTrend ?? [],
-          categoryBreakdown: data.categoryBreakdown ?? [],
-          sideStats: data.sideStats ?? [],
-        })
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error)
-      } finally {
-        setLoading(false)
+      if (!response.ok || !result.success || !result.data) {
+        throw new Error(result.message || "Unable to load dashboard data.")
       }
-    }
 
-    loadDashboard()
-  }, [])
+      const data = result.data
+      setDashboardData({
+        stats: data.stats ?? [],
+        monthlyTrend: data.monthlyTrend ?? [],
+        priorityDistribution: data.priorityDistribution ?? [],
+        sideStats: data.sideStats,
+        recentCases: data.recentCases ?? [],
+        upcomingHearings: data.upcomingHearings ?? [],
+      })
+      setLoadError("")
+    } catch (error) {
+      if (!signal.aborted && !dashboardData) {
+        setLoadError(error instanceof Error ? error.message : "Unable to load dashboard data.")
+      }
+    } finally {
+      if (!signal.aborted) setLoading(false)
+    }
+  }, { topics: ["iris:cases"], refreshKey: reloadCount, enabled: isAuthenticated() })
 
   if (loading) {
     return (
@@ -97,6 +110,13 @@ export default function DashboardPage() {
           description="Monitor barangay incidents, case resolutions, reports, and operational activities in real time."
         />
 
+        {loadError && (
+          <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            <span>{loadError}</span>
+            <button type="button" onClick={() => { setLoading(true); setReloadCount((count) => count + 1) }} className="font-semibold underline">Retry loading dashboard</button>
+          </div>
+        )}
+
         <StatCards data={dashboardData?.stats} />
 
         {/* ANALYTICS + OPERATIONAL ROW 1 */}
@@ -110,10 +130,7 @@ export default function DashboardPage() {
           </div>
 
 
-          <IncidentCategoryChart
-            data={dashboardData?.categoryBreakdown}
-            height={chartHeight}
-          />
+          <AIPriorityDistribution data={dashboardData?.priorityDistribution} />
         </div>
 
         {/* ANALYTICS + OPERATIONAL ROW 2 */}
@@ -125,6 +142,14 @@ export default function DashboardPage() {
           <div className="h-full">
             <SideStatCards data={dashboardData?.sideStats} />
           </div>
+        </div>
+
+        <div className="mt-4 sm:mt-6">
+          <ResidentCalendar
+            scheduledCases={dashboardData?.upcomingHearings ?? []}
+            title="Upcoming hearings"
+            description="Scheduled hearings across active cases"
+          />
         </div>
       </main>
     </div>

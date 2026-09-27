@@ -15,62 +15,20 @@
     ResponsiveContainer,
     LabelList,
     Area,
-    ShieldAlert,
-    TriangleAlert,
-    Home,
-    Landmark,
-    Users,
-    HandCoins,
-    Lock,
-    HeartHandshake,
   } from "recharts"
   import { cn } from "@/lib/utils"
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-  type MonthlyTrendItem = {
+  export type MonthlyTrendItem = {
     month: string
     cases: number
-
-    physical?: number
-    threats?: number
-    property?: number
-    theft?: number
-    family?: number
-    publicOrder?: number
-    privacy?: number
-    morality?: number
+    violence?: number
+    harassment?: number
+    disturbance?: number
+    community?: number
+    other?: number
   }
-
-  const casesData: MonthlyTrendItem[] = [
-    { month: "Jan", cases: 186 },
-    { month: "Feb", cases: 215 },
-    { month: "Mar", cases: 298 },
-    { month: "Apr", cases: 262 },
-    { month: "May", cases: 340 },
-    { month: "Jun", cases: 312 },
-    { month: "Jul", cases: 378 },
-    { month: "Aug", cases: 355 },
-    { month: "Sep", cases: 410 },
-    { month: "Oct", cases: 392 },
-    { month: "Nov", cases: 438 },
-    { month: "Dec", cases: 467 },
-  ]
-
-  const categoryData = [
-    { month: "Jan", physical: 32, threats: 48, property: 28, theft: 22, family: 34, publicOrder: 14, privacy: 8, morality: 6 },
-    { month: "Feb", physical: 38, threats: 52, property: 35, theft: 28, family: 38, publicOrder: 16, privacy: 8, morality: 6 },
-    { month: "Mar", physical: 55, threats: 68, property: 48, theft: 38, family: 52, publicOrder: 24, privacy: 13, morality: 8 },
-    { month: "Apr", physical: 42, threats: 62, property: 45, theft: 35, family: 48, publicOrder: 20, privacy: 10, morality: 6 },
-    { month: "May", physical: 60, threats: 78, property: 55, theft: 45, family: 58, publicOrder: 28, privacy: 16, morality: 10 },
-    { month: "Jun", physical: 52, threats: 72, property: 50, theft: 42, family: 55, publicOrder: 26, privacy: 15, morality: 9 },
-    { month: "Jul", physical: 65, threats: 85, property: 58, theft: 48, family: 68, publicOrder: 32, privacy: 22, morality: 12 },
-    { month: "Aug", physical: 58, threats: 80, property: 56, theft: 45, family: 65, publicOrder: 30, privacy: 21, morality: 11 },
-    { month: "Sep", physical: 72, threats: 90, property: 62, theft: 52, family: 75, publicOrder: 35, privacy: 24, morality: 13 },
-    { month: "Oct", physical: 68, threats: 86, property: 60, theft: 50, family: 72, publicOrder: 34, privacy: 22, morality: 12 },
-    { month: "Nov", physical: 75, threats: 95, property: 68, theft: 56, family: 80, publicOrder: 38, privacy: 26, morality: 14 },
-    { month: "Dec", physical: 80, threats: 102, property: 72, theft: 60, family: 85, publicOrder: 40, privacy: 28, morality: 15 },
-  ]
 
   type FilterMode = "cases" | "category"
 
@@ -78,76 +36,49 @@
 
   const categoryMeta = [
     {
-      key: "physical",
-      name: "Physical Injury",
-      shortName: "Physical",
+      key: "violence",
+      name: "Violence or Threats",
+      shortName: "Violence",
       gradient: "url(#physical)",
       start: "#C62828",
       end: "#E57373",
       indicator: "#C62828",
     },
     {
-      key: "threats",
-      name: "Threats & Coercion",
-      shortName: "Threats",
+      key: "harassment",
+      name: "Harassment & Abuse",
+      shortName: "Harassment",
       gradient: "url(#threats)",
       start: "#EF6C00",
       end: "#FFB74D",
       indicator: "#EF6C00",
     },
     {
-      key: "theft",
-      name: "Theft, Fraud & Financial",
-      shortName: "Theft/Fraud",
-      gradient: "url(#theft)",
-      start: "#D4A017",
-      end: "#F4C95D",
-      indicator: "#D4A017",
-    },
-    {
-      key: "publicOrder",
-      name: "Public Order",
-      shortName: "Public",
+      key: "disturbance",
+      name: "Public Disturbance",
+      shortName: "Disturbance",
       gradient: "url(#publicOrder)",
       start: "#2E7D32",
       end: "#81C784",
       indicator: "#2E7D32",
     },
     {
-      key: "property",
-      name: "Property & Land",
-      shortName: "Property",
-      gradient: "url(#property)",
-      start: "#1565C0",
-      end: "#64B5F6",
-      indicator: "#1565C0",
-    },
-    {
-      key: "privacy",
-      name: "Privacy & Reputation",
-      shortName: "Privacy",
+      key: "community",
+      name: "Community Dispute",
+      shortName: "Community",
       gradient: "url(#privacy)",
       start: "#3949AB",
       end: "#9FA8DA",
       indicator: "#3949AB",
     },
     {
-      key: "family",
-      name: "Family & Child Custody",
-      shortName: "Family",
-      gradient: "url(#family)",
-      start: "#6A1B9A",
-      end: "#BA68C8",
-      indicator: "#6A1B9A",
-    },
-    {
-      key: "morality",
-      name: "Personal & Morality",
-      shortName: "Morality",
+      key: "other",
+      name: "Other Reports",
+      shortName: "Other",
       gradient: "url(#morality)",
-      start: "#C2185B",
-      end: "#F48FB1",
-      indicator: "#C2185B",
+      start: "#475569",
+      end: "#CBD5E1",
+      indicator: "#475569",
     },
   ]
   
@@ -163,7 +94,7 @@
     const isMobile = useIsMobile()
     const defaultHeight = isMobile ? 200 : 300
     const effectiveHeight = typeof height === "number" ? height : defaultHeight
-    const chartData = data?.length ? data : casesData
+    const chartData = data ?? []
 
     const currentMonthIndex = new Date().getMonth()
 
@@ -173,30 +104,16 @@
     )
 
     const processedChartData = useMemo(() => {
-      const currentMonthIndex = new Date().getMonth()
-
       return chartData
         .reduce<
           (MonthlyTrendItem & { actualCases: number })[]
-        >((acc, item, index) => {
-          const previousValue =
-            acc.length > 0 ? acc[acc.length - 1].cases : item.cases
-
+        >((acc, item) => {
           const actualCases = item.cases ?? 0
-
-          const isFutureMonth = index > currentMonthIndex
-          const isCurrentMissing =
-            index === currentMonthIndex && actualCases === 0
-
-          const resolvedCases =
-            isFutureMonth || isCurrentMissing
-              ? previousValue
-              : actualCases
 
           acc.push({
             ...item,
             actualCases,
-            cases: resolvedCases,
+            cases: actualCases,
           })
 
           return acc
@@ -204,7 +121,7 @@
         .filter((item) => visibleMonths.includes(item.month))
       }, [chartData, currentMonthIndex, visibleMonths])
 
-      const categoryChartData = (data?.length ? data : categoryData).filter(
+      const categoryChartData = chartData.filter(
         (item) => visibleMonths.includes(item.month)
       )
 
@@ -213,7 +130,7 @@
       [categoryChartData, selectedMonth]
     )
 
-    const categoryBarData = categoryMeta.map((category) => {
+    const categoryBarData = selectedCategoryMonth ? categoryMeta.map((category) => {
       const amount = selectedCategoryMonth[category.key as keyof typeof selectedCategoryMonth]
 
     return {
@@ -224,7 +141,7 @@
       gradient: category.gradient,
       indicator: category.indicator,
     }
-    })
+    }) : []
 
     const lineChartHeight = effectiveHeight
     const filterModes: FilterMode[] = ["cases", "category"]
@@ -296,6 +213,9 @@
         )}
 
       <div className="flex-1 min-h-0 w-full" style={{ height: lineChartHeight }}>
+        {!chartData.some((item) => item.cases > 0) ? (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No case trend data available.</div>
+        ) : (
         <ResponsiveContainer key={`${filter}-${lineChartHeight}`} width="100%" height={lineChartHeight}>
             {filter === "cases" ? (
               <LineChart
@@ -331,8 +251,6 @@
                     const data = payload[0].payload
 
                     const actual = data.actualCases
-                    const display = data.cases
-
                     const index = chartData.findIndex((d) => d.month === label)
                     const prev = chartData[index - 1]?.cases
 
@@ -555,6 +473,7 @@
               </BarChart>
             )}
           </ResponsiveContainer>
+        )}
           {filter === "cases" && (
             <div className="mt-3 flex justify-center">
               <div className="flex items-center gap-2">

@@ -1,13 +1,14 @@
 import {
-  CaseCategory as DbCaseCategory,
+  AuditAction,
   CasePriority as DbCasePriority,
-  CaseStatus as DbCaseStatus,
+  CaseReviewStatus as DbCaseStatus,
   OfficerRoleTitle,
   Prisma,
   UserRole,
   UserStatus,
 } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
+import { recalculateDayTracking } from "@/lib/case-process"
 
 type BpatPriority = "Urgent" | "High" | "Medium" | "Low"
 type DispatchStatus = "Assigned" | "In Progress" | "Pending Review"
@@ -20,14 +21,6 @@ const activeStatuses: DbCaseStatus[] = [
   DbCaseStatus.SCHEDULED,
   DbCaseStatus.ONGOING,
 ]
-
-const categoryLabels: Record<DbCaseCategory, string> = {
-  DISPUTE: "Community Dispute",
-  INJURY: "Violence or Threats",
-  VAWC: "Harassment & Abuse",
-  ORDINANCE_VIOLATION: "Public Disturbance",
-  OTHER: "Other",
-}
 
 const priorityLabels: Record<DbCasePriority, BpatPriority> = {
   URGENT: "Urgent",
@@ -61,50 +54,52 @@ function formatDate(date: Date | string | null | undefined) {
   }).format(new Date(date))
 }
 
-function caseNumber(id: string) {
-  return `IR-${id.slice(0, 3).toUpperCase()}`
-}
-
 function addressForCase(item: BpatCase) {
-  return item.complainant.street || item.respondentAddress || "East Tapinac"
+  return item.incidentLocation || item.incidentStreet || item.complainant.street || item.respondentAddress || "Not specified"
 }
 
 function streetForCase(item: BpatCase) {
-  return item.complainant.street || "Unspecified"
+  return item.incidentStreet || item.complainant.street || "Unspecified"
 }
 
 function mapOpenCase(item: BpatCase) {
+  const dayTracking = recalculateDayTracking(item)
   return {
     id: item.id,
-    caseNumber: caseNumber(item.id),
+    caseNumber: item.caseNumber,
     title: item.type || item.details,
     street: streetForCase(item),
     address: addressForCase(item),
-    category: categoryLabels[item.category],
+    category: item.category,
     priority: priorityLabels[item.priority],
     dateSubmitted: formatDate(item.dateSubmitted),
     incidentDate: formatDate(item.incidentDate),
     status: item.status.replaceAll("_", " "),
+    currentStatus: item.currentStatus,
+    ...dayTracking,
     assignedTo: item.assignedOfficer?.fullName ?? null,
     complainant: item.complainant.fullName,
+    respondentName: item.respondentName,
     complainantContact: item.complainant.contact ?? "Not provided",
     details: item.details,
   }
 }
 
 function mapAssignedCase(item: BpatCase) {
+  const dayTracking = recalculateDayTracking(item)
   const status = dispatchStatusLabels[item.status] ?? "Pending Review"
   return {
     id: item.id,
-    caseNumber: caseNumber(item.id),
+    caseNumber: item.caseNumber,
     title: item.type || item.details,
     street: streetForCase(item),
     address: addressForCase(item),
-    category: categoryLabels[item.category],
+    category: item.category,
     priority: priorityLabels[item.priority] === "Urgent" ? "High" : priorityLabels[item.priority],
     status,
+    currentStatus: item.currentStatus,
+    ...dayTracking,
     scheduledDate: formatDate(item.deadlineDate ?? item.updatedAt),
-    eta: "Not tracked",
     complainant: item.complainant.fullName,
     complainantContact: item.complainant.contact ?? "Not provided",
     dateSubmitted: formatDate(item.dateSubmitted),
@@ -193,6 +188,9 @@ export async function claimBpatCaseData(input: { caseId: string; email: string }
 
   const officer = await getOrCreateOfficer(input.email)
 
+  const current = await prisma.case.findUnique({ where: { id: input.caseId }, include: { assignedOfficer: true } })
+  if (!current || current.isArchived) throw new Error("Case not found")
+
   const updated = await prisma.case.update({
     where: { id: input.caseId },
     data: {
@@ -200,6 +198,17 @@ export async function claimBpatCaseData(input: { caseId: string; email: string }
       status: DbCaseStatus.ASSIGNED,
     },
     include: caseInclude,
+  })
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: officer.userId,
+      action: AuditAction.ASSIGN,
+      targetTable: "cases",
+      targetId: input.caseId,
+      caseId: input.caseId,
+      changes: { previousOfficer: current.assignedOfficer?.fullName ?? "Unassigned", assignedOfficer: officer.fullName },
+    },
   })
 
   return mapOpenCase(updated)
@@ -222,7 +231,6 @@ export async function getBpatDashboardData(email?: string | null) {
       caseId: item.caseNumber,
       issue: item.title,
       priority: item.priority,
-      eta: item.eta,
     })),
   }
 }
@@ -233,7 +241,24 @@ export async function getBpatMapData() {
       status: { in: activeStatuses },
       isArchived: false,
     },
-    include: caseInclude,
+    select: {
+      id: true,
+      type: true,
+      details: true,
+      status: true,
+      category: true,
+      priority: true,
+      incidentDate: true,
+      dateSubmitted: true,
+      incidentStreet: true,
+      incidentLocation: true,
+      incidentLatitude: true,
+      incidentLongitude: true,
+      incidentAccuracy: true,
+      complainant: { select: { street: true } },
+    },
+    orderBy: { dateSubmitted: "desc" },
+    take: 500,
   })
 
   const total = Math.max(cases.length, 1)
@@ -241,13 +266,13 @@ export async function getBpatMapData() {
   const categoryCounts = new Map<string, number>()
 
   cases.forEach((item) => {
-    const street = streetForCase(item)
+    const street = item.incidentStreet || item.complainant.street || "Unspecified"
     const current = streetCounts.get(street) ?? { cases: 0, urgent: 0 }
     current.cases += 1
     if (item.priority === DbCasePriority.URGENT || item.priority === DbCasePriority.HIGH) current.urgent += 1
     streetCounts.set(street, current)
 
-    const category = categoryLabels[item.category]
+    const category = item.category
     categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1)
   })
 
@@ -288,10 +313,32 @@ export async function getBpatMapData() {
       level: item.urgent >= 3 ? "Critical" : item.urgent > 0 ? "High" : "Medium",
     }))
 
+  const mapIncidents = cases.flatMap((item) => {
+    const latitude = item.incidentLatitude?.toNumber() ?? null
+    const longitude = item.incidentLongitude?.toNumber() ?? null
+    if (latitude == null || longitude == null || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return []
+
+    const street = item.incidentStreet || item.complainant.street || "Unspecified"
+    return [{
+      id: item.id,
+      title: item.type || item.details,
+      street,
+      address: item.incidentLocation || street,
+      latitude,
+      longitude,
+      accuracy: item.incidentAccuracy,
+      priority: priorityLabels[item.priority],
+      status: item.status.replaceAll("_", " "),
+    }]
+  })
+
   return {
+    totalCases: cases.length,
+    geocodedCases: mapIncidents.length,
     streetStats,
     categoryBreakdown,
     recentHotspots,
+    mapIncidents,
   }
 }
 

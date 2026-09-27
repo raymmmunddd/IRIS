@@ -1,9 +1,10 @@
 "use client"
 
-import { Clock, Timer, Users, Activity, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-function PulseRow({ title, value, note, status }: any) {
+type SideStats = { pending: number; underReview: number; officers: number; users: number }
+
+function PulseRow({ title, value, note, status }: { title: string; value: string; note: string; status: "good" | "warn" | "bad" }) {
   return (
     <div
       className="
@@ -36,33 +37,21 @@ function PulseRow({ title, value, note, status }: any) {
   )
 }
 
-export function SideStatCards({ data }: any) {
+export function SideStatCards({ data }: { data?: SideStats }) {
   return (
     <div className="h-full rounded-2xl border border-border bg-card p-4 shadow-sm flex flex-col gap-2">
       <div className="flex items-center gap-2 mb-3">
         <p className="text-sm font-semibold text-slate-700">Operational Pulse</p>
       </div>
 
-      <PulseRow
-        title="Pending Queue"
-        value="152 cases"
-        note="89 under review"
-        status="warn"
-      />
-
-      <PulseRow
-        title="Response Time"
-        value="4.2 hrs"
-        note="SLA target: 6 hrs"
-        status="good"
-      />
-
-      <PulseRow
-        title="Officer Load"
-        value="12.4 avg"
-        note="35 active officers"
-        status="warn"
-      />
+      {data ? (
+        <>
+          <PulseRow title="Pending Queue" value={`${data.pending + data.underReview} cases`} note={`${data.pending} pending · ${data.underReview} under review`} status={data.pending > 0 ? "warn" : "good"} />
+          <PulseRow title="Officer Coverage" value={`${data.officers} officers`} note={`${data.users} active accounts`} status={data.officers > 0 ? "good" : "bad"} />
+        </>
+      ) : (
+        <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">Operational statistics are unavailable.</p>
+      )}
     </div>
   )
 }

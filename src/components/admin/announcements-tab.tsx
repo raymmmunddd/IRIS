@@ -51,48 +51,48 @@ export function AnnouncementsTab({ announcements = [], onUpdated }: Announcement
     if (!title.trim() || !content.trim()) return
 
     setIsCreating(true)
-    const response = await fetch(
-      editingAnnouncement ? `/api/admin/announcements/${encodeURIComponent(editingAnnouncement.id)}` : "/api/admin/announcements",
-      {
-        method: editingAnnouncement ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), content: content.trim() }),
-      },
-    )
-    const result = await response.json()
-    setIsCreating(false)
-
-    if (!result.success) {
-      toast.error(result.message || "Unable to save announcement")
-      return
+    try {
+      const response = await fetch(
+        editingAnnouncement ? `/api/admin/announcements/${encodeURIComponent(editingAnnouncement.id)}` : "/api/admin/announcements",
+        {
+          method: editingAnnouncement ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: title.trim(), content: content.trim() }),
+        },
+      )
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.message || "Unable to save announcement")
+      toast.success(editingAnnouncement ? "Announcement updated" : "Announcement published")
+      setTitle("")
+      setContent("")
+      setEditingAnnouncement(null)
+      setIsModalOpen(false)
+      onUpdated?.()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save announcement")
+    } finally {
+      setIsCreating(false)
     }
-
-    toast.success(editingAnnouncement ? "Announcement updated" : "Announcement published")
-    setTitle("")
-    setContent("")
-    setEditingAnnouncement(null)
-    setIsModalOpen(false)
-    onUpdated?.()
   }
 
   async function deleteAnnouncement() {
     if (!deleteTarget) return
 
     setIsCreating(true)
-    const response = await fetch(`/api/admin/announcements/${encodeURIComponent(deleteTarget.id)}`, {
-      method: "DELETE",
-    })
-    const result = await response.json()
-    setIsCreating(false)
-
-    if (!result.success) {
-      toast.error(result.message || "Unable to delete announcement")
-      return
+    try {
+      const response = await fetch(`/api/admin/announcements/${encodeURIComponent(deleteTarget.id)}`, {
+        method: "DELETE",
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.message || "Unable to delete announcement")
+      toast.success("Announcement deleted")
+      setDeleteTarget(null)
+      onUpdated?.()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to delete announcement")
+    } finally {
+      setIsCreating(false)
     }
-
-    toast.success("Announcement deleted")
-    setDeleteTarget(null)
-    onUpdated?.()
   }
 
   return (
@@ -178,7 +178,7 @@ export function AnnouncementsTab({ announcements = [], onUpdated }: Announcement
           <DialogHeader>
             <DialogTitle>Delete Announcement</DialogTitle>
             <DialogDescription>
-              This will remove "{deleteTarget?.title}" from the announcements list.
+              This will remove the announcement “{deleteTarget?.title}” from the list.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

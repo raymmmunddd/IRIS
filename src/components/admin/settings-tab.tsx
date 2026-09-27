@@ -26,59 +26,106 @@ export function SettingsTab() {
     criticalPriorityThreshold: "9.0",
     autoConfidence: "85",
   })
-  const [categories, setCategories] = useState<string[]>([])
+  const [categories, setCategories] = useState<{ active: string[]; archived: string[] }>({ active: [], archived: [] })
   const [permissions, setPermissions] = useState<RolePermission[]>([])
   const [newCategory, setNewCategory] = useState("")
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false)
   const [statusMessage, setStatusMessage] = useState("")
+  const [settingsError, setSettingsError] = useState("")
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true)
+  const [isSavingSettings, setIsSavingSettings] = useState(false)
+  const [reloadCount, setReloadCount] = useState(0)
 
   useEffect(() => {
     async function loadSettings() {
       try {
+        setIsLoadingSettings(true)
+        setSettingsError("")
         const response = await fetch("/api/admin/settings")
         const result = await response.json()
-        if (result.success && result.data) {
-          setAiConfig(result.data.aiConfig)
-          setCategories(result.data.categories)
-          setPermissions(result.data.permissions)
-        }
+        if (!response.ok || !result.success || !result.data) throw new Error(result.message || "Unable to load admin settings.")
+        setAiConfig(result.data.aiConfig)
+        const savedCategories = result.data.categories
+        setCategories(Array.isArray(savedCategories)
+          ? { active: savedCategories, archived: [] }
+          : { active: savedCategories.active ?? [], archived: savedCategories.archived ?? [] })
+        setPermissions(result.data.permissions)
       } catch (error) {
-        console.error("Failed to load admin settings:", error)
+        setSettingsError(error instanceof Error ? error.message : "Unable to load admin settings.")
+      } finally {
+        setIsLoadingSettings(false)
       }
     }
 
     loadSettings()
-  }, [])
+  }, [reloadCount])
 
   async function saveSection(section: "aiConfig" | "categories" | "permissions", value: unknown, message: string) {
-    const response = await fetch("/api/admin/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ section, value }),
-    })
-    const result = await response.json()
-    if (result.success) {
+    setIsSavingSettings(true)
+    setSettingsError("")
+    setStatusMessage("")
+    try {
+      const response = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section, value }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.message || "Unable to save settings.")
       setStatusMessage(message)
+      return true
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : "Unable to save settings.")
+      return false
+    } finally {
+      setIsSavingSettings(false)
     }
   }
 
-  function removeCategory(category: string) {
-    const next = categories.filter((item) => item !== category)
+  async function archiveCategory(category: string) {
+    const previous = categories
+    const next = {
+      active: categories.active.filter((item) => item !== category),
+      archived: [...categories.archived, category],
+    }
     setCategories(next)
-    saveSection("categories", next, "Categories saved.")
+    if (!await saveSection("categories", next, "Category archived.")) setCategories(previous)
   }
 
-  function addCategory() {
+  async function restoreCategory(category: string) {
+    const previous = categories
+    const next = {
+      active: [...categories.active, category],
+      archived: categories.archived.filter((item) => item !== category),
+    }
+    setCategories(next)
+    if (!await saveSection("categories", next, "Category restored.")) setCategories(previous)
+  }
+
+  async function addCategory() {
     const value = newCategory.trim()
     if (!value) return
-    const next = [...categories, value]
+    if (categories.active.includes(value) || categories.archived.includes(value)) return
+    const previous = categories
+    const next = { ...categories, active: [...categories.active, value] }
     setCategories(next)
     setNewCategory("")
-    saveSection("categories", next, "Categories saved.")
+    if (!await saveSection("categories", next, "Categories saved.")) setCategories(previous)
+  }
+
+  if (isLoadingSettings) {
+    return <div aria-label="Loading settings" className="space-y-4">{[0, 1, 2].map((item) => <div key={item} className="h-40 animate-pulse rounded-xl bg-muted" />)}</div>
   }
 
   return (
     <div className="space-y-6">
+      {settingsError && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          <span>{settingsError}</span>
+          <Button type="button" variant="outline" size="sm" onClick={() => setReloadCount((count) => count + 1)}>Retry loading settings</Button>
+        </div>
+      )}
+      {statusMessage && <p role="status" className="text-sm text-emerald-700">{statusMessage}</p>}
       <Card className="border-[var(--iris-border)] bg-[var(--iris-surface)]/95 shadow-sm">
         <CardHeader>
           <CardTitle>AI Configuration</CardTitle>
@@ -125,8 +172,8 @@ export function SettingsTab() {
             </div>
           </div>
 
-          <Button className="rounded-lg bg-slate-900 text-white hover:bg-slate-800" onClick={() => saveSection("aiConfig", aiConfig, "AI settings saved.")}>
-            Save AI Settings
+          <Button className="rounded-lg bg-slate-900 text-white hover:bg-slate-800" disabled={isSavingSettings} onClick={() => saveSection("aiConfig", aiConfig, "AI settings saved.")}>
+            {isSavingSettings ? "Saving..." : "Save AI Settings"}
           </Button>
         </CardContent>
       </Card>
@@ -137,18 +184,32 @@ export function SettingsTab() {
           <CardDescription>Manage incident categories</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
-          {categories.map((category) => (
+          {categories.active.map((category) => (
             <div key={category} className="flex items-center justify-between rounded-xl border border-[var(--iris-border)] bg-white p-3 transition-colors hover:bg-accent/50">
               <span className="font-medium">{category}</span>
-              <Button variant="ghost" size="sm" className="h-8 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-700" onClick={() => removeCategory(category)}>
-                Remove
+              <Button variant="ghost" size="sm" className="h-8 rounded-lg" disabled={isSavingSettings} onClick={() => archiveCategory(category)} title={`Archive ${category}`}>
+                Archive
               </Button>
             </div>
           ))}
 
+          {categories.archived.length > 0 && (
+            <div className="mt-5 space-y-2 border-t border-border pt-4">
+              <h3 className="text-sm font-semibold text-muted-foreground">Archived categories</h3>
+              {categories.archived.map((category) => (
+                <div key={category} className="flex items-center justify-between rounded-xl border border-dashed border-[var(--iris-border)] bg-muted/40 p-3">
+                  <span className="font-medium text-muted-foreground">{category}</span>
+                  <Button variant="outline" size="sm" className="h-8 rounded-lg" disabled={isSavingSettings} onClick={() => restoreCategory(category)} title={`Restore ${category}`}>
+                    Restore
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="flex gap-2 pt-4">
             <Input value={newCategory} onChange={(event) => setNewCategory(event.target.value)} placeholder="New category name" />
-            <Button className="rounded-lg bg-slate-900 text-white hover:bg-slate-800" onClick={addCategory}>
+            <Button className="rounded-lg bg-slate-900 text-white hover:bg-slate-800" disabled={isSavingSettings} onClick={addCategory}>
               <Plus className="mr-2 h-4 w-4" />
               Add
             </Button>
@@ -187,7 +248,6 @@ export function SettingsTab() {
             Manage Permissions
           </Button>
 
-          {statusMessage && <p className="text-sm text-muted-foreground">{statusMessage}</p>}
         </CardContent>
       </Card>
 
@@ -205,12 +265,12 @@ export function SettingsTab() {
           </div>
           <DialogFooter>
             <Button
-              onClick={() => {
-                saveSection("permissions", permissions, "Permission settings saved.")
-                setIsPermissionsOpen(false)
+              disabled={isSavingSettings}
+              onClick={async () => {
+                if (await saveSection("permissions", permissions, "Permission settings saved.")) setIsPermissionsOpen(false)
               }}
             >
-              Save
+              {isSavingSettings ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

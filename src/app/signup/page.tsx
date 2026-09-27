@@ -1,6 +1,6 @@
   "use client";
 
-  import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
   import Link from "next/link";
   import { useRouter } from "next/navigation";
   import {
@@ -23,7 +23,7 @@
     RotateCcw
   } from "lucide-react";
   import { useToast } from "@/hooks/use-toast";
-  import { getRoleLandingPath, saveAuthUser, type AuthUser, type UserRole } from "@/lib/auth";
+  import { type UserRole } from "@/lib/auth";
   import { cn } from "@/lib/utils";
 
   export const EAST_NEW_KALALAKE = "Barangay New Kalalake" as const;
@@ -186,13 +186,14 @@
     const [suffix, setSuffix] = useState("");
     const [suffixOpen, setSuffixOpen] = useState(false);
 
-    const [gender, setGender] = useState<"" | "MALE" | "FEMALE">("")
+    const [gender, setGender] = useState<"" | "MALE" | "FEMALE" | "OTHER">("")
+    const [genderOther, setGenderOther] = useState("")
     const [genderOpen, setGenderOpen] = useState(false);
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
-    const [location, setLocation] = useState<(GeoPoint & { address: string; street: string; purok: number }) | null>(null);
+    const [location, setLocation] = useState<(GeoPoint & { address: string; street: string; barangay: string }) | null>(null);
     const [contact, setContact] = useState("");
     const [street, setStreet] = useState("");
     
@@ -204,6 +205,8 @@
 
     const [verificationOpen, setVerificationOpen] = useState(false);
     const [viewIdOpen, setViewIdOpen] = useState(false);
+    const [closingModal, setClosingModal] = useState<"legal" | "identity" | "verification" | null>(null);
+    const closingModalTimers = useRef<Partial<Record<"legal" | "identity" | "verification", ReturnType<typeof setTimeout>>> >({});
     const [verificationCode, setVerificationCode] = useState("");
     const [isVerifying, setIsVerifying] = useState(false);
 
@@ -211,6 +214,27 @@
 
     const [isLoading, setIsLoading] = useState(false);
     const role: UserRole = "resident";
+
+    const prepareModalOpen = (name: "legal" | "identity" | "verification") => {
+      const timer = closingModalTimers.current[name];
+      if (timer) clearTimeout(timer);
+      delete closingModalTimers.current[name];
+      setClosingModal((current) => current === name ? null : current);
+    };
+
+    const closeModal = (name: "legal" | "identity" | "verification", onClose: () => void) => {
+      if (closingModalTimers.current[name]) return;
+      setClosingModal(name);
+      closingModalTimers.current[name] = setTimeout(() => {
+        onClose();
+        delete closingModalTimers.current[name];
+        setClosingModal((current) => current === name ? null : current);
+      }, 180);
+    };
+
+    useEffect(() => () => {
+      Object.values(closingModalTimers.current).forEach((timer) => timer && clearTimeout(timer));
+    }, []);
 
     const checks = {
       length: password.length >= 8,
@@ -287,7 +311,7 @@
             firstName.trim() &&
             lastName.trim() &&
             middleName.trim() &&
-            gender
+            gender && (gender !== "OTHER" || genderOther.trim())
           );
 
         case 2:
@@ -297,7 +321,7 @@
           );
 
         case 3:
-          return !!location;
+          return street.trim().length > 0;
 
         case 4:
           return verificationStatus === "verified";
@@ -319,9 +343,10 @@
       lastName,
       middleName,
       gender,
+      genderOther,
       email,
       contact,
-      location,
+      street,
       verificationStatus,
       password,
       isPasswordValid,
@@ -342,8 +367,8 @@
       if (!navigator.geolocation) {
         toast({
           title: "Not supported",
-          description: "Geolocation is not supported in this browser.",
-          variant: "destructive",
+          description: "Type your address below to continue without location detection.",
+          variant: "warning",
         });
         return;
       }
@@ -353,12 +378,12 @@
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           try {
-            const { latitude, longitude } = pos.coords;
+            const { latitude, longitude, accuracy } = pos.coords;
 
             const response = await fetch("/api/location/resolve", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ latitude, longitude }),
+              body: JSON.stringify({ latitude, longitude, accuracy }),
             });
 
             const result = await response.json();
@@ -366,13 +391,13 @@
             if (!result.success) throw new Error(result.message);
 
             setLocation(result.data);
-            setStreet(result.data?.street ?? "");
+            setStreet(result.data?.street || result.data?.address || "");
           } catch (err) {
             toast({
               title: "Location failed",
               description:
-                err instanceof Error ? err.message : "Unable to resolve location.",
-              variant: "destructive",
+                `${err instanceof Error ? err.message : "Unable to resolve location."} You can enter your address manually and continue.`,
+              variant: "warning",
             });
           } finally {
             setIsLocating(false);
@@ -381,9 +406,9 @@
         (err) => {
           setIsLocating(false);
           toast({
-            title: "Permission denied",
-            description: err.message,
-            variant: "destructive",
+            title: "Location unavailable",
+            description: `${err.message} You can enter your address manually and continue.`,
+            variant: "warning",
           });
         },
         {
@@ -396,10 +421,27 @@
 
     const requestVerificationCode = async () => {
       const fullName = buildFullName();
+      if (!idImage || !dateOfBirth) throw new Error("Upload a government ID and enter your date of birth.")
+      const formData = new FormData()
+      formData.set("fullName", fullName)
+      formData.set("email", email)
+      formData.set("password", password)
+      formData.set("role", role)
+      formData.set("street", street)
+      formData.set("contact", contact)
+      formData.set("gender", gender)
+      formData.set("genderOther", genderOther)
+      formData.set("dateOfBirth", dateOfBirth)
+      formData.set("governmentId", idImage)
+      if (location) {
+        formData.set("locationLatitude", String(location.latitude))
+        formData.set("locationLongitude", String(location.longitude))
+        if (location.accuracy != null) formData.set("locationAccuracy", String(location.accuracy))
+        formData.set("locationAddress", location.address)
+      }
       const response = await fetch("/api/auth/signup/request-verification", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, email, password, role, street, contact, gender }),
+        body: formData,
       });
       const result: { success: boolean; message: string; data?: { devCode?: string } } = await response.json();
 
@@ -412,31 +454,13 @@
     const calculateAge = (birthDate: string) => {
       if (!birthDate) return NaN;
 
-      // Try native parsing first (ISO-like strings)
-      let dob = new Date(birthDate);
-
-      // If parsing failed (common for dd/mm/yyyy from OCR), try to parse manually
-      if (Number.isNaN(dob.getTime())) {
-        const m = birthDate.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
-        if (m) {
-          const day = parseInt(m[1], 10);
-          const month = parseInt(m[2], 10);
-          const year = parseInt(m[3], 10);
-          // assume format is dd/mm/yyyy from OCR
-          dob = new Date(year, month - 1, day);
-        }
-      }
-
-      if (Number.isNaN(dob.getTime())) return NaN;
-
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return NaN;
+      const [year, month, day] = birthDate.split("-").map(Number);
+      const dob = new Date(year, month - 1, day);
+      if (dob.getFullYear() !== year || dob.getMonth() !== month - 1 || dob.getDate() !== day) return NaN;
       const today = new Date();
-      let age = today.getFullYear() - dob.getFullYear();
-      const monthDiff = today.getMonth() - dob.getMonth();
-
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-        age--;
-      }
-
+      let age = today.getFullYear() - year;
+      if (today.getMonth() + 1 < month || (today.getMonth() + 1 === month && today.getDate() < day)) age--;
       return age;
     };
 
@@ -469,6 +493,7 @@
       try {
         await requestVerificationCode();
         setIsLoading(false);
+        prepareModalOpen("verification");
         setVerificationOpen(true);
         toast({
           title: "Verification sent",
@@ -499,17 +524,16 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, code: verificationCode }),
         });
-        const result: { success: boolean; message: string; data: AuthUser | null } = await response.json();
+        const result: { success: boolean; message: string; data: { email: string; status: "Pending" } | null } = await response.json();
 
         if (!result.success || !result.data) throw new Error(result.message);
 
-        saveAuthUser(result.data);
         toast({
-          title: "Account verified",
-          description: "Your IRIS account is ready.",
+          title: "Email verified",
+          description: "Your ID is awaiting staff review. You can sign in after your account is approved.",
           variant: "success",
         });
-        router.push(getRoleLandingPath(result.data.role));
+        router.push("/login");
       } catch (error) {
         setIsVerifying(false);
         toast({
@@ -545,6 +569,7 @@
       }
     } as const;
     const openLegalDoc = (doc: "terms" | "privacy") => {
+      prepareModalOpen("legal");
       setLegalAccepted(false);
       setLegalScrolledToEnd(doc === "privacy");
       setLegalDoc(doc);
@@ -587,7 +612,7 @@
         intro:
           "IRIS protects your personal and case data by limiting collection to what is required for operations, safety, and legal compliance.",
         body: [
-          "Data We Collect: Name, email, contact, street, gender, role, and account credentials (stored securely).",
+          "Data We Collect: Name, email, contact, street, gender, date of birth, government ID image, and account credentials (stored securely).",
           "Case Information: Incident reports, evidence uploads, messages, and case updates needed for barangay workflows.",
           "How We Use Data: Verification, case management, notifications, analytics, and service improvement.",
           "Access & Sharing: Data is shared only with authorized barangay staff and officers for official purposes.",
@@ -598,94 +623,44 @@
     } as const;
 
     const [idImage, setIdImage] = useState<File | null>(null);
+    const [idImageUrl, setIdImageUrl] = useState("");
 
-    const [detectedName, setDetectedName] = useState("");
-    const [detectedBirthDate, setDetectedBirthDate] = useState("");
+    useEffect(() => {
+      if (!idImage) {
+        setIdImageUrl("");
+        return;
+      }
+
+      const imageUrl = URL.createObjectURL(idImage);
+      setIdImageUrl(imageUrl);
+      return () => URL.revokeObjectURL(imageUrl);
+    }, [idImage]);
+
+    const [dateOfBirth, setDateOfBirth] = useState("");
 
     const [calculatedAge, setCalculatedAge] = useState<number | null>(null);
     const MINIMUM_AGE = 18;
 
-    const handleIdUpload = async (
-      event: React.ChangeEvent<HTMLInputElement>
-    ) => {
+    const handleIdUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
 
       if (!file) return;
 
-      setIdImage(file);
-
-      try {
-        const formData = new FormData();
-
-        formData.append("file", file);
-
-        const response = await fetch("/api/identity/scan", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const text = await response.text().catch(() => "");
-          console.error("Identity scan failed:", response.status, text);
-          toast({
-            title: "Scan failed",
-            description:
-              response.status === 404
-                ? "Scan service not found (404). Please ensure the API is running."
-                : text || "OCR failed",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        let result: any = null;
-        const contentType = response.headers.get("content-type") || "";
-        if (contentType.includes("application/json")) {
-          result = await response.json();
-        } else {
-          const text = await response.text().catch(() => "");
-          try {
-            result = text ? JSON.parse(text) : null;
-          } catch (err) {
-            console.error("Non-JSON response from scan endpoint:", text);
-            toast({
-              title: "Scan failed",
-              description: "Server returned invalid response format.",
-              variant: "destructive",
-            });
-            return;
-          }
-        }
-
-        if (!result || !result.success) {
-          const msg = result?.message ?? "OCR failed";
-          toast({ title: "Scan failed", description: msg, variant: "destructive" });
-          return;
-        }
-
-        setDetectedName(result.name || "");
-
-        setDetectedBirthDate(result.birthDate || "");
-
-        // prefer OCR-provided age, otherwise try to parse the DOB
-        let ageFromResult: number | null = result.age ?? null;
-        if ((ageFromResult === null || ageFromResult === undefined) && result.birthDate) {
-          const parsed = calculateAge(result.birthDate);
-          ageFromResult = Number.isNaN(parsed) ? null : parsed;
-        }
-
-        setCalculatedAge(ageFromResult);
-
-      } catch (error) {
-        console.error(error);
-
+      if (!["image/png", "image/jpeg"].includes(file.type) || file.size > 4 * 1024 * 1024) {
+        event.target.value = "";
         toast({
-          title: "OCR Failed",
-          description:
-            "Unable to extract ID information.",
-          variant: "destructive",
+          title: "Unsupported ID image",
+          description: "Upload a PNG or JPEG government ID image up to 4 MB.",
+          variant: "warning",
         });
+        return;
       }
+
+      setIdImage(file);
+      setIdentityConfirmed(false);
+      setVerificationStatus("pending");
+      setDateOfBirth("");
+      setCalculatedAge(null);
     };
 
     
@@ -696,19 +671,19 @@
       setIsIdentityVerifying(true);
 
       try {
-        if (!detectedBirthDate) {
+        if (!dateOfBirth || !idImage) {
           setVerificationStatus("failed");
 
           toast({
             title: "Verification failed",
-            description: "No date of birth detected. Please upload a clear ID.",
+            description: "Upload a government ID and enter the date of birth shown on it.",
             variant: "destructive",
           });
 
           return;
         }
 
-        const age = calculateAge(detectedBirthDate);
+        const age = calculateAge(dateOfBirth);
 
         if (Number.isNaN(age) || age < MINIMUM_AGE) {
           setVerificationStatus("failed");
@@ -722,13 +697,14 @@
           return;
         }
 
+        setCalculatedAge(age);
         setIdentityConfirmed(true);
         setVerificationStatus("verified");
 
         toast({
           variant: "success",
-          title: "Identity verified",
-          description: "Your government ID has been successfully verified.",
+          title: "Age requirement met",
+          description: "Your ID will be reviewed by barangay staff before your account is activated.",
         });
       } finally {
         setIsIdentityVerifying(false);
@@ -738,7 +714,7 @@
     return (
     <>
     {/* MAIN LAYOUT */}
-      <div className="min-h-screen lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] bg-[var(--iris-bg)] text-[var(--iris-text)] auth-page-enter">
+      <div className="min-h-screen lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] bg-[var(--iris-bg)] text-[var(--iris-text)]">
 
       {/* LEFT HERO */}
       <section
@@ -1089,7 +1065,9 @@
                         ? "Select Gender"
                         : gender === "MALE"
                         ? "Male"
-                        : "Female"}
+                        : gender === "FEMALE"
+                        ? "Female"
+                        : "Other"}
                     </button>
 
                     <svg
@@ -1133,9 +1111,37 @@
                         >
                           Female
                         </button>
+
+                        <button
+                          type="button"
+                          role="option"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setGender("OTHER");
+                            setGenderOpen(false);
+                          }}
+                          className="w-full px-4 py-3 text-left text-sm font-semibold text-[var(--iris-text)] transition hover:bg-[var(--iris-primary-light)]/40"
+                        >
+                          Others
+                        </button>
                       </div>
                     )}
                   </div>
+
+                  {gender === "OTHER" && (
+                    <label className="block space-y-2 sm:col-span-2">
+                      <span className="text-xs font-semibold text-[var(--iris-text-subtle)]">Please specify</span>
+                      <input
+                        value={genderOther}
+                        onChange={(event) => setGenderOther(event.target.value)}
+                        maxLength={80}
+                        required
+                        disabled={isLoading}
+                        className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-4 text-sm text-[var(--iris-text)] shadow-sm focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)]"
+                        placeholder="Enter your gender"
+                      />
+                    </label>
+                  )}
                 </div>
               )}
 
@@ -1208,13 +1214,13 @@
 
                         <div>
                           <p className="text-sm font-semibold text-[var(--iris-text)]">
-                            Street & Purok
+                            Address and location
                           </p>
 
                           <p className="text-xs leading-relaxed text-[var(--iris-text-subtle)]">
                             {location
-                              ? `${location.street} • Purok ${location.purok}`
-                              : "Use your location to detect your street and purok"}
+                              ? `Barangay ${location.barangay}${location.accuracy != null ? ` • GPS accuracy about ${Math.round(location.accuracy)} m` : ""}`
+                              : "Location detection is optional. You can enter an address from any barangay or city."}
                           </p>
                         </div>
                       </div>
@@ -1235,6 +1241,23 @@
 
                     </div>
                   </div>
+
+                  <label className="block space-y-2">
+                    <span className="text-sm font-semibold text-[var(--iris-text)]">Street address *</span>
+                    <input
+                      type="text"
+                      autoComplete="street-address"
+                      value={street}
+                      onChange={(event) => setStreet(event.target.value)}
+                      placeholder="House number, street, barangay, city"
+                      disabled={isLoading}
+                      required
+                      className="h-12 w-full rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] px-4 text-sm text-[var(--iris-text)] placeholder:text-[var(--iris-text-subtle)] shadow-sm transition focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)] disabled:opacity-70"
+                    />
+                    <span className="block text-xs leading-relaxed text-[var(--iris-text-subtle)]">
+                      GPS only suggests an address. Signing up does not require being inside a barangay boundary or sharing your location.
+                    </span>
+                  </label>
 
                 </div>
               )}
@@ -1273,7 +1296,7 @@
                         </p>
 
                         <p className="text-xs text-[var(--iris-text-subtle)]">
-                          PNG, JPG or JPEG
+                          PNG or JPEG, up to 4 MB. Barangay staff will review it.
                         </p>
                       </div>
                     </label>
@@ -1286,7 +1309,7 @@
                     <div className="flex items-center gap-2">
                       <UserCheck className="h-4 w-4 text-[var(--iris-primary)]" />
                       <h4 className="font-semibold text-[var(--iris-text)]">
-                        Extracted Information
+                        Government ID
                       </h4>
                     </div>
 
@@ -1294,7 +1317,9 @@
 
                       <button
                         type="button"
-                        onClick={() => setViewIdOpen(true)}
+                        onClick={() => { prepareModalOpen("identity"); setViewIdOpen(true); }}
+                        title="View uploaded government ID"
+                        aria-label="View uploaded government ID"
                         className="
                           rounded-xl border border-[var(--iris-border)]
                           bg-white p-2
@@ -1306,6 +1331,8 @@
 
                       <label
                         htmlFor="id-upload"
+                        title="Replace uploaded government ID"
+                        aria-label="Replace uploaded government ID"
                         className="
                           cursor-pointer rounded-xl
                           border border-[var(--iris-border)]
@@ -1319,23 +1346,24 @@
                   </div>
                     <div className="space-y-3">
                       <div>
-                        <p className="text-xs text-[var(--iris-text-subtle)]">
-                          Full Name
-                        </p>
-
-                        <p className="font-medium">
-                          {detectedName || "Waiting for scan"}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-xs text-[var(--iris-text-subtle)]">
-                          Date of Birth
-                        </p>
-
-                        <p className="font-medium">
-                          {detectedBirthDate || "-"}
-                        </p>
+                        <label htmlFor="date-of-birth" className="mb-1 block text-xs text-[var(--iris-text-subtle)]">
+                          Date of birth shown on your ID
+                        </label>
+                        <input
+                          id="date-of-birth"
+                          type="date"
+                          value={dateOfBirth}
+                          max={new Date().toISOString().slice(0, 10)}
+                          onChange={(event) => {
+                            setDateOfBirth(event.target.value)
+                            setCalculatedAge(null)
+                            setIdentityConfirmed(false)
+                            setVerificationStatus("pending")
+                          }}
+                          required
+                          disabled={isLoading}
+                          className="h-11 w-full rounded-xl border border-[var(--iris-border)] bg-white px-3 text-sm text-[var(--iris-text)] focus:border-[var(--iris-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--iris-primary)]"
+                        />
                       </div>
 
                       <div>
@@ -1344,7 +1372,7 @@
                         </p>
 
                         <p className="font-medium">
-                          {calculatedAge || "-"}
+                          {calculatedAge === null ? "-" : calculatedAge}
                         </p>
                       </div>
 
@@ -1366,8 +1394,8 @@
                     {isIdentityVerifying
                       ? "Verifying..."
                       : identityConfirmed
-                      ? "Identity Verified"
-                      : "Verify Identity"}
+                      ? "Age requirement met"
+                      : "Check age eligibility"}
                   </button>
 
                   </>
@@ -1585,9 +1613,9 @@
         {/* Identity review modal removed — verification now happens inline */}
 
         {legalDoc && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 animate-in fade-in duration-200">
+          <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 motion-reduce:animate-none ${closingModal === "legal" ? "animate-out fade-out duration-200" : "animate-in fade-in duration-200"}`}>
             <div className="w-full max-w-2xl">
-              <div className="flex max-h-[85vh] flex-col overflow-hidden rounded-3xl border border-[var(--iris-border)] bg-[var(--iris-surface)] shadow-[0_30px_80px_rgba(15,23,42,0.18)] ring-1 ring-black/5 animate-in zoom-in-95 duration-200">
+              <div className={`flex max-h-[85vh] flex-col overflow-hidden rounded-3xl border border-[var(--iris-border)] bg-[var(--iris-surface)] shadow-[0_30px_80px_rgba(15,23,42,0.18)] ring-1 ring-black/5 motion-reduce:animate-none ${closingModal === "legal" ? "animate-out zoom-out-95 duration-200" : "animate-in zoom-in-95 duration-200"}`}>
 
                 {/* HEADER */}
                 <div className="flex items-center justify-between border-b border-[var(--iris-border)] bg-[var(--legal-surface)] px-6 py-5">
@@ -1608,7 +1636,7 @@
 
                   <button
                     type="button"
-                    onClick={() => setLegalDoc(null)}
+                    onClick={() => closeModal("legal", () => setLegalDoc(null))}
                     aria-label="Close dialog"
                     className="rounded-full p-2 text-[var(--iris-text-subtle)] transition-all hover:bg-[var(--legal-surface-hover)] hover:text-[var(--iris-text)]"
                   >
@@ -1707,7 +1735,7 @@
                         setPrivacyAccepted(true);
                       }
 
-                      setLegalDoc(null);
+                      closeModal("legal", () => setLegalDoc(null));
                     }}
                     disabled={
                       !legalAccepted ||
@@ -1724,44 +1752,23 @@
           </div>
         )}
 
-        {viewIdOpen && idImage && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4">
+        {viewIdOpen && idImageUrl && (
+          <div className={`fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4 motion-reduce:animate-none ${closingModal === "identity" ? "animate-out fade-out duration-200" : "animate-in fade-in duration-200"}`}>
 
-            <div className="relative max-w-4xl">
+            <div className={`relative max-w-4xl motion-reduce:animate-none ${closingModal === "identity" ? "animate-out zoom-out-95 duration-200" : "animate-in zoom-in-95 duration-200"}`}>
 
               <button
                 type="button"
-                onClick={() => setViewIdOpen(false)}
+                onClick={() => closeModal("identity", () => setViewIdOpen(false))}
                 className="absolute right-2 top-2 rounded-full bg-white p-2"
               >
                 <X className="h-4 w-4" />
               </button>
 
               <img
-                src={idImage ? URL.createObjectURL(idImage) : undefined}
+                src={idImageUrl}
                 alt="Government ID"
-                className="max-h-[90vh] rounded-2xl"
-              />
-
-            </div>
-
-          </div>
-        )}      {viewIdOpen && idImage && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4">
-
-            <div className="relative max-w-4xl">
-
-              <button
-                type="button"
-                onClick={() => setViewIdOpen(false)}
-                className="absolute right-2 top-2 rounded-full bg-white p-2"
-              >
-                <X className="h-4 w-4" />
-              </button>
-
-              <img
-                src={URL.createObjectURL(idImage)}
-                alt="Government ID"
+                decoding="async"
                 className="max-h-[90vh] rounded-2xl"
               />
 
@@ -1771,8 +1778,8 @@
         )}
 
         {verificationOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] p-5 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm motion-reduce:animate-none ${closingModal === "verification" ? "animate-out fade-out duration-200" : "animate-in fade-in duration-200"}`}>
+            <div className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-[var(--iris-border)] bg-[var(--iris-surface)] p-5 shadow-2xl motion-reduce:animate-none ${closingModal === "verification" ? "animate-out zoom-out-95 duration-200" : "animate-in zoom-in-95 duration-200"}`}>
               <div className="space-y-3 text-center pb-2">
                 <div className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--iris-primary-light)] text-[var(--iris-primary)]">
                   <Mail className="h-5 w-5" />
@@ -1816,7 +1823,7 @@
                   </button>
                   <button
                     type="button"
-                    onClick={() => setVerificationOpen(false)}
+                    onClick={() => closeModal("verification", () => setVerificationOpen(false))}
                     disabled={isVerifying}
                     className="font-semibold text-[var(--iris-text-subtle)] hover:text-[var(--iris-text)] disabled:opacity-50"
                   >

@@ -1,55 +1,26 @@
 import {
-  CaseCategory as DbCaseCategory,
   CasePriority as DbCasePriority,
-  CaseStatus as DbCaseStatus,
+  CaseStatus as DbCaseProcessStatus,
+  HearingStatus,
   NotificationType,
   Prisma,
   UserRole,
 } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
-import type { CaseCategory } from "@/lib/types"
+import { normalizeAddress, normalizeContact, normalizePersonName } from "@/lib/personal-info"
+import { createCase } from "@/lib/case-process"
+import { todayInManila, toDateOnlyString } from "@/lib/business-days"
+import { recalculateDayTracking } from "@/lib/case-process"
 
-const categoryLabels: Record<DbCaseCategory, CaseCategory> = {
-  DISPUTE: "Community Dispute",
-  INJURY: "Violence or Threats",
-  VAWC: "Harassment & Abuse",
-  ORDINANCE_VIOLATION: "Public Disturbance",
-  OTHER: "Community Dispute",
-}
-
-const categoryFromLabel: Partial<Record<CaseCategory, DbCaseCategory>> = {
-  "Violence or Threats": DbCaseCategory.INJURY,
-  "Harassment & Abuse": DbCaseCategory.VAWC,
-  "Fraud & Scams": DbCaseCategory.OTHER,
-  "Public Disturbance": DbCaseCategory.ORDINANCE_VIOLATION,
-  "Property & Theft": DbCaseCategory.OTHER,
-  "Community Dispute": DbCaseCategory.DISPUTE,
-  "Child & Vulnerable Protection": DbCaseCategory.VAWC,
-}
-
-const statusLabels: Record<DbCaseStatus, string> = {
-  PENDING: "Pending",
-  UNDER_REVIEW: "Under Review",
-  ACCEPTED: "Under Review",
-  REJECTED: "Closed",
-  REFERRED: "Closed",
-  ASSIGNED: "In Progress",
+const processStatusLabels: Record<DbCaseProcessStatus, "Scheduled" | "In Progress" | "Resolved" | "Closed" | "Dismissed"> = {
   SCHEDULED: "Scheduled",
-  ONGOING: "In Progress",
+  MEDIATION: "In Progress",
+  CONCILIATION: "In Progress",
+  ARBITRATION: "In Progress",
   RESOLVED: "Resolved",
-  UNRESOLVED: "Closed",
+  REPUDIATION: "In Progress",
   DISMISSED: "Dismissed",
-  ARCHIVED: "Closed",
-}
-
-const priorityFromCategory: Record<CaseCategory, DbCasePriority> = {
-  "Violence or Threats": DbCasePriority.HIGH,
-  "Harassment & Abuse": DbCasePriority.HIGH,
-  "Fraud & Scams": DbCasePriority.MEDIUM,
-  "Public Disturbance": DbCasePriority.LOW,
-  "Property & Theft": DbCasePriority.MEDIUM,
-  "Community Dispute": DbCasePriority.LOW,
-  "Child & Vulnerable Protection": DbCasePriority.HIGH,
+  WITHDRAWN: "Closed",
 }
 
 const notificationCategory: Record<NotificationType, "case" | "system" | "report"> = {
@@ -101,31 +72,39 @@ function relativeTime(date: Date | string | null | undefined) {
   return formatDate(date)
 }
 
-function caseNumber(id: string, date: Date) {
-  return `IRIS-${date.getFullYear()}-${id.slice(0, 8).toUpperCase()}`
-}
-
 function notificationTitle(type: NotificationType) {
   return type.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
 function mapResidentCase(item: ResidentCaseWithRelations) {
-  const status = statusLabels[item.status]
+  const status = item.currentStatus === DbCaseProcessStatus.RESOLVED && item.closedDate
+    ? "Closed"
+    : processStatusLabels[item.currentStatus]
+  const dayTracking = recalculateDayTracking(item)
   const latestHearing = item.hearings[0]
   const detail = latestHearing
     ? `Hearing ${latestHearing.status.toLowerCase()} at ${latestHearing.location}`
     : item.assignedOfficer
       ? `Assigned to ${item.assignedOfficer.fullName}`
-      : status === "Pending"
+      : status === "Scheduled"
         ? "Submitted for barangay review"
         : item.details
 
   return {
-    id: caseNumber(item.id, item.dateSubmitted),
+    id: item.caseNumber,
     dbId: item.id,
     title: item.type,
-    category: categoryLabels[item.category],
+    category: item.category,
     status,
+    currentStatus: item.currentStatus,
+    statusEnteredDate: toDateOnlyString(item.statusEnteredDate),
+    statusDaysAllotted: item.statusDaysAllotted,
+    ...dayTracking,
+    mediationAttemptCount: item.mediationAttemptCount,
+    conciliationAttemptCount: item.conciliationAttemptCount,
+    absenceCount: item.absenceCount,
+    respondentName: item.respondentName,
+    respondentAddress: item.respondentAddress,
     lastUpdate: relativeTime(item.updatedAt),
     submittedOn: formatDate(item.dateSubmitted),
     detail,
@@ -140,12 +119,9 @@ async function findResidentByEmail(email: string) {
   })
 }
 
-export async function getResidentCasesData(email: string) {
-  const resident = await findResidentByEmail(email)
-  if (!resident) return []
-
+async function getResidentCasesForUser(residentId: string) {
   const cases = await prisma.case.findMany({
-    where: { complainantId: resident.id, isArchived: false },
+    where: { complainantId: residentId, isArchived: false },
     include: caseInclude,
     orderBy: { dateSubmitted: "desc" },
   })
@@ -153,10 +129,19 @@ export async function getResidentCasesData(email: string) {
   return cases.map(mapResidentCase)
 }
 
+export async function getResidentCasesData(email: string) {
+  const resident = await findResidentByEmail(email)
+  return resident ? getResidentCasesForUser(resident.id) : []
+}
+
 export async function getResidentDashboardData(email: string) {
-  const [cases, notifications] = await Promise.all([
-    getResidentCasesData(email),
-    getResidentNotificationsData(email, 3),
+  const resident = await findResidentByEmail(email)
+  if (!resident) return { recentUpdates: [], notifications: [], scheduledCases: [] }
+
+  const [cases, notifications, scheduledCases] = await Promise.all([
+    getResidentCasesForUser(resident.id),
+    getResidentNotificationsForUser(resident.id, 3),
+    getResidentScheduledCasesForUser(resident.id),
   ])
 
   return {
@@ -167,50 +152,121 @@ export async function getResidentDashboardData(email: string) {
       when: item.lastUpdate,
     })),
     notifications,
+    scheduledCases,
   }
+}
+
+async function getResidentScheduledCasesForUser(residentId: string) {
+  const startOfToday = todayInManila()
+
+  const hearings = await prisma.hearing.findMany({
+    where: {
+      status: HearingStatus.SCHEDULED,
+      scheduledDate: { gte: startOfToday },
+      case: { complainantId: residentId, isArchived: false },
+    },
+    select: {
+      id: true,
+      scheduledDate: true,
+      scheduledTime: true,
+      location: true,
+      case: { select: { id: true, caseNumber: true, dateSubmitted: true, type: true } },
+    },
+    orderBy: [{ scheduledDate: "asc" }, { scheduledTime: "asc" }],
+    take: 100,
+  })
+
+  return hearings.map((hearing) => ({
+    id: hearing.id,
+    caseId: hearing.case.caseNumber,
+    title: hearing.case.type,
+    date: hearing.scheduledDate.toISOString().slice(0, 10),
+    time: hearing.scheduledTime,
+    location: hearing.location,
+  }))
 }
 
 export async function createResidentCaseData(input: {
   fullName: string
-  category: CaseCategory
+  respondentName: string
+  respondentAddress: string
+  category: string
+  type: string
   incidentDate: string
   contact: string
   email: string
   street: string
+  incidentLocation?: string
+  incidentLatitude?: number | null
+  incidentLongitude?: number | null
+  incidentAccuracy?: number | null
   details: string
+  evidenceFiles?: Array<{ fileName: string; fileType: string; fileData: Uint8Array<ArrayBuffer> }>
 }) {
   const email = input.email.trim().toLowerCase()
-  if (!input.fullName || !input.contact || !email || !input.street || !input.incidentDate || !input.details) {
+  const fullName = normalizePersonName(input.fullName)
+  const respondentName = normalizePersonName(input.respondentName)
+  const respondentAddress = normalizeAddress(input.respondentAddress)
+  const contact = normalizeContact(input.contact)
+  const street = normalizeAddress(input.street)
+  if (!fullName || !respondentName || !respondentAddress || !contact || !email || !street || !input.incidentDate || !input.type.trim() || !input.details) {
     throw new Error("Missing required report details")
   }
+  if (input.type.trim().length > 100) throw new Error("Report type must be 100 characters or fewer")
+
+  const hasLatitude = input.incidentLatitude != null
+  const hasLongitude = input.incidentLongitude != null
+  const latitude = input.incidentLatitude
+  const longitude = input.incidentLongitude
+  if (hasLatitude !== hasLongitude
+    || (hasLatitude && (latitude == null || !Number.isFinite(latitude) || latitude < -90 || latitude > 90))
+    || (hasLongitude && (longitude == null || !Number.isFinite(longitude) || longitude < -180 || longitude > 180))
+    || (input.incidentAccuracy != null && (!Number.isFinite(input.incidentAccuracy) || input.incidentAccuracy < 0))) {
+    throw new Error("Incident coordinates are invalid")
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.incidentDate)) throw new Error("Incident date is invalid")
+  const incidentDate = new Date(`${input.incidentDate}T00:00:00.000Z`)
+  if (!Number.isFinite(incidentDate.getTime()) || incidentDate.toISOString().slice(0, 10) !== input.incidentDate) {
+    throw new Error("Incident date is invalid")
+  }
+  const today = toDateOnlyString(todayInManila())
+  if (input.incidentDate > today) throw new Error("Incident date cannot be in the future")
 
   const resident = await prisma.user.upsert({
     where: { email },
     update: {
-      fullName: input.fullName,
-      contact: input.contact,
-      street: input.street,
+      contact,
       role: UserRole.RESIDENT,
     },
     create: {
-      fullName: input.fullName,
+      fullName,
       email,
-      contact: input.contact,
-      street: input.street,
+      contact,
+      street,
       role: UserRole.RESIDENT,
     },
   })
 
-  const created = await prisma.case.create({
-    data: {
-      complainantId: resident.id,
-      category: categoryFromLabel[input.category] ?? DbCaseCategory.OTHER,
-      type: "Resident Report",
-      details: input.details,
-      priority: priorityFromCategory[input.category] ?? DbCasePriority.MEDIUM,
-      status: DbCaseStatus.PENDING,
-      incidentDate: new Date(input.incidentDate),
-    },
+  const created = await createCase({
+    complainantId: resident.id,
+    complainantName: fullName,
+    respondentName,
+    respondentAddress,
+    category: input.category,
+    type: input.type.trim(),
+    details: input.details,
+    filingDate: todayInManila(),
+    incidentDate,
+    incidentAddress: input.incidentLocation?.trim() || street,
+    incidentStreet: street,
+    incidentLatitude: input.incidentLatitude ?? null,
+    incidentLongitude: input.incidentLongitude ?? null,
+    incidentAccuracy: input.incidentAccuracy ?? null,
+    priority: DbCasePriority.MEDIUM,
+    evidenceFiles: input.evidenceFiles,
+  })
+  const createdWithRelations = await prisma.case.findUniqueOrThrow({
+    where: { id: created.id },
     include: caseInclude,
   })
 
@@ -218,11 +274,11 @@ export async function createResidentCaseData(input: {
     data: {
       userId: resident.id,
       type: NotificationType.CASE_UPDATE,
-      message: `${caseNumber(created.id, created.dateSubmitted)} was submitted for barangay review.`,
+      message: `${created.caseNumber} was submitted for barangay review.`,
     },
   })
 
-  return mapResidentCase(created)
+  return mapResidentCase(createdWithRelations)
 }
 
 export async function getResidentAnnouncementsData() {
@@ -242,12 +298,9 @@ export async function getResidentAnnouncementsData() {
   }))
 }
 
-export async function getResidentNotificationsData(email: string, limit?: number) {
-  const resident = await findResidentByEmail(email)
-  if (!resident) return []
-
+async function getResidentNotificationsForUser(residentId: string, limit?: number) {
   const notifications = await prisma.notification.findMany({
-    where: { userId: resident.id },
+    where: { userId: residentId },
     orderBy: { createdAt: "desc" },
     take: limit,
   })
@@ -261,6 +314,11 @@ export async function getResidentNotificationsData(email: string, limit?: number
     read: item.isRead,
     category: notificationCategory[item.type],
   }))
+}
+
+export async function getResidentNotificationsData(email: string, limit?: number) {
+  const resident = await findResidentByEmail(email)
+  return resident ? getResidentNotificationsForUser(resident.id, limit) : []
 }
 
 export async function markResidentNotificationReadData(email: string, id: string) {
@@ -306,17 +364,18 @@ export async function getResidentProfileData(email: string) {
 
 export async function updateResidentProfileData(
   email: string,
-  input: { fullName?: string; phone?: string; street?: string }
+  input: { phone?: string; street?: string }
 ) {
+  const contact = input.phone === undefined ? undefined : normalizeContact(input.phone)
+  const street = input.street === undefined ? undefined : normalizeAddress(input.street)
   const resident = await findResidentByEmail(email)
   if (!resident) return null
 
   return prisma.user.update({
     where: { id: resident.id },
     data: {
-      fullName: input.fullName,
-      contact: input.phone,
-      street: input.street,
+      contact,
+      street,
     },
   })
 }

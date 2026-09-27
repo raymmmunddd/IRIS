@@ -55,6 +55,10 @@ export default function ProfilePage() {
   const [cropY, setCropY] = useState(0)
   const [cropPreviewSrc, setCropPreviewSrc] = useState("")
   const [loading, setLoading] = useState(true)
+  const [profileLoadError, setProfileLoadError] = useState("")
+  const [profileReloadCount, setProfileReloadCount] = useState(0)
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [isChangingEmail, setIsChangingEmail] = useState(false)
 
   useEffect(() => {
     async function loadProfile() {
@@ -64,20 +68,21 @@ export default function ProfilePage() {
       }
 
       try {
+        setLoading(true)
+        setProfileLoadError("")
         const response = await fetch(`/api/profile?email=${encodeURIComponent(authUser.email)}`)
         const result = await response.json()
-        if (result.success && result.data) {
-          setProfile(result.data)
-        }
+        if (!response.ok || !result.success || !result.data) throw new Error(result.message || "Unable to load profile.")
+        setProfile(result.data)
       } catch (error) {
-        console.error("Failed to load profile:", error)
+        setProfileLoadError(error instanceof Error ? error.message : "Unable to load profile.")
       } finally {
         setLoading(false)
       }
     }
 
     loadProfile()
-  }, [authUser?.email])
+  }, [authUser?.email, profileReloadCount])
 
   useEffect(() => {
     if (!hasSentCode || resendCooldown <= 0) return
@@ -109,6 +114,7 @@ export default function ProfilePage() {
   }
 
   const handleSave = async () => {
+    setIsSavingProfile(true)
     try {
       const response = await fetch("/api/profile", {
         method: "PATCH",
@@ -141,6 +147,8 @@ export default function ProfilePage() {
         description: error instanceof Error ? error.message : "Failed to save profile.",
         variant: "destructive",
       })
+    } finally {
+      setIsSavingProfile(false)
     }
   }
 
@@ -292,6 +300,7 @@ export default function ProfilePage() {
       return
     }
 
+    setIsChangingEmail(true)
     try {
       const response = await fetch("/api/profile", {
         method: "PATCH",
@@ -326,6 +335,8 @@ export default function ProfilePage() {
         description: error instanceof Error ? error.message : "Failed to change email.",
         variant: "destructive",
       })
+    } finally {
+      setIsChangingEmail(false)
     }
   }
 
@@ -351,9 +362,17 @@ export default function ProfilePage() {
           description="Manage your public and contact information"
         />
 
+        {profileLoadError && (
+          <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+            <span>{profileLoadError}</span>
+            <Button type="button" variant="outline" size="sm" onClick={() => setProfileReloadCount((count) => count + 1)}>Retry loading profile</Button>
+          </div>
+        )}
+
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+          <div aria-label="Loading profile" className="grid gap-6 lg:grid-cols-[320px_1fr]">
+            <div className="h-64 animate-pulse rounded-xl bg-muted" />
+            <div className="h-96 animate-pulse rounded-xl bg-muted" />
           </div>
         ) : (
         <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
@@ -414,8 +433,12 @@ export default function ProfilePage() {
                     id="fullName"
                     className="focus-visible:ring-0 focus-visible:ring-transparent"
                     value={profile.fullName}
-                    onChange={(event) => update("fullName", event.target.value)}
+                    readOnly
+                    aria-describedby="profile-name-note"
                   />
+                  <p id="profile-name-note" className="text-xs text-muted-foreground">
+                    Contact an administrator to correct your name.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Email</Label>
@@ -466,9 +489,9 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex items-center gap-3">
-                <Button onClick={handleSave} className="gap-2 rounded-lg">
+                <Button onClick={handleSave} disabled={isSavingProfile} className="gap-2 rounded-lg">
                   <Save className="h-4 w-4" />
-                  Save Profile
+                  {isSavingProfile ? "Saving..." : "Save Profile"}
                 </Button>
                 {saved && <p className="text-sm text-emerald-700">Profile saved successfully.</p>}
               </div>
@@ -544,9 +567,9 @@ export default function ProfilePage() {
                 <Button type="button" variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="button" onClick={confirmEmailChange} disabled={!canConfirm}>
+                <Button type="button" onClick={confirmEmailChange} disabled={!canConfirm || isChangingEmail}>
                   <CheckCircle2 className="mr-2 h-4 w-4" />
-                  Confirm
+                  {isChangingEmail ? "Saving..." : "Confirm"}
                 </Button>
               </DialogFooter>
             </div>

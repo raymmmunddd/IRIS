@@ -3,12 +3,13 @@
 type PaletteItem = { name: string; token: string; fallback?: string; note?: string }
 
 const brand: PaletteItem[] = [
-  { name: "Primary", token: "--primary", fallback: "#1E4FA3", note: "Buttons, emphasis" },
-  { name: "Primary Hover", token: "--primary-hover", fallback: "#173E82", note: "Button hover" },
-  { name: "Primary Light", token: "--primary-light", fallback: "#E8F0FF", note: "Sidebar active / subtle fills" },
-  { name: "Secondary", token: "--secondary", fallback: "#F2B705", note: "Highlights, comparison accents" },
-  { name: "Secondary Hover", token: "--secondary-hover", fallback: "#D99E04", note: "Secondary hover" },
-  { name: "Secondary Light", token: "--secondary-light", fallback: "#FFF6D6", note: "Soft backgrounds" },
+  { name: "Primary Gold", token: "--primary", fallback: "#D9A514", note: "Barangay seal accent and main actions" },
+  { name: "Primary Hover", token: "--primary-hover", fallback: "#B8870B", note: "Button hover" },
+  { name: "Primary Light", token: "--primary-light", fallback: "#FFF4C7", note: "Subtle gold fills" },
+  { name: "Secondary Gold", token: "--secondary", fallback: "#EAB308", note: "Highlights and comparison accents" },
+  { name: "Secondary Hover", token: "--secondary-hover", fallback: "#CA8A04", note: "Secondary hover" },
+  { name: "Secondary Light", token: "--secondary-light", fallback: "#FEF9C3", note: "Soft backgrounds" },
+  { name: "Barangay Navy", token: "--sidebar-bg", fallback: "#101B35", note: "Navigation and deep contrast" },
   { name: "Tertiary", token: "--tertiary", fallback: "#D64545", note: "Alerts / destructive" },
   { name: "Tertiary Hover", token: "--tertiary-hover", fallback: "#B73737", note: "Alert hover" },
   { name: "Tertiary Light", token: "--tertiary-light", fallback: "#FDEAEA", note: "Alert backgrounds" },

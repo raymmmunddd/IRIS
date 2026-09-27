@@ -6,6 +6,7 @@
   import { ResidentNav } from "@/components/ResidentNav";
   import { ResidentSidebar } from "@/components/resident/sidebar";
   import { PageHeader } from "@/components/ui/page-header";
+  import { Skeleton } from "@/components/ui/skeleton";
 
   interface Announcement {
     id: number | string;
@@ -127,13 +128,13 @@
         </div>
 
         <div className="mt-3">
-          <p className="text-xs text-muted-foreground leading-relaxed">
+          <p className={`text-xs text-muted-foreground leading-relaxed ${expanded ? "animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none" : ""}`}>
             {isLong && !expanded ? `${item.content.slice(0, 120)}...` : item.content}
           </p>
           {isLong && (
             <button
               onClick={() => setExpanded((v) => !v)}
-              className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-[var(--primary)] hover:underline"
+              className="mt-1.5 inline-flex min-h-10 items-center gap-1 text-xs font-semibold text-[var(--primary)] hover:underline"
             >
               {expanded ? (
                 <>
@@ -157,10 +158,14 @@
     const [tag, setTag] = useState("All");
     const [search, setSearch] = useState("");
     const [announcements, setAnnouncements] = useState<Announcement[]>(ANNOUNCEMENTS);
+    const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(true);
 
     useEffect(() => {
       fetch("/api/resident/announcements")
-        .then((response) => response.json())
+        .then((response) => {
+          if (!response.ok) throw new Error("Unable to load announcements")
+          return response.json()
+        })
         .then((result) => {
           if (result.success) {
             setAnnouncements(
@@ -171,7 +176,8 @@
             );
           }
         })
-        .catch(() => setAnnouncements(ANNOUNCEMENTS));
+        .catch(() => setAnnouncements(ANNOUNCEMENTS))
+        .finally(() => setIsLoadingAnnouncements(false));
     }, []);
 
     const filtered = announcements.filter((a) => {
@@ -187,12 +193,12 @@
     const rest = filtered.filter((a) => !a.pinned);
 
     return (
-      <div className="flex h-screen overflow-hidden bg-background text-foreground">
-        <div className="hidden lg:flex h-screen shrink-0">
+      <div className="flex min-h-dvh bg-background text-foreground lg:h-dvh lg:overflow-hidden">
+        <div className="hidden lg:flex h-dvh shrink-0">
           <ResidentSidebar />
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col lg:min-h-0">
           <header className="sticky top-0 z-20 border-b border-border bg-gradient-to-br from-[var(--primary)] via-[var(--primary-hover)] to-[#123472] px-4 pb-5 pt-4 text-white shadow-sm lg:hidden">
             <div className="mx-auto w-full max-w-md">
               <Link
@@ -214,7 +220,7 @@
             </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <main className="flex-1 p-4 sm:p-6 lg:min-h-0 lg:overflow-y-auto lg:p-8">
             <div className="hidden lg:block">
               <PageHeader
                 title="Announcements"
@@ -224,9 +230,19 @@
             </div>
 
             <div className="mx-auto w-full max-w-md space-y-4 pb-24 lg:max-w-6xl lg:space-y-6 lg:pb-0">
-              <div className="grid gap-6 lg:grid-cols-[1fr_0.35fr]">
-                <div className="order-2 space-y-3 lg:order-1">
-                  {filtered.length === 0 ? (
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_0.35fr]">
+                <div className="order-2 min-w-0 space-y-3 lg:order-1">
+                  {isLoadingAnnouncements ? (
+                    <div aria-label="Loading announcements" className="space-y-3">
+                      {[0, 1, 2, 3].map((item) => (
+                        <div key={item} className="rounded-2xl border border-border bg-card p-4">
+                          <Skeleton className="h-5 w-2/3" />
+                          <Skeleton className="mt-3 h-3 w-1/3" />
+                          <Skeleton className="mt-4 h-12 w-full" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : filtered.length === 0 ? (
                     <div className="rounded-2xl border border-border bg-card p-8 text-center">
                       <Megaphone className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
                       <p className="text-sm font-semibold text-muted-foreground">No announcements found</p>
@@ -256,7 +272,7 @@
                   )}
                 </div>
 
-                <aside className="order-1 space-y-4 lg:order-2">
+                <aside className="order-1 min-w-0 space-y-4 lg:order-2">
                   <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
                     <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Search</p>
                     <div className="relative mt-3">
@@ -277,7 +293,7 @@
                         <button
                           key={t}
                           onClick={() => setTag(t)}
-                          className={`flex-shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          className={`min-h-10 flex-shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
                             tag === t
                               ? "border-[var(--primary)] bg-[var(--primary)] text-white"
                               : "border-border bg-background text-muted-foreground hover:border-[var(--primary)]/40"

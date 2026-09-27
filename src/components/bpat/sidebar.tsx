@@ -192,7 +192,7 @@ export function BpatSidebar() {
       </div>
 
       {isMobileOpen && (
-        <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setIsMobileOpen(false)} />
+        <div className="fixed inset-0 z-30 animate-in fade-in duration-200 bg-black/50 motion-reduce:animate-none lg:hidden" onClick={() => setIsMobileOpen(false)} />
       )}
 
       <aside

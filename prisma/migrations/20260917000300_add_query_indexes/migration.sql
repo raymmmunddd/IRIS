@@ -1,0 +1,17 @@
+CREATE INDEX "users_is_archived_created_at_idx" ON "users"("is_archived", "created_at");
+CREATE INDEX "users_role_is_archived_idx" ON "users"("role", "is_archived");
+CREATE INDEX "officers_full_name_idx" ON "officers"("full_name");
+CREATE INDEX "cases_status_date_submitted_idx" ON "cases"("status", "date_submitted");
+CREATE INDEX "cases_status_priority_date_submitted_idx" ON "cases"("status", "priority", "date_submitted");
+CREATE INDEX "cases_assigned_officer_id_status_idx" ON "cases"("assigned_officer_id", "status");
+CREATE INDEX "cases_date_submitted_idx" ON "cases"("date_submitted");
+CREATE INDEX "cases_category_idx" ON "cases"("category");
+CREATE INDEX "cases_complainant_id_date_submitted_idx" ON "cases"("complainant_id", "date_submitted");
+CREATE INDEX "hearings_case_id_scheduled_date_idx" ON "hearings"("case_id", "scheduled_date");
+CREATE INDEX "hearings_conducted_by_scheduled_date_idx" ON "hearings"("conducted_by", "scheduled_date");
+CREATE INDEX "evidence_case_id_uploaded_at_idx" ON "evidence"("case_id", "uploaded_at");
+CREATE INDEX "audit_logs_logged_at_idx" ON "audit_logs"("logged_at");
+CREATE INDEX "audit_logs_target_table_target_id_logged_at_idx" ON "audit_logs"("target_table", "target_id", "logged_at");
+CREATE INDEX "notifications_user_id_is_read_created_at_idx" ON "notifications"("user_id", "is_read", "created_at");
+CREATE INDEX "case_chat_messages_case_id_created_at_idx" ON "case_chat_messages"("case_id", "created_at");
+CREATE INDEX "user_activities_user_id_created_at_idx" ON "user_activities"("user_id", "created_at");

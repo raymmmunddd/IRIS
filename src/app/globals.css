@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+@media (prefers-reduced-motion: no-preference) {
+  :where(button:not(:disabled), [role="button"]:not([aria-disabled="true"])) {
+    transition-property: color, background-color, border-color, box-shadow, opacity, scale;
+    transition-duration: 180ms;
+    transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  :where(button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active) {
+    scale: 0.985;
+  }
+}
+
 :root {
   /* Brand - IRIS Gold Theme */
   --primary: #D9A514;
@@ -194,19 +206,6 @@ code, kbd, samp, pre {
     linear-gradient(210deg, rgba(255, 255, 255, 0.05) 10%, rgba(255, 255, 255, 0.02) 48%, rgba(255, 255, 255, 0) 72%);
 }
 
-@keyframes auth-page-enter {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.auth-page-enter {
-  animation: auth-page-enter 420ms ease-out both;
-}
-
 @keyframes auth-hero-reveal {
   from {
     opacity: 0;
@@ -275,14 +274,13 @@ code, kbd, samp, pre {
 }
 
 .modal-backdrop {
-  animation: modal-fade 180ms ease-out both;
+  animation: modal-fade 250ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .modal-content {
-  animation: modal-pop 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: modal-pop 250ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.auth-page-enter,
 .auth-hero-enter,
 .auth-panel-enter,
 .modal-content,
@@ -319,10 +317,6 @@ code, kbd, samp, pre {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-page-enter {
-    animation: none;
-  }
-
   .auth-hero-enter {
     animation: none;
   }

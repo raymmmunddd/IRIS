@@ -1,20 +1,39 @@
 import { NextResponse } from "next/server"
-import { emailExists, validateSignupInput } from "@/lib/auth-data"
+import { emailExists, validateSignupInput, type SignupInput } from "@/lib/auth-data"
 import { createVerificationCode } from "@/lib/auth-verification"
 import { sendVerificationEmail } from "@/lib/mail"
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const input = {
-      fullName: body.fullName,
-      email: body.email,
-      password: body.password,
-      confirmPassword: body.confirmPassword,
-      role: body.role,
-      street: body.street,
-      contact: body.contact,
-      gender: body.gender,
+    const body = await request.formData()
+    const textField = (name: string) => {
+      const value = body.get(name)
+      return typeof value === "string" ? value : ""
+    }
+    const governmentId = body.get("governmentId")
+    const isIdFile = governmentId !== null && typeof governmentId !== "string"
+    const optionalNumber = (name: string) => {
+      const value = textField(name)
+      return value ? Number(value) : null
+    }
+    const input: SignupInput = {
+      fullName: textField("fullName"),
+      email: textField("email"),
+      password: textField("password"),
+      role: "resident",
+      street: textField("street"),
+      contact: textField("contact"),
+      gender: textField("gender") as SignupInput["gender"],
+      genderOther: textField("genderOther"),
+      dateOfBirth: textField("dateOfBirth"),
+      governmentIdImage: isIdFile && governmentId.size <= 4 * 1024 * 1024
+        ? Buffer.from(await governmentId.arrayBuffer()).toString("base64")
+        : "",
+      governmentIdMimeType: isIdFile ? governmentId.type : "",
+      locationLatitude: optionalNumber("locationLatitude"),
+      locationLongitude: optionalNumber("locationLongitude"),
+      locationAccuracy: optionalNumber("locationAccuracy"),
+      locationAddress: textField("locationAddress") || null,
     }
 
     const validationError = validateSignupInput(input)

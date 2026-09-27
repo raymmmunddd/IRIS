@@ -1,3 +1,4 @@
+import { revalidateTag, unstable_cache } from "next/cache"
 import { prisma } from "@/lib/prisma"
 
 type AiConfig = {
@@ -10,6 +11,11 @@ type RolePermission = {
   role: string
   allowed: string[]
   denied: string[]
+}
+
+export type CategorySettings = {
+  active: string[]
+  archived: string[]
 }
 
 const DEFAULT_AI_CONFIG: AiConfig = {
@@ -29,6 +35,20 @@ const DEFAULT_CATEGORIES = [
   "Community Safety",
   "Others",
 ]
+
+function normalizeCategories(value: unknown): CategorySettings {
+  const source = Array.isArray(value)
+    ? { active: value, archived: [] }
+    : value && typeof value === "object"
+      ? value as Partial<CategorySettings>
+      : { active: [], archived: [] }
+  const clean = (items: unknown) => Array.isArray(items)
+    ? [...new Set(items.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean))]
+    : []
+  const active = clean(source.active)
+  const archived = clean(source.archived).filter((item) => !active.includes(item))
+  return { active, archived }
+}
 
 const DEFAULT_PERMISSIONS: RolePermission[] = [
   {
@@ -56,28 +76,35 @@ async function writeSetting<T>(key: string, value: T) {
   })
 }
 
-export async function getAdminSettingsData() {
+const getCachedAdminSettingsData = unstable_cache(async () => {
   const [aiConfig, categories, permissions] = await Promise.all([
     readSetting("aiConfig", DEFAULT_AI_CONFIG),
     readSetting("categories", DEFAULT_CATEGORIES),
     readSetting("permissions", DEFAULT_PERMISSIONS),
   ])
 
-  return { aiConfig, categories, permissions }
+  return { aiConfig, categories: normalizeCategories(categories), permissions }
+}, ["admin-settings"], { revalidate: 300, tags: ["admin-settings"] })
+
+export async function getAdminSettingsData() {
+  return getCachedAdminSettingsData()
 }
 
 export async function saveAdminAiConfigData(aiConfig: AiConfig) {
   await writeSetting("aiConfig", aiConfig)
+  revalidateTag("admin-settings", "max")
   return aiConfig
 }
 
-export async function saveAdminCategoriesData(categories: string[]) {
-  const cleaned = categories.map((item) => item.trim()).filter(Boolean)
-  await writeSetting("categories", cleaned)
-  return cleaned
+export async function saveAdminCategoriesData(categories: unknown) {
+  const normalized = normalizeCategories(categories)
+  await writeSetting("categories", normalized)
+  revalidateTag("admin-settings", "max")
+  return normalized
 }
 
 export async function saveAdminPermissionsData(permissions: RolePermission[]) {
   await writeSetting("permissions", permissions)
+  revalidateTag("admin-settings", "max")
   return permissions
 }

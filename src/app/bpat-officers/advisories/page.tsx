@@ -36,66 +36,6 @@ interface Advisory {
   forOfficers?: boolean;
 }
 
-const ADVISORIES: Advisory[] = [
-  {
-    id: 1,
-    title: "BPAT Briefing — High-Risk Cases This Week",
-    content:
-      "All BPAT officers are reminded that cases IR-251 (violence) and IR-247 (stray dog attacks) have been flagged as high risk. Officers assigned must coordinate with the Barangay Captain before field visit. Bring incident documentation forms. Wear complete field gear.",
-    date: "May 5, 2026",
-    tag: "BPAT",
-    author: "Barangay Captain",
-    pinned: true,
-    forOfficers: true,
-  },
-  {
-    id: 2,
-    title: "Barangay Assembly — May 15, 2026",
-    content:
-      "All officers and residents are invited to the quarterly Barangay Assembly on May 15, 2026 at 9:00 AM at the Barangay Hall. Attendance is mandatory for all BPAT members. Submit attendance confirmation to the Barangay Secretary by May 12.",
-    date: "May 5, 2026",
-    tag: "Events",
-    author: "Barangay Secretary",
-    pinned: true,
-  },
-  {
-    id: 3,
-    title: "Scheduled Water Interruption — May 8",
-    content:
-      "Maynilad will conduct pipe maintenance on May 8, 2026 from 8:00 AM to 5:00 PM affecting Bonifacio Street and Sampaguita Street. Officers patrolling these areas should be aware of potential crowd control needs during peak interruption hours.",
-    date: "May 4, 2026",
-    tag: "Advisory",
-    author: "Barangay Captain",
-  },
-  {
-    id: 4,
-    title: "Free Medical Mission — May 10",
-    content:
-      "The Barangay Health Center will hold a free medical mission on May 10, 2026, 7:00 AM – 12:00 NN at the Barangay Covered Court. Two BPAT officers are requested to assist in crowd management during the event.",
-    date: "May 3, 2026",
-    tag: "Health",
-    author: "Barangay Health Worker",
-  },
-  {
-    id: 5,
-    title: "Anti-Illegal Drugs Drive — Ongoing",
-    content:
-      "In cooperation with the PNP, intensified anti-illegal drugs operations are ongoing. BPAT officers should report suspicious activities immediately via the case system. All tips must be documented with case numbers.",
-    date: "Apr 30, 2026",
-    tag: "Public Safety",
-    author: "Barangay Captain",
-  },
-  {
-    id: 6,
-    title: "Road Clearing Operations",
-    content:
-      "Road clearing along Rizal Avenue and Del Pilar Street begins May 6, 2026. Officers assigned to those streets should facilitate orderly removal of obstructions and document violators.",
-    date: "Apr 28, 2026",
-    tag: "Infrastructure",
-    author: "Barangay Engineer",
-  },
-];
-
 const ALL_TAGS: Array<Tag | "All"> = ["All", "BPAT", "Advisory", "Health", "Public Safety", "Events", "General", "Infrastructure"];
 
 function AdvisoryCard({ item }: { item: Advisory }) {
@@ -156,16 +96,28 @@ function AdvisoryCard({ item }: { item: Advisory }) {
 export default function OfficerAdvisoriesPage() {
   const [tag, setTag] = useState<Tag | "All">("All");
   const [search, setSearch] = useState("");
-  const [advisories, setAdvisories] = useState<Advisory[]>(ADVISORIES);
+  const [advisories, setAdvisories] = useState<Advisory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [reloadCount, setReloadCount] = useState(0);
 
   useEffect(() => {
-    fetch("/api/bpat-officers/advisories")
-      .then((response) => response.json())
-      .then((result) => {
-        if (result.success) setAdvisories(result.data.length ? result.data : ADVISORIES);
-      })
-      .catch(() => undefined);
-  }, []);
+    async function loadAdvisories() {
+      try {
+        setLoading(true);
+        setLoadError("");
+        const response = await fetch("/api/bpat-officers/advisories");
+        const result = await response.json();
+        if (!response.ok || !result.success || !Array.isArray(result.data)) throw new Error(result.message || "Unable to load advisories.");
+        setAdvisories(result.data);
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : "Unable to load advisories.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadAdvisories();
+  }, [reloadCount]);
 
   const filtered = advisories.filter((a) => {
     const matchTag = tag === "All" || a.tag === tag;
@@ -178,6 +130,8 @@ export default function OfficerAdvisoriesPage() {
 
   const pinned = filtered.filter((a) => a.pinned);
   const rest = filtered.filter((a) => !a.pinned);
+
+  if (loading) return <div className="flex h-screen overflow-hidden bg-background"><div className="hidden lg:flex h-screen shrink-0"><BpatSidebar /></div><main aria-label="Loading advisories" className="flex-1 space-y-4 p-6">{[0, 1, 2].map((item) => <div key={item} className="h-24 animate-pulse rounded-xl bg-muted" />)}</main></div>;
 
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
@@ -208,6 +162,7 @@ export default function OfficerAdvisoriesPage() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          {loadError && <div role="alert" className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><span>{loadError}</span><button type="button" onClick={() => setReloadCount((count) => count + 1)} className="font-semibold underline">Retry</button></div>}
           <div className="hidden lg:block">
             <PageHeader
               title="Community Advisories"

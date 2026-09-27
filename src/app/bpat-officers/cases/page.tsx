@@ -19,6 +19,8 @@ import { useToast } from "@/hooks/use-toast";
 import { BpatCaseDialog } from "@/components/bpat-case-dialog";
 import { BpatSidebar } from "@/components/bpat/sidebar";
 import { PageHeader } from "@/components/ui/page-header";
+import { matchesSearchValues } from "@/lib/case-search";
+import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh";
 
 type Priority = "High" | "Medium" | "Low" | "Urgent";
 type CaseCategory =
@@ -43,6 +45,7 @@ interface OpenCase {
   status: string;
   assignedTo: string | null;
   complainant: string;
+  respondentName?: string | null;
   complainantContact: string;
   details: string;
 }
@@ -78,27 +81,38 @@ export default function OfficerOpenCasesPage() {
   const [search, setSearch] = useState("");
   const [claiming, setClaiming] = useState<string | null>(null);
   const [selectedCase, setSelectedCase] = useState<OpenCase | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [reloadCount, setReloadCount] = useState(0);
+  const user = getAuthUser();
 
   useEffect(() => {
-    const user = getAuthUser();
-    if (!user) {
+    const currentUser = getAuthUser();
+    if (!currentUser) {
       router.push("/login");
       return;
     }
     if (!isRoleAuthorized(["bpat"])) {
-      router.push(getRoleLandingPath(user.role));
-      return;
+      router.push(getRoleLandingPath(currentUser.role));
     }
-
-    fetch("/api/bpat-officers/cases")
-      .then((response) => response.json())
-      .then((result) => {
-        if (result.success) setCases(result.data);
-      })
-      .catch(() => undefined);
   }, [router]);
 
-  const user = getAuthUser();
+  useRealtimeRefresh(async (signal) => {
+    const currentUser = getAuthUser();
+    if (!currentUser || !isRoleAuthorized(["bpat"])) return;
+    try {
+      const response = await fetch("/api/bpat-officers/cases", { signal });
+      const result = await response.json();
+      if (!response.ok || !result.success || !Array.isArray(result.data)) throw new Error(result.message || "Unable to load open cases.");
+      setCases(result.data);
+      setSelectedCase((current) => current ? result.data.find((item: OpenCase) => item.id === current.id) ?? current : null);
+      setLoadError("");
+    } catch (error) {
+      if (!signal.aborted && cases.length === 0) setLoadError(error instanceof Error ? error.message : "Unable to load open cases.");
+    } finally {
+      if (!signal.aborted) setLoading(false);
+    }
+  }, { topics: ["iris:cases"], refreshKey: reloadCount, enabled: Boolean(user && isRoleAuthorized(["bpat"])) });
 
   const handleClaim = async (caseId: string, caseNumber: string) => {
     setClaiming(caseId);
@@ -134,16 +148,12 @@ export default function OfficerOpenCasesPage() {
       if (filter === "All") return true;
       return item.priority === filter;
     })
-    .filter(
-      (item) =>
-        search === "" ||
-        item.title.toLowerCase().includes(search.toLowerCase()) ||
-        item.caseNumber.toLowerCase().includes(search.toLowerCase()) ||
-        item.street.toLowerCase().includes(search.toLowerCase())
-    )
+    .filter((item) => matchesSearchValues([item.title, item.caseNumber, item.street, item.respondentName], search))
     .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
 
   const unassignedCount = cases.filter((item) => !item.assignedTo).length;
+
+  if (loading) return <div className="flex h-screen overflow-hidden bg-background"><div className="hidden lg:flex h-screen shrink-0"><BpatSidebar /></div><main aria-label="Loading open cases" className="flex-1 space-y-4 p-6">{[0, 1, 2].map((item) => <div key={item} className="h-24 animate-pulse rounded-xl bg-muted" />)}</main></div>;
 
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
@@ -182,7 +192,8 @@ export default function OfficerOpenCasesPage() {
             />
           </div>
 
-          <div className="mx-auto w-full max-w-md space-y-4 lg:max-w-6xl lg:space-y-6">
+      <div className="mx-auto w-full max-w-md space-y-4 lg:max-w-6xl lg:space-y-6">
+        {loadError && <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><span>{loadError}</span><button type="button" onClick={() => { setLoading(true); setReloadCount((count) => count + 1) }} className="font-semibold underline">Retry</button></div>}
             <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
               <section className="order-2 space-y-3 lg:order-1">
                 {filtered.length === 0 ? (

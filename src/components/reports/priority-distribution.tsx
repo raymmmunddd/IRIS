@@ -8,13 +8,6 @@ type PriorityDistributionItem = {
   color?: string
 }
 
-const fallbackData = [
-  { name: "Low", value: 234, color: "#3B82F6" },      // Blue
-  { name: "Moderate", value: 567, color: "#8B5CF6" }, // Purple
-  { name: "High", value: 312, color: "#EC4899" },     // Pink
-  { name: "Critical", value: 34, color: "#F59E0B" },  // Orange
-]
-
 const colors = ["#3B82F6", "#8B5CF6", "#EC4899", "#F59E0B"]
 
 interface AIPriorityDistributionProps {
@@ -22,15 +15,18 @@ interface AIPriorityDistributionProps {
 }
 
 export function AIPriorityDistribution({ data }: AIPriorityDistributionProps) {
-  const chartData = (data?.length ? data : fallbackData).map((item, index) => ({
+  const chartData = (data ?? []).map((item, index) => ({
     ...item,
     color: item.color ?? colors[index % colors.length],
   }))
 
   return (
     <div className="flex h-full flex-col rounded-xl border border-border bg-card p-6 shadow-sm">
-      <h3 className="mb-6 text-lg font-semibold leading-none tracking-tight">AI Priority Distribution</h3>
+      <h3 className="mb-6 text-lg font-semibold leading-none tracking-tight">Case Priority Distribution</h3>
       <div className="h-[300px] w-full">
+        {chartData.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No priority data available.</div>
+        ) : (
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -59,14 +55,15 @@ export function AIPriorityDistribution({ data }: AIPriorityDistributionProps) {
                 align="right"
                 layout="vertical"
                 iconType="circle"
-                formatter={(value, entry: any) => (
+                formatter={(value, entry) => (
                     <span className="text-sm text-muted-foreground ml-2">
-                        {value}: <span className="font-semibold text-foreground">{entry.payload.value}</span>
+                        {value}: <span className="font-semibold text-foreground">{entry.payload?.value ?? 0}</span>
                     </span>
                 )}
             />
           </PieChart>
         </ResponsiveContainer>
+        )}
       </div>
     </div>
   )

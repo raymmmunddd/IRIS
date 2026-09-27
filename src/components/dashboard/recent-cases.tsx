@@ -7,48 +7,9 @@
     id: string
     title: string
     category: string
-    status: "pending" | "under_review" | "resolved"
+    status: "pending" | "under_review" | "resolved" | "closed"
     created_at: string
   }
-
-  /* MOCK DATA */
-  const MOCK_CASES: RecentCaseItem[] = [
-    {
-      id: "C-001",
-      title: "Noise complaint at Block 4",
-      category: "Disturbance",
-      status: "pending",
-      created_at: "2026-05-09T10:30:00Z",
-    },
-    {
-      id: "C-002",
-      title: "Property boundary dispute",
-      category: "Land Conflict",
-      status: "under_review",
-      created_at: "2026-05-08T14:12:00Z",
-    },
-    {
-      id: "C-003",
-      title: "Public disturbance report",
-      category: "Peace & Order",
-      status: "resolved",
-      created_at: "2026-05-07T18:45:00Z",
-    },
-    {
-      id: "C-004",
-      title: "Unauthorized structure complaint",
-      category: "Community Dispute",
-      status: "pending",
-      created_at: "2026-05-07T09:20:00Z",
-    },
-    {
-      id: "C-005",
-      title: "Neighbor harassment report",
-      category: "Harassment",
-      status: "under_review",
-      created_at: "2026-05-06T16:05:00Z",
-    },
-  ]
 
   function getStatusMeta(status: string) {
     switch (status) {
@@ -76,6 +37,14 @@
           bg: "bg-emerald-50",
           ring: "ring-emerald-200",
         }
+      case "closed":
+        return {
+          label: "Closed",
+          icon: <CheckCircle2 className="h-4 w-4" />,
+          color: "text-slate-500",
+          bg: "bg-slate-50",
+          ring: "ring-slate-200",
+        }
       default:
         return {
           label: "Unknown",
@@ -92,7 +61,7 @@
   }: {
     data?: RecentCaseItem[]
   }) {
-    const cases = (data?.length ? data : MOCK_CASES).slice(0, 5)
+    const cases = (data ?? []).slice(0, 5)
 
     return (
       <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-5">
@@ -108,7 +77,9 @@
         </div>
 
         {/* GRID */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {cases.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">No recent cases.</p>
+        ) : <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {cases.map((c) => {
             const status = getStatusMeta(c.status)
 
@@ -154,7 +125,7 @@
               </div>
             )
           })}
-        </div>
+        </div>}
       </div>
     )
   }

@@ -1,81 +1,116 @@
 "use client"
 
-import { useMemo } from "react"
 import dynamic from "next/dynamic"
 import "leaflet/dist/leaflet.css"
+import { MapPin } from "lucide-react"
+import { OLONGAPO_CITY_CENTER } from "@/lib/olongapo-location"
 
 const MapContainer = dynamic(
-  () => import("react-leaflet").then((mod) => mod.MapContainer),
+  () => import("react-leaflet").then((module) => module.MapContainer),
   { ssr: false },
 )
 const TileLayer = dynamic(
-  () => import("react-leaflet").then((mod) => mod.TileLayer),
+  () => import("react-leaflet").then((module) => module.TileLayer),
   { ssr: false },
 )
 const CircleMarker = dynamic(
-  () => import("react-leaflet").then((mod) => mod.CircleMarker),
+  () => import("react-leaflet").then((module) => module.CircleMarker),
   { ssr: false },
 )
 const Tooltip = dynamic(
-  () => import("react-leaflet").then((mod) => mod.Tooltip),
+  () => import("react-leaflet").then((module) => module.Tooltip),
   { ssr: false },
 )
 
-const eastTapinacCenter: [number, number] = [14.8386, 120.2839]
+export type MapIncident = {
+  id: string
+  title: string
+  street: string
+  address: string
+  latitude: number
+  longitude: number
+  accuracy: number | null
+  priority: string
+  status: string
+}
 
-const streets = [
-  { id: 1, name: "Rizal Avenue", cases: 24, coords: [14.8394, 120.2829] as [number, number] },
-  { id: 2, name: "Del Pilar Street", cases: 45, coords: [14.8401, 120.2844] as [number, number] },
-  { id: 3, name: "Mabini Street", cases: 68, coords: [14.8388, 120.2855] as [number, number] },
-  { id: 4, name: "Bonifacio Street", cases: 32, coords: [14.8377, 120.2832] as [number, number] },
-  { id: 5, name: "Sampaguita Street", cases: 56, coords: [14.8379, 120.2850] as [number, number] },
-  { id: 6, name: "Luna Street", cases: 12, coords: [14.8382, 120.2823] as [number, number] },
-]
+type StreetMapProps = {
+  incidents?: MapIncident[]
+  title?: string
+  description?: string
+  className?: string
+}
 
-export function StreetMap() {
-  const maxCases = useMemo(
-    () => Math.max(...streets.map((street) => street.cases)),
-    [],
+export function StreetMap({
+  incidents = [],
+  title = "Reported incident locations",
+  description = "Olongapo City · markers use the latitude and longitude stored with each report",
+  className = "",
+}: StreetMapProps) {
+  const mappedIncidents = incidents.filter((incident) =>
+    Number.isFinite(incident.latitude)
+    && Number.isFinite(incident.longitude)
+    && incident.latitude >= -90
+    && incident.latitude <= 90
+    && incident.longitude >= -180
+    && incident.longitude <= 180,
   )
 
   return (
-    <div className="flex h-full flex-col rounded-xl border border-border bg-card p-6 shadow-sm">
-      <h3 className="mb-2 text-lg font-semibold leading-none tracking-tight">Case Distribution Map</h3>
-      <p className="text-sm text-muted-foreground mb-4">Barangay East Tapinac - Cases per street</p>
+    <section className={`flex h-full min-h-72 flex-col rounded-xl border border-border bg-card p-4 shadow-sm ${className}`}>
+      <div className="mb-3">
+        <h3 className="text-base font-semibold leading-none tracking-tight">{title}</h3>
+        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+      </div>
 
-      <div className="relative z-0 h-[300px] overflow-hidden rounded-lg border border-border">
+      <div className="relative z-0 min-h-64 flex-1 overflow-hidden rounded-lg border border-border">
         <MapContainer
-          center={eastTapinacCenter}
-          zoom={16}
+          center={[OLONGAPO_CITY_CENTER.latitude, OLONGAPO_CITY_CENTER.longitude]}
+          zoom={15}
           scrollWheelZoom={false}
-          className="h-full w-full"
+          className="h-full min-h-64 w-full"
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-
-          {streets.map((street) => (
+          {mappedIncidents.map((incident) => (
             <CircleMarker
-              key={street.id}
-              center={street.coords}
-              radius={6 + (street.cases / maxCases) * 12}
+              key={incident.id}
+              center={[incident.latitude, incident.longitude]}
+              radius={7}
               pathOptions={{
-                color: "#b45309",
-                fillColor: "#f59e0b",
+                color: incident.priority === "Urgent" || incident.priority === "High" ? "#b91c1c" : "#1d4ed8",
+                fillColor: incident.priority === "Urgent" || incident.priority === "High" ? "#ef4444" : "#3b82f6",
                 fillOpacity: 0.75,
                 weight: 1.5,
               }}
             >
               <Tooltip direction="top" offset={[0, -8]} opacity={1}>
-                <div className="text-xs font-medium">
-                  {street.name}: {street.cases} cases
+                <div className="max-w-56 text-xs">
+                  <p className="font-semibold">{incident.title}</p>
+                  <p>{incident.address || incident.street}</p>
+                  <p>{incident.priority} · {incident.status}</p>
+                  {incident.accuracy != null && <p>GPS accuracy: about {Math.round(incident.accuracy)} m</p>}
                 </div>
               </Tooltip>
             </CircleMarker>
           ))}
         </MapContainer>
+
+        {mappedIncidents.length === 0 && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
+            <div className="flex max-w-sm items-center gap-3 rounded-xl border border-border bg-card/95 p-4 shadow-sm">
+              <MapPin className="h-5 w-5 shrink-0 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">No reports with verified coordinates are available to map yet.</p>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+
+      <p className="mt-2 text-xs text-muted-foreground">
+        {mappedIncidents.length} {mappedIncidents.length === 1 ? "report has" : "reports have"} verified coordinates. Reports without coordinates are not assigned an estimated street location.
+      </p>
+    </section>
   )
 }

@@ -93,7 +93,7 @@ function FAQItem({ faq }: { faq: FAQ }) {
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
+        className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
       >
         <span className="text-sm font-semibold text-foreground leading-snug">{faq.question}</span>
         {open ? (
@@ -103,7 +103,7 @@ function FAQItem({ faq }: { faq: FAQ }) {
         )}
       </button>
       {open && (
-        <div className="border-t border-border bg-muted/30 px-4 py-3">
+        <div className="animate-in fade-in slide-in-from-top-1 duration-200 border-t border-border bg-muted/30 px-4 py-3 motion-reduce:animate-none">
           <p className="text-xs text-muted-foreground leading-relaxed">{faq.answer}</p>
         </div>
       )}

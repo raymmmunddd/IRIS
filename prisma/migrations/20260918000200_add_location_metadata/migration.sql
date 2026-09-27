@@ -1,0 +1,14 @@
+ALTER TABLE "users"
+    ADD COLUMN IF NOT EXISTS "location_latitude" DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS "location_longitude" DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS "location_accuracy" DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS "location_address" TEXT,
+    ADD COLUMN IF NOT EXISTS "location_captured_at" TIMESTAMP(6) WITHOUT TIME ZONE;
+
+ALTER TABLE "cases"
+    ADD COLUMN IF NOT EXISTS "incident_street" TEXT,
+    ADD COLUMN IF NOT EXISTS "incident_purok" INTEGER,
+    ADD COLUMN IF NOT EXISTS "incident_latitude" DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS "incident_longitude" DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS "incident_accuracy" DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS "incident_location" TEXT;

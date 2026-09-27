@@ -6,6 +6,7 @@ import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getAuthUser } from "@/lib/auth"
+import { Skeleton } from "@/components/ui/skeleton"
 
 type ActivityLogItem = {
   id: string
@@ -68,8 +69,15 @@ export default function ProfileActivityPage() {
         />
 
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+          <div aria-label="Loading profile activity" aria-busy="true" className="grid gap-6 lg:grid-cols-[320px_1fr]">
+            <div className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-sm">
+              <Skeleton className="h-6 w-40" />
+              {[0, 1, 2].map((item) => <Skeleton key={item} className="h-16 w-full" />)}
+            </div>
+            <div className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-sm">
+              <Skeleton className="h-6 w-48" />
+              {[0, 1, 2, 3, 4].map((item) => <Skeleton key={item} className="h-20 w-full" />)}
+            </div>
           </div>
         ) : (
         <div className="grid gap-6 lg:grid-cols-[320px_1fr]">

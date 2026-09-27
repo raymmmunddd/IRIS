@@ -14,6 +14,8 @@ import {
 import { getAuthUser, getRoleLandingPath, isRoleAuthorized } from "@/lib/auth";
 import { BpatSidebar } from "@/components/bpat/sidebar";
 import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh";
 
 interface ChatMessage {
   id: string;
@@ -37,51 +39,62 @@ interface CaseThread {
 
 export default function CaseChatPage() {
   const router = useRouter();
+  const user = getAuthUser();
   const [threads, setThreads] = useState<CaseThread[]>([]);
+  const [isLoadingThreads, setIsLoadingThreads] = useState(true);
   const [activeCase, setActiveCase] = useState<string | null>(null);
   const [input, setInput] = useState("");
-  const [userEmail, setUserEmail] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const user = getAuthUser();
-    if (!user) {
+    const currentUser = getAuthUser();
+    if (!currentUser) {
       router.push("/login");
       return;
     }
     if (!isRoleAuthorized(["bpat"])) {
-      router.push(getRoleLandingPath(user.role));
-      return;
+      router.push(getRoleLandingPath(currentUser.role));
     }
-
-    setUserEmail(user.email);
-    fetch(`/api/bpat-officers/chat?email=${encodeURIComponent(user.email)}`)
-      .then((response) => response.json())
-      .then((result) => {
-        if (result.success) setThreads(result.data);
-      })
-      .catch(() => undefined);
   }, [router]);
 
+  useRealtimeRefresh(async (signal) => {
+    const currentUser = getAuthUser();
+    if (!currentUser || !isRoleAuthorized(["bpat"])) return;
+    try {
+      const response = await fetch(`/api/bpat-officers/chat?email=${encodeURIComponent(currentUser.email)}`, { signal });
+      const result = await response.json();
+      if (!response.ok || !result.success || !Array.isArray(result.data)) throw new Error(result.message || "Unable to load case chats.");
+      setThreads(result.data.map((thread: CaseThread) => thread.caseId === activeCase ? { ...thread, unread: 0 } : thread));
+    } catch {
+      // Keep the current thread list and retry on the next refresh.
+    } finally {
+      if (!signal.aborted) setIsLoadingThreads(false);
+    }
+  }, {
+    topics: ["iris:cases", "iris:chat"],
+    enabled: Boolean(user && isRoleAuthorized(["bpat"])),
+    refreshKey: activeCase,
+  });
+
   const activeThread = threads.find((thread) => thread.caseId === activeCase) ?? null;
-  const activeMessageCount = activeThread?.messages.length;
 
   useEffect(() => {
-    if (!activeThread) return;
+    if (!activeCase) return;
 
-    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
-    if (activeThread.unread > 0) {
-      Promise.resolve().then(() => {
-        setThreads((prev) =>
-          prev.map((thread) => (thread.caseId === activeCase ? { ...thread, unread: 0 } : thread))
-        );
-      });
-    }
-  }, [activeCase, activeMessageCount, activeThread]);
+    const timeout = window.setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    setThreads((prev) => {
+      const currentThread = prev.find((thread) => thread.caseId === activeCase);
+      if (!currentThread?.unread) return prev;
+      return prev.map((thread) => (thread.caseId === activeCase ? { ...thread, unread: 0 } : thread));
+    });
+    return () => window.clearTimeout(timeout);
+  }, [activeCase]);
 
   const sendMessage = async () => {
     if (!input.trim() || !activeCase) return;
+    const userEmail = getAuthUser()?.email;
+    if (!userEmail) return;
     const message = input.trim();
     setInput("");
     inputRef.current?.focus();
@@ -103,6 +116,7 @@ export default function CaseChatPage() {
         thread.caseId === activeCase ? result.data : thread
       )
     );
+    window.setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
   };
 
   const handleKey = (event: React.KeyboardEvent) => {
@@ -113,6 +127,21 @@ export default function CaseChatPage() {
   };
 
   const totalUnread = threads.reduce((sum, thread) => sum + thread.unread, 0);
+
+  if (isLoadingThreads) {
+    return (
+      <div className="flex h-screen overflow-hidden bg-background text-foreground">
+        <div className="hidden h-screen shrink-0 lg:flex"><BpatSidebar /></div>
+        <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <div className="hidden lg:block"><PageHeader title="Case Chat" description="Open a thread with complainants and document responses in real time." icon={<MessageSquare className="h-5 w-5 text-white" />} /></div>
+          <div aria-label="Loading case chats" className="mx-auto mt-5 w-full max-w-md space-y-3 lg:max-w-6xl">
+            <Skeleton className="h-16 w-full" />
+            {[0, 1, 2, 3].map((item) => <Skeleton key={item} className="h-24 w-full" />)}
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (activeThread) {
     return (

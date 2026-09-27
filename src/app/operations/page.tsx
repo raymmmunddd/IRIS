@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Users, Calendar } from "lucide-react"
+import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PageHeader } from "@/components/ui/page-header"
@@ -14,56 +15,36 @@ import { OperationsSkeleton } from "@/components/operations/operations-skeleton"
 
 export default function OperationsPage() {
   const [loading, setLoading] = useState(true)
-
-    async function loadOperations() {
-    try {
-      setLoading(true)
-
-      const [operationsResponse, officersResponse] = await Promise.all([
-        fetch("/api/operations"),
-        fetch("/api/officers"),
-      ])
-
-      const operationsResult = await operationsResponse.json()
-      const officersResult = await officersResponse.json()
-
-      if (operationsResult.success) {
-        setOperationsData(operationsResult.data)
-      }
-
-      if (officersResult.success) {
-        setMediators(officersResult.data)
-      }
-    } catch (error) {
-      console.error("Failed to load operations data:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const [loadError, setLoadError] = useState("")
+  const [reloadCount, setReloadCount] = useState(0)
   const [activeTab, setActiveTab] = useState("officers")
   const [operationsData, setOperationsData] = useState<{
     officers: Parameters<typeof OfficersTab>[0]["officers"]
     mediationSessions: Parameters<typeof MediationTab>[0]["sessions"]
     assignableCases: Parameters<typeof OfficersTab>[0]["assignableCases"]
   }>({ officers: [], mediationSessions: [], assignableCases: [] })
-  const [mediators, setMediators] = useState<string[]>([])
+
+  useRealtimeRefresh(async (signal) => {
+    try {
+      const operationsResponse = await fetch("/api/operations", { signal })
+      const operationsResult = await operationsResponse.json()
+      if (!operationsResponse.ok || !operationsResult.success || !operationsResult.data) {
+        throw new Error(operationsResult.message || "Unable to load operations data.")
+      }
+      setOperationsData(operationsResult.data)
+      setLoadError("")
+    } catch (error) {
+      if (!signal.aborted && loading) {
+        setLoadError(error instanceof Error ? error.message : "Unable to load operations data.")
+      }
+    } finally {
+      if (!signal.aborted) setLoading(false)
+    }
+  }, { topics: ["iris:cases"], refreshKey: reloadCount })
 
   async function loadOperations() {
-    try {
-      const response = await fetch("/api/operations")
-      const result = await response.json()
-      if (result.success) setOperationsData(result.data)
-      const officersResponse = await fetch("/api/officers")
-      const officersResult = await officersResponse.json()
-      if (officersResult.success) setMediators(officersResult.data)
-    } catch (error) {
-      console.error("Failed to load operations data:", error)
-    }
+    setReloadCount((count) => count + 1)
   }
-
-  useEffect(() => {
-    loadOperations()
-  }, [])
 
   if (loading) {
   return (
@@ -93,6 +74,13 @@ export default function OperationsPage() {
           icon={<Users className="h-5 w-5 text-white" />}
         />
 
+        {loadError && (
+          <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            <span>{loadError}</span>
+            <button type="button" onClick={() => { setLoading(true); setReloadCount((count) => count + 1) }} className="font-semibold underline">Retry loading operations</button>
+          </div>
+        )}
+
         <div className="mt-4 sm:mt-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
             <TabsList className="h-auto w-full justify-start gap-0 rounded-none border-b border-border bg-transparent p-0 overflow-x-auto">
@@ -116,7 +104,7 @@ export default function OperationsPage() {
               <OfficersTab officers={operationsData.officers} assignableCases={operationsData.assignableCases} onUpdated={loadOperations} />
             </TabsContent>
             <TabsContent value="mediation">
-              <MediationTab sessions={operationsData.mediationSessions} mediators={mediators} onScheduled={loadOperations} />
+              <MediationTab sessions={operationsData.mediationSessions} />
             </TabsContent>
           </Tabs>
         </div>

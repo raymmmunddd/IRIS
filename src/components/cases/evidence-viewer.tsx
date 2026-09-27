@@ -1,17 +1,17 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { X,
   ChevronLeft,
   ChevronRight,
   ZoomIn,
   ZoomOut,
-  Download,
   FileText,
   Image as ImageIcon
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { EvidenceFile } from "@/lib/types"
+import { getAuthUser } from "@/lib/auth"
 import { ExternalLink } from "lucide-react"
 import {
   Select,
@@ -85,18 +85,20 @@ export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0
 
   const [currentIndex, setCurrentIndex] = useState(safeInitialIndex)
   const [zoom, setZoom] = useState(1)
+  const [isClosing, setIsClosing] = useState(false)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const closeViewer = useCallback(() => {
+    if (closeTimer.current) return
+    setIsClosing(true)
+    closeTimer.current = setTimeout(onClose, 180)
+  }, [onClose])
+
+  useEffect(() => () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current)
+  }, [])
 
   const current = files[currentIndex] ?? files[0]
-
-  useEffect(() => {
-    const safeIndex =
-      files.length > 0
-        ? Math.min(initialIndex, files.length - 1)
-        : 0
-
-    setCurrentIndex(safeIndex)
-    setZoom(1)
-  }, [initialIndex])
 
   const goNext = useCallback(() => {
     setCurrentIndex((i) => (files.length ? (i + 1) % files.length : 0))
@@ -114,7 +116,10 @@ export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0
     url?: string
     fileUrl?: string
   }) => {
-    return file.url ?? file.fileUrl ?? "#"
+    const url = file.url ?? file.fileUrl ?? "#"
+    if (!url.startsWith("/api/evidence/")) return url
+    const email = getAuthUser()?.email
+    return email ? `${url}?email=${encodeURIComponent(email)}` : "#"
   }
 
   const handleWheel = (e: React.WheelEvent) => {
@@ -160,23 +165,28 @@ export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose()
+      if (e.key === "Escape") closeViewer()
       if (e.key === "ArrowRight") goNext()
       if (e.key === "ArrowLeft") goPrev()
     }
     window.addEventListener("keydown", handleKey)
     return () => window.removeEventListener("keydown", handleKey)
-  }, [onClose, goNext, goPrev])
+  }, [closeViewer, goNext, goPrev])
 
   return (
-    <div className="fixed inset-0 z-[60]">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Evidence viewer: ${current.name}`}
+      className={`fixed inset-0 z-[60] motion-reduce:animate-none ${isClosing ? "animate-out fade-out duration-200" : "animate-in fade-in duration-200"}`}
+    >
       {/* Backdrop */}
         <div
           className="absolute inset-0 bg-black/70"
-          onClick={onClose}
+          onClick={closeViewer}
         />
         <div
-          className="relative z-20 flex h-full flex-col"
+          className={`relative z-20 flex h-full flex-col motion-reduce:animate-none ${isClosing ? "animate-out slide-out-to-bottom-2 duration-200" : "animate-in slide-in-from-bottom-2 duration-200"}`}
           onClick={(e) => e.stopPropagation()}
         >
 
@@ -242,7 +252,7 @@ export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0
               <ExternalLink className="h-4 w-4" />
             </a>
           <button
-            onClick={onClose}
+            onClick={closeViewer}
             className="ml-1 rounded-md p-1.5 text-primary-foreground/70 transition-colors hover:bg-primary-foreground/10 hover:text-primary-foreground"
             aria-label="Close viewer"
           >
@@ -282,6 +292,7 @@ export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0
             src={current.url}
             alt={current.name}
             draggable={false}
+            decoding="async"
             className="max-w-none transition-transform duration-150"
             style={{
               transform: `scale(${zoom})`,
@@ -392,6 +403,8 @@ export function EvidenceViewer({ onClose, files: providedFiles, initialIndex = 0
                 <img
                   src={file.thumbnail}
                   alt={file.name}
+                  loading="lazy"
+                  decoding="async"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-muted">

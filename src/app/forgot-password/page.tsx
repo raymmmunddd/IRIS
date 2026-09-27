@@ -12,7 +12,7 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
   const [isSending, setIsSending] = useState(false)
 
-  const handleSendCode = (event: React.FormEvent) => {
+  const handleSendCode = async (event: React.FormEvent) => {
     event.preventDefault()
 
     if (!email || !email.includes("@")) {
@@ -25,16 +25,31 @@ export default function ForgotPasswordPage() {
     }
 
     setIsSending(true)
-
-    setTimeout(() => {
-      setIsSending(false)
+    try {
+      const response = await fetch("/api/auth/password-reset/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.message || "Unable to send a verification code.")
       toast({
         title: "Verification sent",
-        description: "We sent a verification code to your email.",
+        description: result.data?.devCode
+          ? `Development code: ${result.data.devCode}`
+          : "If an account exists for that email, a verification code has been sent.",
         variant: "success",
       })
       router.push(`/forgot-password/verify?email=${encodeURIComponent(email)}`)
-    }, 1200)
+    } catch (error) {
+      toast({
+        title: "Unable to send code",
+        description: error instanceof Error ? error.message : "Try again later.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSending(false)
+    }
   }
 
   return (

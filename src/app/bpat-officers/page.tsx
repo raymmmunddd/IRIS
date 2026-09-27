@@ -17,30 +17,14 @@ import {
 import { getAuthUser, getRoleLandingPath, isRoleAuthorized, logout } from "@/lib/auth";
 import { BpatSidebar } from "@/components/bpat/sidebar";
 import { PageHeader } from "@/components/ui/page-header";
+import { useRealtimeRefresh } from "@/hooks/use-realtime-refresh";
 
-const fallbackAssignments = [
-  {
-    street: "Mabini Street",
-    caseId: "IR-244",
-    issue: "Night disturbance",
-    priority: "High",
-    eta: "15 mins",
-  },
-  {
-    street: "Sampaguita Street",
-    caseId: "IR-238",
-    issue: "Mediation follow-up",
-    priority: "Medium",
-    eta: "35 mins",
-  },
-  {
-    street: "Rizal Avenue",
-    caseId: "IR-231",
-    issue: "Vandalism report",
-    priority: "Low",
-    eta: "45 mins",
-  },
-];
+type BpatAssignment = {
+  street: string
+  caseId: string
+  issue: string
+  priority: string
+}
 
 const quickActions = [
   { label: "Dispatch Board", href: "/bpat-officers/dispatch", icon: Compass },
@@ -51,39 +35,50 @@ const quickActions = [
 
 export default function BpatOfficersPage() {
   const router = useRouter();
-  const [assignments, setAssignments] = useState(fallbackAssignments);
-  const [stats, setStats] = useState({ pending: 6, active: 3, urgent: 1 });
+  const user = getAuthUser();
+  const [assignments, setAssignments] = useState<BpatAssignment[]>([]);
+  const [stats, setStats] = useState({ pending: 0, active: 0, urgent: 0 });
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [reloadCount, setReloadCount] = useState(0);
 
   useEffect(() => {
-    const user = getAuthUser();
-
-    if (!user) {
+    const currentUser = getAuthUser();
+    if (!currentUser) {
       router.push("/login");
       return;
     }
 
     if (!isRoleAuthorized(["bpat"])) {
-      router.push(getRoleLandingPath(user.role));
-      return;
+      router.push(getRoleLandingPath(currentUser.role));
     }
-
-    fetch(`/api/bpat-officers/dashboard?email=${encodeURIComponent(user.email)}`)
-      .then((response) => response.json())
-      .then((result) => {
-        if (result.success && result.data) {
-          setStats(result.data.stats);
-          setAssignments(result.data.assignments.length ? result.data.assignments : fallbackAssignments);
-        }
-      })
-      .catch(() => undefined);
   }, [router]);
 
-  const user = getAuthUser();
+  useRealtimeRefresh(async (signal) => {
+    const currentUser = getAuthUser();
+    if (!currentUser || !isRoleAuthorized(["bpat"])) return;
+    try {
+      const response = await fetch(`/api/bpat-officers/dashboard?email=${encodeURIComponent(currentUser.email)}`, { signal });
+      const result = await response.json();
+      if (!response.ok || !result.success || !result.data || !Array.isArray(result.data.assignments)) throw new Error(result.message || "Unable to load field operations data.");
+      setStats(result.data.stats);
+      setAssignments(result.data.assignments);
+      setLoadError("");
+    } catch (error) {
+      if (!signal.aborted && assignments.length === 0) {
+        setLoadError(error instanceof Error ? error.message : "Unable to load field operations data.");
+      }
+    } finally {
+      if (!signal.aborted) setLoading(false);
+    }
+  }, { topics: ["iris:cases"], refreshKey: reloadCount, enabled: Boolean(user && isRoleAuthorized(["bpat"])) });
 
   const handleSignOut = () => {
     logout();
     router.push("/login?role=bpat");
   };
+
+  if (loading) return <div className="flex h-screen overflow-hidden bg-background"><div className="hidden lg:flex h-screen shrink-0"><BpatSidebar /></div><main aria-label="Loading BPAT dashboard" className="flex-1 space-y-4 p-6">{[0, 1, 2].map((item) => <div key={item} className="h-24 animate-pulse rounded-xl bg-muted" />)}</main></div>;
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -142,6 +137,7 @@ export default function BpatOfficersPage() {
           </div>
 
           <div className="mx-auto w-full max-w-md space-y-4 lg:max-w-6xl lg:space-y-6">
+            {loadError && <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><span>{loadError}</span><button type="button" onClick={() => { setLoading(true); setReloadCount((count) => count + 1) }} className="font-semibold underline">Retry</button></div>}
             <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
               <div className="space-y-4 lg:space-y-6">
                 <section>
@@ -224,7 +220,7 @@ export default function BpatOfficersPage() {
                   </div>
 
                   <div className="space-y-3">
-                    {assignments.map((item) => (
+                    {assignments.length === 0 ? <p className="py-5 text-center text-sm text-muted-foreground">No priority assignments right now.</p> : assignments.map((item) => (
                       <article key={item.caseId} className="rounded-xl bg-[var(--muted)] p-3">
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{item.street}</p>
@@ -238,7 +234,6 @@ export default function BpatOfficersPage() {
                             <AlertTriangle className="h-3.5 w-3.5" />
                             {item.priority} Priority
                           </span>
-                          <span className="text-xs font-medium text-muted-foreground">ETA {item.eta}</span>
                         </div>
                       </article>
                     ))}

@@ -19,6 +19,31 @@ type CaseNote = {
     updatedAt?: string
 }
 
+type ApiEnvelope<T> = {
+    success?: boolean
+    message?: string
+    data?: T
+}
+
+async function readApiData<T>(response: Response, fallbackMessage: string): Promise<T> {
+    const body = await response.text()
+    let result: ApiEnvelope<T> | null = null
+
+    if (body.trim()) {
+        try {
+            result = JSON.parse(body) as ApiEnvelope<T>
+        } catch {
+            throw new Error(fallbackMessage)
+        }
+    }
+
+    if (!response.ok || result?.success !== true || result.data === undefined) {
+        throw new Error(result?.message || fallbackMessage)
+    }
+
+    return result.data
+}
+
 interface CaseNotesProps {
     caseId: string
 }
@@ -29,76 +54,70 @@ export function CaseNotes({
     const [notes, setNotes] = useState<CaseNote[]>([])
     const [newNote, setNewNote] = useState("")
     const [saving, setSaving] = useState(false)
-
-    const [editingId, setEditingId] =
-        useState<string | null>(null)
-
-    const [editingContent, setEditingContent] =
-    useState("")
+    const [noteError, setNoteError] = useState("")
+    const [editingId, setEditingId] = useState<string | null>(null)
+    const [editingContent, setEditingContent] = useState("")
 
     useEffect(() => {
-        async function fetchNotes() {
-            const res = await fetch(`/api/cases/${caseId}/notes`)
-            const json = await res.json()
+        const controller = new AbortController()
 
-            if (json.success) {
-            setNotes(json.notes)
+        async function fetchNotes() {
+            try {
+                const response = await fetch(`/api/cases/${encodeURIComponent(caseId)}/notes`, { signal: controller.signal })
+                const data = await readApiData<CaseNote[]>(response, "Unable to load case notes.")
+                setNotes(data)
+                setNoteError("")
+            } catch (error) {
+                if (!controller.signal.aborted) {
+                    setNoteError(error instanceof Error ? error.message : "Unable to load case notes.")
+                }
             }
         }
 
-        fetchNotes()
-        }, [caseId])
+        void fetchNotes()
+        return () => controller.abort()
+    }, [caseId])
 
     async function saveNote() {
         if (!newNote.trim()) return
 
-    setSaving(true)
-
-    const res = await fetch(`/api/cases/${caseId}/notes`, {
-        method: "POST",
-        headers: {
-        "Content-Type": "application/json",
-        },
-            body: JSON.stringify({
-            content: newNote,
-        }),
-    })
-
-    const json = await res.json()
-
-    if (json.success) {
-        setNotes((prev) => [json.note, ...prev])
-        setNewNote("")
-        toast.success("Note added")
-    }
-
-    setSaving(false)
+        setSaving(true)
+        setNoteError("")
+        try {
+            const response = await fetch(`/api/cases/${encodeURIComponent(caseId)}/notes`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ note: newNote.trim() }),
+            })
+            const note = await readApiData<CaseNote>(response, "Unable to save the case note.")
+            setNotes((previous) => [note, ...previous])
+            setNewNote("")
+            toast.success("Note added")
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Unable to save the case note."
+            setNoteError(message)
+            toast.error(message)
+        } finally {
+            setSaving(false)
+        }
     }
 
     async function updateNote(id: string) {
-    const res = await fetch(`/api/cases/${caseId}/notes/${id}`, {
-        method: "PATCH",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            content: editingContent,
-        }),
-    })
-
-    const json = await res.json()
-
-    if (json.success) {
-        setNotes((prev) =>
-            prev.map((note) =>
-            note.id === id
-            ? json.note
-            : note
-            )
-        )
-
+        setNoteError("")
+        try {
+            const response = await fetch(`/api/cases/${encodeURIComponent(caseId)}/notes/${encodeURIComponent(id)}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content: editingContent.trim() }),
+            })
+            const note = await readApiData<CaseNote>(response, "Unable to update the case note.")
+            setNotes((previous) => previous.map((item) => item.id === id ? note : item))
             setEditingId(null)
-        toast.success("Note updated")
+            toast.success("Note updated")
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Unable to update the case note."
+            setNoteError(message)
+            toast.error(message)
         }
     }
 
@@ -118,6 +137,8 @@ export function CaseNotes({
         </div>
 
         <div className="rounded-xl border bg-background p-4 space-y-4">
+
+            {noteError && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{noteError}</p>}
 
             <Textarea
                 value={newNote}
@@ -196,6 +217,8 @@ export function CaseNotes({
                         <Button
                             variant="ghost"
                             size="icon"
+                            title="Edit note"
+                            aria-label="Edit note"
                             onClick={() => {
                             setEditingId(note.id)
                             setEditingContent(note.content)

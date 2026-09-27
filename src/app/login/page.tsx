@@ -133,7 +133,7 @@ export default function LoginPage() {
     bg-[var(--iris-bg)]
     text-[var(--iris-text)]
     lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]
-    auth-page-enter overflow-hidden">
+    overflow-hidden">
 
     {/* LEFT HERO */}
     <section

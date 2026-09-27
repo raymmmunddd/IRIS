@@ -9,10 +9,6 @@ const threadInclude = {
 
 type ChatCase = Prisma.CaseGetPayload<{ include: typeof threadInclude }>
 
-function caseNumber(id: string, date: Date) {
-  return `IRIS-${date.getFullYear()}-${id.slice(0, 8).toUpperCase()}`
-}
-
 function formatTime(date: Date | string) {
   return new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
@@ -46,7 +42,7 @@ function mapThread(item: ChatCase) {
   const latest = item.chatMessages.at(-1)
   return {
     caseId: item.id,
-    caseNumber: caseNumber(item.id, item.dateSubmitted),
+    caseNumber: item.caseNumber,
     title: item.type || item.details,
     complainant: item.complainant.fullName,
     officer: item.assignedOfficer?.fullName ?? "Unassigned",
@@ -60,8 +56,8 @@ function mapThread(item: ChatCase) {
 }
 
 async function findChatCase(caseId: string) {
-  return prisma.case.findUnique({
-    where: { id: caseId },
+  return prisma.case.findFirst({
+    where: { id: caseId, isArchived: false },
     include: threadInclude,
   })
 }
