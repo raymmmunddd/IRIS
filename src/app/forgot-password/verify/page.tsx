@@ -1,12 +1,20 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, CheckCircle2, KeyRound, RotateCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function VerifyResetPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[var(--iris-bg)] px-4 py-10" aria-label="Loading password reset verification"><div className="mx-auto h-96 max-w-md animate-pulse rounded-2xl bg-[var(--iris-surface)]" /></div>}>
+      <VerifyResetForm />
+    </Suspense>
+  )
+}
+
+function VerifyResetForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
