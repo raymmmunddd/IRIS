@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LogIn, Mail, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
@@ -9,6 +9,23 @@ import { useToast } from "@/hooks/use-toast";
 import { getRoleLandingPath, saveAuthUser, type AuthUser, type UserRole } from "@/lib/auth";
 
 export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div aria-label="Loading sign in" className="min-h-screen bg-[var(--iris-bg)] px-4 py-10 lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
+          <div className="hidden animate-pulse bg-[#091225] lg:block" />
+          <div className="flex min-h-screen items-center justify-center px-4 sm:px-6 lg:px-8">
+            <div className="h-[34rem] w-full max-w-md animate-pulse rounded-3xl border border-[var(--iris-border)] bg-[var(--iris-surface)]/96" />
+          </div>
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
