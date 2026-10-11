@@ -206,7 +206,7 @@ export default function Home() {
     <div className="min-h-screen bg-[var(--iris-bg)] text-[var(--iris-text)] font-sans overflow-x-hidden">
       <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between border-b border-[rgba(127,176,255,0.18)] bg-[rgba(9,18,37,0.86)] px-6 py-4 backdrop-blur-md md:px-12">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-[rgba(127,176,255,0.18)]">
+          <div>
             <Image
               src="/NewKalalake.png"
               alt="Barangay New Kalalake Logo"
